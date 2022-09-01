@@ -1,0 +1,6 @@
+target
+logs
+.idea
+.env
+Cargo.lock
+pcbot-rs.iml
