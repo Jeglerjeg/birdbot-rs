@@ -4,7 +4,7 @@ mod utils;
 use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
 use poise::serenity_prelude;
-use sea_orm::DatabaseConnection;
+use sea_orm::{ConnectOptions, DatabaseConnection};
 use songbird::SerenityInit;
 use std::env;
 use tracing::{error, info};
@@ -88,7 +88,7 @@ async fn main() {
     // This will load the environment variables located at `./.env`, relative to
     // the CWD. See `./.env.example` for an example on how to structure this.
     dotenv::dotenv().expect("Failed to load .env file");
-    let conn = sea_orm::Database::connect("sqlite://bot.db").await.unwrap();
+    let conn = sea_orm::Database::connect(ConnectOptions::new(String::from("sqlite://bot.db")).sqlx_logging(false).clone()).await.unwrap();
     Migrator::up(&conn, None).await.unwrap();
 
     let options = poise::FrameworkOptions {
