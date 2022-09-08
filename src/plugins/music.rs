@@ -237,6 +237,7 @@ async fn queue(ctx: Context<'_>, handler_lock: Arc<Mutex<Call>>, url: String) {
     let mut handler = handler_lock.lock().await;
 
     let track = handler.enqueue_source(source.into());
+    drop(handler);
     track.set_volume(0.6).expect("Failed to queue track");
 
     send_track_embed(ctx, &track, String::from("Queued:"))
@@ -323,7 +324,8 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue();
+        let queue = handler.queue().clone();
+        drop(handler);
         if !queue.is_empty() {
             let removed_item = queue.dequeue(queue.len() - 1).unwrap();
             send_track_embed(ctx, &removed_item.handle(), String::from("Undid:")).await?;
@@ -360,7 +362,8 @@ pub async fn volume(
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue();
+        let queue = handler.queue().clone();
+        drop(handler);
         match queue.current() {
             Some(track) => {
                 track.set_volume(new_volume as f32 / 100.0)?;
@@ -390,7 +393,8 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue();
+        let queue = handler.queue().clone();
+        drop(handler);
         match queue.current() {
             Some(track) => {
                 if track.get_info().await.unwrap().playing != PlayMode::Play {
@@ -426,7 +430,8 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue();
+        let queue = handler.queue().clone();
+        drop(handler);
         match queue.current() {
             Some(track) => {
                 if track.get_info().await.unwrap().playing != PlayMode::Pause {

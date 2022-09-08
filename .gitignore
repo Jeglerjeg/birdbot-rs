@@ -2,5 +2,8 @@ target
 logs
 .idea
 .env
+*.db
+*.db-shm
+*.db-wal
 Cargo.lock
 pcbot-rs.iml

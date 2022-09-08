@@ -1,9 +1,12 @@
 [package]
-name = "pcbot-rs"
+name = "birdbot-rs"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members = [".", "entities", "migration"]
 
 [dependencies]
 dotenv = "0.15"
@@ -13,6 +16,8 @@ poise = "0.3.0"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 chrono = "0.4"
+entities = { path = "entities" }
+migration = { path = "migration" }
 
 [dependencies.tokio]
 version = "1.20"
@@ -26,3 +31,10 @@ features = ["builtin-queue"]
 version="0.11"
 default-features = false
 features = ["builder", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice"]
+
+[dependencies.sea-orm]
+version = "0.9" # sea-orm version
+features = [
+    "sqlx-sqlite",
+    "runtime-tokio-rustls"
+]

@@ -1,18 +1,24 @@
 mod plugins;
+mod utils;
 
 use chrono::{DateTime, Utc};
+use migration::{Migrator, MigratorTrait};
 use poise::serenity_prelude;
+use sea_orm::DatabaseConnection;
 use songbird::SerenityInit;
 use std::env;
 use tracing::{error, info};
 
 pub struct Data {
     time_started: DateTime<Utc>,
+    db: DatabaseConnection,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 type Context<'a> = poise::Context<'a, Data, Error>;
+
+type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
 async fn event_listener(
     _ctx: &serenity_prelude::Context,
@@ -82,6 +88,8 @@ async fn main() {
     // This will load the environment variables located at `./.env`, relative to
     // the CWD. See `./.env.example` for an example on how to structure this.
     dotenv::dotenv().expect("Failed to load .env file");
+    let conn = sea_orm::Database::connect("sqlite://bot.db").await.unwrap();
+    Migrator::up(&conn, None).await.unwrap();
 
     let options = poise::FrameworkOptions {
         commands: vec![
@@ -90,6 +98,7 @@ async fn main() {
             plugins::basic::info(),
             plugins::basic::roll(),
             plugins::basic::avatar(),
+            plugins::basic::prefix(),
             plugins::basic::stop(),
             plugins::music::music(),
             // This function registers slash commands on Discord. When you change something about a
@@ -107,10 +116,15 @@ async fn main() {
         // Similar to `pre_command`, except will be called directly _after_
         // command execution.
 
-        // Options specific to prefix commands, i.e. commands invoked via chat messages
+        // Options specific to prefix.rs commands, i.e. commands invoked via chat messages
         prefix_options: poise::PrefixFrameworkOptions {
-            prefix: Some(env::var("PREFIX").unwrap_or_else(|_| String::from(">"))),
-
+            prefix: None,
+            dynamic_prefix: Some(|c| {
+                Box::pin(utils::db::prefix::get_guild_prefix(
+                    c,
+                    env::var("PREFIX").unwrap_or_else(|_| String::from(">")),
+                ))
+            }),
             mention_as_prefix: true,
             ..Default::default()
         },
@@ -144,6 +158,7 @@ async fn main() {
             Box::pin(async move {
                 Ok(Data {
                     time_started: Utc::now(),
+                    db: conn,
                 })
             })
         })

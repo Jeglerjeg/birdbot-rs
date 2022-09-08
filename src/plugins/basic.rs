@@ -259,6 +259,25 @@ pub async fn help(
     Ok(())
 }
 
+/// Sets the guild prefix
+#[poise::command(prefix_command, slash_command, category = "Basic")]
+pub async fn prefix(
+    ctx: Context<'_>,
+    #[description = "Prefix to use in guild"] new_prefix: String,
+) -> Result<(), Error> {
+    crate::utils::db::prefix::add_guild_prefix(
+        ctx,
+        ctx.guild_id().unwrap().0 as i64,
+        new_prefix.clone(),
+    )
+    .await?;
+
+    ctx.say(format!("Set guild prefix to {}", new_prefix))
+        .await?;
+
+    Ok(())
+}
+
 /// Rolls a number between 1-100, or a specified range
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn roll(
