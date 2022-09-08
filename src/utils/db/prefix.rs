@@ -21,7 +21,6 @@ pub async fn add_guild_prefix(
         .exec(&ctx.data().db)
         .await?;
 
-    //table.insert(&ctx.data().db).await?;
     Ok(())
 }
 
@@ -31,7 +30,7 @@ pub async fn get_guild_prefix(
 ) -> Result<Option<String>, Error> {
     let guild_id = match ctx.guild_id {
         Some(guild) => guild.0 as i64,
-        _ => return Ok(None),
+        _ => return Ok(Some(default_prefix)),
     };
     let db_prefix: Option<Model> = Prefix::find_by_id(guild_id)
         .one(&ctx.data.db)

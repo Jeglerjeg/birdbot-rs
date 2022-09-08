@@ -52,7 +52,10 @@ async fn pre_command(ctx: Context<'_>) {
         match ctx.guild() {
             Some(guild) => guild.name,
             _ => {
-                ctx.channel_id().name(ctx.discord()).await.unwrap()
+                match ctx.channel_id().name(ctx.discord()).await {
+                    Some(channel_name) => channel_name,
+                    _ => "Direct Message".into(),
+                }
             }
         },
         ctx.command().name
@@ -88,7 +91,13 @@ async fn main() {
     // This will load the environment variables located at `./.env`, relative to
     // the CWD. See `./.env.example` for an example on how to structure this.
     dotenv::dotenv().expect("Failed to load .env file");
-    let conn = sea_orm::Database::connect(ConnectOptions::new(String::from("sqlite://bot.db")).sqlx_logging(false).clone()).await.unwrap();
+    let conn = sea_orm::Database::connect(
+        ConnectOptions::new(String::from("sqlite://bot.db"))
+            .sqlx_logging(false)
+            .clone(),
+    )
+    .await
+    .unwrap();
     Migrator::up(&conn, None).await.unwrap();
 
     let options = poise::FrameworkOptions {

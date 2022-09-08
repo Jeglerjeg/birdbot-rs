@@ -6,6 +6,7 @@ use rand::Rng;
 use serenity::utils::colours::roles::BLUE;
 use serenity_prelude::User;
 
+use serenity::utils::Color;
 use std::fmt::Write;
 use std::time::Instant;
 use std::writeln;
@@ -181,12 +182,10 @@ async fn help_all_commands<U, E>(
     menu += "\n```";
     menu += config.extra_text_at_bottom;
 
-    let color = ctx
-        .author_member()
-        .await
-        .unwrap()
-        .colour(ctx.discord())
-        .unwrap_or(BLUE);
+    let color = match ctx.author_member().await {
+        Some(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
+        _ => BLUE,
+    };
 
     ctx.send(|b| b.embed(|e| e.title("Commands:").description(menu).colour(color)))
         .await?;
@@ -225,14 +224,13 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         information.description
     );
 
-    let color = ctx
-        .guild()
-        .unwrap()
-        .member(ctx.discord(), ctx.framework().bot_id)
-        .await
-        .unwrap()
-        .colour(ctx.discord())
-        .unwrap_or(BLUE);
+    let color = match ctx.guild() {
+        Some(guild) => match guild.member(ctx.discord(), ctx.framework().bot_id).await {
+            Ok(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
+            Err(_error) => BLUE,
+        },
+        _ => BLUE,
+    };
 
     ctx.send(|b| b.embed(|e| e.title(information.name).description(content).colour(color)))
         .await?;
@@ -260,7 +258,7 @@ pub async fn help(
 }
 
 /// Sets the guild prefix
-#[poise::command(prefix_command, slash_command, category = "Basic")]
+#[poise::command(prefix_command, slash_command, category = "Basic", guild_only = true)]
 pub async fn prefix(
     ctx: Context<'_>,
     #[description = "Prefix to use in guild"] new_prefix: String,
@@ -320,29 +318,59 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Displays your or a specified member's avatar
-#[poise::command(prefix_command, slash_command, category = "Basic", guild_only = true)]
+#[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn avatar(
     ctx: Context<'_>,
     #[description = "User to get avatar for"] user: Option<User>,
 ) -> Result<(), Error> {
-    let member = ctx
-        .guild()
-        .unwrap()
-        .member(
-            ctx.discord(),
-            user.as_ref().unwrap_or_else(|| ctx.author()).id,
-        )
-        .await
-        .unwrap();
+    let color: Color;
+    let name: String;
+    let avatar: String;
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title(member.nick.as_ref().unwrap_or(&member.user.name))
-                .image(member.face())
-                .color(member.colour(ctx.discord()).unwrap_or(BLUE))
-        })
-    })
-    .await?;
+    match ctx.guild() {
+        Some(guild) => match guild
+            .member(
+                ctx.discord(),
+                user.as_ref().unwrap_or_else(|| ctx.author()).id,
+            )
+            .await
+        {
+            Ok(member) => {
+                color = member.colour(ctx.discord()).unwrap_or(BLUE);
+                name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
+                avatar = member.face();
+            }
+            Err(_) => {
+                color = BLUE;
+                match user {
+                    Some(user) => {
+                        name = user.name.clone();
+                        avatar = user.face();
+                    }
+                    _ => {
+                        name = ctx.author().name.clone();
+                        avatar = ctx.author().face();
+                    }
+                }
+            }
+        },
+        _ => {
+            color = BLUE;
+            match user {
+                Some(user) => {
+                    name = user.name.clone();
+                    avatar = user.face();
+                }
+                _ => {
+                    name = ctx.author().name.clone();
+                    avatar = ctx.author().face();
+                }
+            }
+        }
+    };
+
+    ctx.send(|m| m.embed(|e| e.title(name).image(avatar).color(color)))
+        .await?;
 
     Ok(())
 }
