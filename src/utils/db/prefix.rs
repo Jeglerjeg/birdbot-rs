@@ -34,8 +34,7 @@ pub async fn get_guild_prefix(
     };
     let db_prefix: Option<Model> = Prefix::find_by_id(guild_id)
         .one(&ctx.data.db)
-        .await
-        .expect("");
+        .await?;
     let prefix = match db_prefix {
         Some(model) => model.prefix,
         _ => default_prefix,

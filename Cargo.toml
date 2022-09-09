@@ -38,3 +38,6 @@ features = [
     "sqlx-sqlite",
     "runtime-tokio-rustls"
 ]
+
+[profile.release]
+lto = "fat"
