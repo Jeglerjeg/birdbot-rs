@@ -2,8 +2,10 @@ use crate::{Context, Error};
 use poise::serenity_prelude;
 use serenity::model::id::{ChannelId, GuildId};
 use serenity::utils::colours::roles::BLUE;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 use songbird::tracks::PlayMode;
 use songbird::{
@@ -11,6 +13,20 @@ use songbird::{
     EventHandler as VoiceEventHandler, TrackEvent,
 };
 use tracing::error;
+
+pub struct PlayingGuilds {
+    pub guilds: HashMap<GuildId, Arc<Mutex<Requesters>>>,
+}
+
+pub struct Requesters {
+    pub requester: HashMap<Uuid, Arc<Mutex<QueuedTrack>>>,
+}
+
+pub struct QueuedTrack {
+    pub track: TrackHandle,
+    pub requested: serenity_prelude::User,
+    pub skipped: i8,
+}
 
 fn format_track(track: &TrackHandle) -> String {
     let title = match track.metadata().title.clone() {
@@ -149,7 +165,7 @@ impl VoiceEventHandler for TrackEndNotifier {
     }
 }
 
-async fn join(ctx: Context<'_>) -> bool {
+async fn join(ctx: Context<'_>, playing_guilds: &Arc<Mutex<PlayingGuilds>>) -> bool {
     let guild = ctx.guild().unwrap();
     let guild_id = guild.id;
 
@@ -175,6 +191,14 @@ async fn join(ctx: Context<'_>) -> bool {
 
     let (handle_lock, _success) = manager.join(guild_id, connect_to).await;
     let mut handle = handle_lock.lock().await;
+    let mut guild_lock = playing_guilds.lock().await;
+    guild_lock.guilds.insert(
+        guild_id,
+        Arc::from(Mutex::from(Requesters {
+            requester: Default::default(),
+        })),
+    );
+    drop(guild_lock);
 
     let leave_context = ctx.discord().clone();
     handle.add_global_event(
@@ -203,7 +227,12 @@ pub(crate) async fn music(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-async fn queue(ctx: Context<'_>, handler_lock: Arc<Mutex<Call>>, url: String) {
+async fn queue(
+    ctx: Context<'_>,
+    handler_lock: Arc<Mutex<Call>>,
+    requesters: Arc<Mutex<Requesters>>,
+    url: String,
+) {
     // Here, we use lazy restartable sources to make sure that we don't pay
     // for decoding, playback on tracks which aren't actually live yet.
     let source = if !url.starts_with("http") {
@@ -239,6 +268,16 @@ async fn queue(ctx: Context<'_>, handler_lock: Arc<Mutex<Call>>, url: String) {
     let track = handler.enqueue_source(source.into());
     drop(handler);
     track.set_volume(0.6).expect("Failed to queue track");
+    let queued_track = QueuedTrack {
+        track: track.clone(),
+        requested: ctx.author().clone(),
+        skipped: 0,
+    };
+    let mut requester_lock = requesters.lock().await;
+    requester_lock
+        .requester
+        .insert(track.uuid(), Arc::from(Mutex::from(queued_track)));
+    drop(requester_lock);
 
     send_track_embed(ctx, &track, String::from("Queued:"))
         .await
@@ -263,20 +302,32 @@ pub async fn play(
         .await
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
-
     if let Some(handler_lock) = manager.get(guild_id) {
-        queue(ctx, handler_lock, url_or_name).await;
+        let playing_guilds = &ctx.data().playing_guilds;
+        let guild_lock = playing_guilds.lock().await;
+        let requesters = guild_lock
+            .guilds
+            .get(&ctx.guild_id().unwrap())
+            .unwrap()
+            .clone();
+        drop(guild_lock);
+        queue(ctx, handler_lock, requesters, url_or_name).await;
     } else {
-        if !join(ctx).await {
+        let playing_guilds = &ctx.data().playing_guilds;
+        if !join(ctx, playing_guilds).await {
             return Ok(());
         }
+        let guild_lock = playing_guilds.lock().await;
+        let requesters = guild_lock
+            .guilds
+            .get(&ctx.guild_id().unwrap())
+            .unwrap()
+            .clone();
+        drop(guild_lock);
         if let Some(handler_lock) = manager.get(guild_id) {
-            queue(ctx, handler_lock, url_or_name).await;
-        } else {
-            ctx.say("Couldn't join voice channel").await?;
+            queue(ctx, handler_lock, requesters, url_or_name).await;
         }
     }
-
     Ok(())
 }
 
@@ -299,12 +350,36 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
         let queue = handler.queue().clone();
-        let _ = queue.skip();
-        drop(handler);
 
         let track = queue.current().unwrap();
-
-        send_track_embed(ctx, &track, String::from("Skipped:")).await?;
+        let guild_data_lock = ctx.data().playing_guilds.lock().await;
+        let playing_guild = guild_data_lock.guilds.get(&guild_id).unwrap();
+        let guild_lock = playing_guild.lock().await;
+        let queued_track = guild_lock.requester.get(&track.uuid()).unwrap();
+        let mut queue_lock = queued_track.lock().await;
+        if queue_lock.requested.id == ctx.author().id {
+            let _ = queue.skip();
+            drop(handler);
+            send_track_embed(ctx, &track, String::from("Skipped:")).await?;
+        } else {
+            let channel_id = handler.current_channel().unwrap();
+            let guild_channels = guild.channels(ctx.discord()).await.unwrap();
+            let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
+            let needed_to_skip = (channel.members(ctx.discord()).await.unwrap().len() - 2) as i8;
+            queue_lock.skipped += 1;
+            if queue_lock.skipped >= needed_to_skip {
+                let _ = queue.skip();
+                drop(handler);
+                send_track_embed(ctx, &track, String::from("Skipped:")).await?;
+            } else {
+                ctx.say(format!(
+                    "Voted to skip the current song. `{}/{}`",
+                    queue_lock.skipped, needed_to_skip
+                ))
+                .await?;
+            }
+        }
+        drop(queue_lock);
     } else {
         ctx.say("Not in a voice channel to play in").await?;
     }

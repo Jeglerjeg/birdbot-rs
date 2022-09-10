@@ -7,11 +7,14 @@ use poise::serenity_prelude;
 use sea_orm::{ConnectOptions, DatabaseConnection};
 use songbird::SerenityInit;
 use std::env;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 pub struct Data {
     time_started: DateTime<Utc>,
     db: DatabaseConnection,
+    playing_guilds: Arc<Mutex<plugins::music::PlayingGuilds>>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -168,6 +171,9 @@ async fn main() {
                 Ok(Data {
                     time_started: Utc::now(),
                     db: conn,
+                    playing_guilds: Arc::from(Mutex::from(plugins::music::PlayingGuilds {
+                        guilds: Default::default(),
+                    })),
                 })
             })
         })
