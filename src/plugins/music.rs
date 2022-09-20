@@ -81,7 +81,7 @@ async fn send_track_embed(
     Ok(())
 }
 
-pub async fn check_for_empty_channel(ctx: serenity_prelude::Context, guild: Option<GuildId>) {
+pub async fn check_for_empty_channel(ctx: serenity_prelude::Context, guild: Option<GuildId>, playing_guilds: &Arc<Mutex<PlayingGuilds>>) {
     let guild_id = match guild {
         Some(guild) => guild,
         _ => {
@@ -108,12 +108,12 @@ pub async fn check_for_empty_channel(ctx: serenity_prelude::Context, guild: Opti
         let guild_channels = guild.channels(&ctx).await.unwrap();
         let channel = guild_channels.get(&channel_id).unwrap();
         if channel.members(&ctx).await.unwrap().len() <= 1 {
-            leave(ctx, Option::from(guild_id)).await;
+            leave(ctx, Some(guild_id), playing_guilds).await;
         }
     }
 }
 
-pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) {
+pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>, playing_guilds: &Arc<Mutex<PlayingGuilds>>) {
     let guild_id = match guild {
         Some(guild) => guild,
         _ => {
@@ -138,11 +138,18 @@ pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) {
             .await
             .expect("Failed to leave channel.");
     };
+
+    let mut guild_lock = playing_guilds.lock().await;
+    if let Some(..) = guild_lock.guilds.get(&guild_id) {
+        guild_lock.guilds.remove(&guild_id);
+    };
+    drop(guild_lock);
 }
 
 struct TrackEndNotifier {
     guild_id: GuildId,
     ctx: serenity_prelude::Context,
+    playing_guilds: Arc<Mutex<PlayingGuilds>>
 }
 
 #[poise::async_trait]
@@ -157,7 +164,14 @@ impl VoiceEventHandler for TrackEndNotifier {
                 let handler = handler_lock.lock().await;
                 if handler.queue().is_empty() {
                     drop(handler);
-                    leave(self.ctx.clone(), Option::from(self.guild_id)).await;
+                    leave(self.ctx.clone(), Option::from(self.guild_id), &self.playing_guilds).await;
+                } else {
+                    let playing_guilds_lock = &self.playing_guilds.lock().await;
+                    let mut guild_lock = playing_guilds_lock.guilds.get(&self.guild_id).unwrap().lock().await;
+                    for track in _track_list.iter() {
+                        guild_lock.requester.remove(&(*track).1.uuid());
+                    }
+                    drop(guild_lock);
                 }
             }
         }
@@ -206,6 +220,7 @@ async fn join(ctx: Context<'_>, playing_guilds: &Arc<Mutex<PlayingGuilds>>) -> b
         TrackEndNotifier {
             guild_id,
             ctx: leave_context,
+            playing_guilds: playing_guilds.clone()
         },
     );
 
@@ -397,6 +412,8 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             }
         }
         drop(queue_lock);
+        drop(guild_lock);
+        drop(guild_data_lock);
     } else {
         ctx.say("Not in a voice channel to play in").await?;
     }
