@@ -12,7 +12,7 @@ members = [".", "entities", "migration"]
 dotenv = "0.15"
 tracing = "0.1"
 rand = "0.8"
-poise = "0.3.0"
+poise = "0.3"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 chrono = "0.4"
@@ -25,7 +25,7 @@ version = "0.8"
 features = ["v4"]
 
 [dependencies.tokio]
-version = "1.20"
+version = "1.21"
 features = ["full"]
 
 [dependencies.songbird]

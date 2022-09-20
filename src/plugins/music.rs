@@ -342,6 +342,19 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
     let guild_id = guild.id;
 
+    let channel_id = guild
+        .voice_states
+        .get(&ctx.author().id)
+        .and_then(|voice_state| voice_state.channel_id);
+
+    let user_channel = match channel_id {
+        Some(channel) => channel,
+        None => {
+            ctx.say("Not in a voice channel").await?;
+            return Ok(());
+        }
+    };
+
     let manager = songbird::get(ctx.discord())
         .await
         .expect("Songbird Voice client placed in at initialisation.")
@@ -363,6 +376,10 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             send_track_embed(ctx, &track, String::from("Skipped:")).await?;
         } else {
             let channel_id = handler.current_channel().unwrap();
+            if user_channel.0 != channel_id.0 {
+                ctx.say("Not connected to the voice channel").await?;
+                return Ok(());
+            }
             let guild_channels = guild.channels(ctx.discord()).await.unwrap();
             let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
             let needed_to_skip = (channel.members(ctx.discord()).await.unwrap().len() - 2) as i8;
