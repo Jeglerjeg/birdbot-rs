@@ -178,10 +178,13 @@ async fn main() {
                     playing_guilds: Arc::from(Mutex::from(plugins::music::PlayingGuilds {
                         guilds: Default::default(),
                     })),
-                    max_music_duration: Duration::from_secs((env::var("MAX_MUSIC_DURATION")
-                        .unwrap_or_else(|_| "600".into())
-                        .parse::<u16>()
-                        .expect("Failed to parse max music duration.") * 60) as u64),
+                    max_music_duration: Duration::from_secs(
+                        env::var("MAX_MUSIC_DURATION")
+                            .unwrap_or_else(|_| "600".into())
+                            .parse::<u64>()
+                            .expect("Failed to parse max music duration.")
+                            * 60,
+                    ),
                     max_songs_queued: env::var("MAX_SONGS_QUEUED")
                         .unwrap_or_else(|_| "6".into())
                         .parse::<u16>()
