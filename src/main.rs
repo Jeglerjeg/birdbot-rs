@@ -8,6 +8,7 @@ use sea_orm::{ConnectOptions, DatabaseConnection};
 use songbird::SerenityInit;
 use std::env;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
@@ -15,6 +16,8 @@ pub struct Data {
     time_started: DateTime<Utc>,
     db: DatabaseConnection,
     playing_guilds: Arc<Mutex<plugins::music::PlayingGuilds>>,
+    max_music_duration: Duration,
+    max_songs_queued: u16,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -39,7 +42,8 @@ async fn event_listener(
                 _ => return Ok(()),
             };
             let playing_guilds = &_framework.user_data.playing_guilds;
-            plugins::music::check_for_empty_channel(_ctx.clone(), voice.guild_id, playing_guilds).await;
+            plugins::music::check_for_empty_channel(_ctx.clone(), voice.guild_id, playing_guilds)
+                .await;
         }
         _ => {}
     }
@@ -174,6 +178,14 @@ async fn main() {
                     playing_guilds: Arc::from(Mutex::from(plugins::music::PlayingGuilds {
                         guilds: Default::default(),
                     })),
+                    max_music_duration: Duration::from_secs((env::var("MAX_MUSIC_DURATION")
+                        .unwrap_or_else(|_| "600".into())
+                        .parse::<u16>()
+                        .expect("Failed to parse max music duration.") * 60) as u64),
+                    max_songs_queued: env::var("MAX_SONGS_QUEUED")
+                        .unwrap_or_else(|_| "6".into())
+                        .parse::<u16>()
+                        .expect("Failed to parse max queued songs."),
                 })
             })
         })
