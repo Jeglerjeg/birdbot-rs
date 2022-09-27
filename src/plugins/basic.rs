@@ -118,7 +118,7 @@ async fn format_command<U, E>(
         // which we will only show later
         return String::from("");
     };
-    return format!(
+    format!(
         "  {}{} {}",
         prefix,
         if parent.is_some() {
@@ -127,7 +127,7 @@ async fn format_command<U, E>(
             command.name.clone()
         },
         format_args(&command.parameters)
-    );
+    )
 }
 
 async fn help_all_commands<U, E>(
