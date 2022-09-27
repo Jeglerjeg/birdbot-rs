@@ -90,13 +90,10 @@ async fn main() {
     // This will load the environment variables located at `./.env`, relative to
     // the CWD. See `./.env.example` for an example on how to structure this.
     dotenv::dotenv().expect("Failed to load .env file");
-    let conn = sea_orm::Database::connect(
-        ConnectOptions::new(String::from("sqlite://bot.db?mode=rwc"))
-            .sqlx_logging(false)
-            .clone(),
-    )
-    .await
-    .unwrap();
+
+    let mut db_options = ConnectOptions::new(String::from("sqlite://bot.db?mode=rwc"));
+    db_options.sqlx_logging(false);
+    let conn = sea_orm::Database::connect(db_options).await.unwrap();
     Migrator::up(&conn, None).await.unwrap();
 
     let options = poise::FrameworkOptions {

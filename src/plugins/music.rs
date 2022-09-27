@@ -40,7 +40,7 @@ lazy_static! {
 
 lazy_static! {
     static ref MAX_SONGS_QUEUED: u16 = env::var("MAX_SONGS_QUEUED")
-        .unwrap_or("6".into())
+        .unwrap_or_else(|_| String::from("6"))
         .parse::<u16>()
         .expect("Failed to parse max queued songs.");
 }
@@ -48,34 +48,78 @@ lazy_static! {
 lazy_static! {
     static ref MAX_MUSIC_DURATION: Duration = Duration::from_secs(
         env::var("MAX_MUSIC_DURATION")
-            .unwrap_or("600".into())
+            .unwrap_or_else(|_| String::from("600"))
             .parse::<u64>()
             .expect("Failed to parse max music duration.")
             * 60
     );
 }
 
-fn format_duration(duration: Duration) -> String {
+fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
     if duration.as_secs() >= 3600 {
-        let hours_minutes_and_seconds = (
-            (duration.as_secs() / 60 / 60) % 60,
-            (duration.as_secs() / 60) % 60,
-            duration.as_secs() % 60,
-        );
-        format!(
-            "**{:02}:{:02}:{:02}**\n",
-            hours_minutes_and_seconds.0, hours_minutes_and_seconds.1, hours_minutes_and_seconds.2
-        )
+        match play_time {
+            Some(play_time) => {
+                let played_hours_minutes_and_seconds = (
+                    (play_time.as_secs() / 60 / 60) % 60,
+                    (play_time.as_secs() / 60) % 60,
+                    play_time.as_secs() % 60,
+                );
+
+                let hours_minutes_and_seconds = (
+                    (duration.as_secs() / 60 / 60) % 60,
+                    (duration.as_secs() / 60) % 60,
+                    duration.as_secs() % 60,
+                );
+                format!(
+                    "**{:02}:{:02}:{:02}/{:02}:{:02}:{:02}**\n",
+                    played_hours_minutes_and_seconds.0,
+                    played_hours_minutes_and_seconds.1,
+                    played_hours_minutes_and_seconds.2,
+                    hours_minutes_and_seconds.0,
+                    hours_minutes_and_seconds.1,
+                    hours_minutes_and_seconds.2
+                )
+            }
+            _ => {
+                let hours_minutes_and_seconds = (
+                    (duration.as_secs() / 60 / 60) % 60,
+                    (duration.as_secs() / 60) % 60,
+                    duration.as_secs() % 60,
+                );
+                format!(
+                    "**{:02}:{:02}:{:02}**\n",
+                    hours_minutes_and_seconds.0,
+                    hours_minutes_and_seconds.1,
+                    hours_minutes_and_seconds.2
+                )
+            }
+        }
     } else {
-        let minutes_and_seconds = ((duration.as_secs() / 60) % 60, duration.as_secs() % 60);
-        format!(
-            "**{}:{:02}**\n",
-            minutes_and_seconds.0, minutes_and_seconds.1
-        )
+        match play_time {
+            Some(play_time) => {
+                let played_minutes_and_seconds =
+                    ((play_time.as_secs() / 60) % 60, play_time.as_secs() % 60);
+                let minutes_and_seconds = ((duration.as_secs() / 60) % 60, duration.as_secs() % 60);
+                format!(
+                    "**{}:{:02}/{}:{:02}**\n",
+                    played_minutes_and_seconds.0,
+                    played_minutes_and_seconds.1,
+                    minutes_and_seconds.0,
+                    minutes_and_seconds.1
+                )
+            }
+            _ => {
+                let minutes_and_seconds = ((duration.as_secs() / 60) % 60, duration.as_secs() % 60);
+                format!(
+                    "**{}:{:02}**\n",
+                    minutes_and_seconds.0, minutes_and_seconds.1
+                )
+            }
+        }
     }
 }
 
-fn format_track(track: &TrackHandle) -> String {
+fn format_track(track: &TrackHandle, play_time: Option<Duration>) -> String {
     let title = match track.metadata().title.clone() {
         Some(title) => format!("**{}**\n", title),
         _ => String::from(""),
@@ -83,7 +127,7 @@ fn format_track(track: &TrackHandle) -> String {
 
     let duration: String;
     if let Some(length) = track.metadata().duration {
-        duration = format!("Duration: {}", format_duration(length));
+        duration = format!("Duration: {}", format_duration(length, play_time));
     } else {
         duration = "".into()
     }
@@ -100,6 +144,7 @@ async fn send_track_embed(
     ctx: Context<'_>,
     track: &TrackHandle,
     action: String,
+    play_time: Option<Duration>,
 ) -> Result<(), Error> {
     let color = ctx
         .author_member()
@@ -115,7 +160,7 @@ async fn send_track_embed(
 
     ctx.send(|m| {
         m.embed(|e| {
-            e.description(format!("{}\n{}", action, format_track(track)))
+            e.description(format!("{}\n{}", action, format_track(track, play_time)))
                 .color(color)
                 .thumbnail(thumbnail_url)
         })
@@ -277,7 +322,7 @@ async fn join(ctx: Context<'_>) -> bool {
     prefix_command,
     slash_command,
     category = "Music",
-    subcommands("play", "skip", "undo", "volume", "resume", "pause"),
+    subcommands("play", "skip", "undo", "volume", "resume", "pause", "now_playing"),
     aliases("m"),
     guild_only = true
 )]
@@ -353,7 +398,7 @@ async fn queue(
         if duration > *MAX_MUSIC_DURATION {
             ctx.say(format!(
                 "Song is longer than the max allowed duration of {}",
-                format_duration(*MAX_MUSIC_DURATION)
+                format_duration(*MAX_MUSIC_DURATION, None)
             ))
             .await
             .expect("Failed to send message");
@@ -384,7 +429,7 @@ async fn queue(
 
     drop(requester_lock);
 
-    send_track_embed(ctx, &track, String::from("Queued:"))
+    send_track_embed(ctx, &track, String::from("Queued:"), None)
         .await
         .expect("Couldn't send track embed.");
 }
@@ -480,7 +525,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         if queue_lock.requested.id == ctx.author().id {
             let _ = queue.skip();
             drop(handler);
-            send_track_embed(ctx, &track, String::from("Skipped:")).await?;
+            send_track_embed(ctx, &track, String::from("Skipped:"), None).await?;
         } else {
             let channel_id = handler.current_channel().unwrap();
             if user_channel.0 != channel_id.0 {
@@ -494,7 +539,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             if queue_lock.skipped >= needed_to_skip {
                 let _ = queue.skip();
                 drop(handler);
-                send_track_embed(ctx, &track, String::from("Skipped:")).await?;
+                send_track_embed(ctx, &track, String::from("Skipped:"), None).await?;
             } else {
                 ctx.say(format!(
                     "Voted to skip the current song. `{}/{}`",
@@ -529,7 +574,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
         drop(handler);
         if !queue.is_empty() {
             let removed_item = queue.dequeue(queue.len() - 1).unwrap();
-            send_track_embed(ctx, &removed_item.handle(), String::from("Undid:")).await?;
+            send_track_embed(ctx, &removed_item.handle(), String::from("Undid:"), None).await?;
         } else {
             ctx.say("No items queued").await?;
         }
@@ -653,5 +698,45 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
         ctx.say("Not in a voice channel.").await?;
     }
 
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
+    slash_command,
+    category = "Music",
+    guild_only = true,
+    aliases("np", "playing")
+)]
+pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
+    let guild = ctx.guild().unwrap();
+    let guild_id = guild.id;
+
+    let manager = songbird::get(ctx.discord())
+        .await
+        .expect("Songbird Voice client placed in at initialisation.")
+        .clone();
+
+    if let Some(handler_lock) = manager.get(guild_id) {
+        let handler = handler_lock.lock().await;
+        let queue = handler.queue().clone();
+        drop(handler);
+        match queue.current() {
+            Some(track) => {
+                send_track_embed(
+                    ctx,
+                    &track,
+                    String::from("Now playing:"),
+                    Some(track.get_info().await.unwrap().play_time),
+                )
+                .await?;
+            }
+            _ => {
+                ctx.say("No item playing.").await?;
+            }
+        }
+    } else {
+        ctx.say("Not in a voice channel.").await?;
+    }
     Ok(())
 }
