@@ -191,7 +191,11 @@ async fn check_for_duplicates(ctx: Context<'_>, choice_1: String, choice_2: Stri
 }
 
 #[poise::command(prefix_command, slash_command, category = "Would You Rather")]
-pub async fn wyr(ctx: Context<'_>, question: Option<String>) -> Result<(), Error> {
+pub async fn wyr(
+    ctx: Context<'_>,
+    #[description = "Question to ask. Must be in in format: <choice_1> or <choice_2>"]
+    question: Option<String>,
+) -> Result<(), Error> {
     let mut choice_1: Option<String> = None;
     let mut choice_2: Option<String> = None;
     if let Some(question) = question {

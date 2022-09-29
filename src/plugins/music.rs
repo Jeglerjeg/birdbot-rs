@@ -577,7 +577,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
     prefix_command,
     slash_command,
     category = "Music",
-    aliases("vol"),
+    aliases("vol", "v"),
     guild_only = true
 )]
 pub async fn volume(
@@ -600,7 +600,7 @@ pub async fn volume(
         drop(handler);
         match queue.current() {
             Some(track) => {
-                track.set_volume(f32::from(new_volume / 100))?;
+                track.set_volume(f32::from(new_volume) / 100.0)?;
                 ctx.say(format!("Changed volume to {}%.", new_volume))
                     .await?;
             }

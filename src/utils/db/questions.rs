@@ -20,22 +20,25 @@ pub async fn count_entries(ctx: Context<'_>) -> Result<usize, Error> {
     Ok(question.len())
 }
 
-pub async fn update_choice(ctx: Context<'_>, id: i32, choice: i8) -> Result<(), Error>{
-    let read_only_question: Model = Questions::find_by_id(id).one(&ctx.data().db).await?.unwrap();
+pub async fn update_choice(ctx: Context<'_>, id: i32, choice: i8) -> Result<(), Error> {
+    let read_only_question: Model = Questions::find_by_id(id)
+        .one(&ctx.data().db)
+        .await?
+        .unwrap();
     let mut question: entities::questions::ActiveModel = read_only_question.clone().into();
 
     match choice {
         1 => {
             question.choice1_answers = Set(read_only_question.choice1_answers + 1);
-        },
+        }
         2 => {
             question.choice2_answers = Set(read_only_question.choice2_answers + 1);
-        },
+        }
         _ => {
             return Ok(());
         }
     };
-    
+
     question.update(&ctx.data().db).await?;
 
     Ok(())
