@@ -15,7 +15,7 @@ pub struct OrderedMap<K, V>(pub Vec<(K, V)>);
 
 impl<K, V> Default for OrderedMap<K, V> {
     fn default() -> Self {
-        Self(Default::default())
+        Self(Vec::default())
     }
 }
 
@@ -27,12 +27,11 @@ impl<K: Eq, V> OrderedMap<K, V> {
 
     /// Finds a value in the map by the given key, or inserts it if it doesn't exist
     pub fn get_or_insert_with(&mut self, k: K, v: impl FnOnce() -> V) -> &mut V {
-        match self.0.iter().position(|entry| entry.0 == k) {
-            Some(i) => &mut self.0[i].1,
-            None => {
-                self.0.push((k, v()));
-                &mut self.0.last_mut().expect("we just inserted").1
-            }
+        if let Some(i) = self.0.iter().position(|entry| entry.0 == k) {
+            &mut self.0[i].1
+        } else {
+            self.0.push((k, v()));
+            &mut self.0.last_mut().expect("we just inserted").1
         }
     }
 }
@@ -327,45 +326,35 @@ pub async fn avatar(
     let name: String;
     let avatar: String;
 
-    match ctx.guild() {
-        Some(guild) => match guild
+    if let Some(guild) = ctx.guild() {
+        if let Ok(member) = guild
             .member(
                 ctx.discord(),
                 user.as_ref().unwrap_or_else(|| ctx.author()).id,
             )
             .await
         {
-            Ok(member) => {
-                color = member.colour(ctx.discord()).unwrap_or(BLUE);
-                name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
-                avatar = member.face();
-            }
-            Err(_) => {
-                color = BLUE;
-                match user {
-                    Some(user) => {
-                        name = user.name.clone();
-                        avatar = user.face();
-                    }
-                    _ => {
-                        name = ctx.author().name.clone();
-                        avatar = ctx.author().face();
-                    }
-                }
-            }
-        },
-        _ => {
+            color = member.colour(ctx.discord()).unwrap_or(BLUE);
+            name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
+            avatar = member.face();
+        } else {
             color = BLUE;
-            match user {
-                Some(user) => {
-                    name = user.name.clone();
-                    avatar = user.face();
-                }
-                _ => {
-                    name = ctx.author().name.clone();
-                    avatar = ctx.author().face();
-                }
+            if let Some(user) = user {
+                name = user.name.clone();
+                avatar = user.face();
+            } else {
+                name = ctx.author().name.clone();
+                avatar = ctx.author().face();
             }
+        }
+    } else {
+        color = BLUE;
+        if let Some(user) = user {
+            name = user.name.clone();
+            avatar = user.face();
+        } else {
+            name = ctx.author().name.clone();
+            avatar = ctx.author().face();
         }
     };
 

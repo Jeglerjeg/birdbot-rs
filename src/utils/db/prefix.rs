@@ -1,6 +1,9 @@
 use crate::{Context, Error, PartialContext};
 use entities::prefix::{Entity as Prefix, Model};
-use sea_orm::{entity::*, sea_query};
+use sea_orm::{
+    entity::{EntityTrait, Set},
+    sea_query,
+};
 
 pub async fn add_guild_prefix(
     ctx: Context<'_>,
@@ -16,7 +19,7 @@ pub async fn add_guild_prefix(
         .on_conflict(
             sea_query::OnConflict::column(entities::prefix::Column::GuildId)
                 .update_column(entities::prefix::Column::Prefix)
-                .to_owned(),
+                .clone(),
         )
         .exec(&ctx.data().db)
         .await?;

@@ -21,21 +21,21 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
 async fn event_listener(
-    _ctx: &serenity_prelude::Context,
+    ctx: &serenity_prelude::Context,
     event: &poise::Event<'_>,
     _framework: poise::FrameworkContext<'_, Data, Error>,
     _user_data: &Data,
 ) -> Result<(), Error> {
     match event {
         poise::Event::Ready { data_about_bot } => {
-            info!("{} is connected!", data_about_bot.user.name)
+            info!("{} is connected!", data_about_bot.user.name);
         }
         poise::Event::VoiceStateUpdate { old, new: _new } => {
             let voice = match old {
                 Some(old) => old.clone(),
                 _ => return Ok(()),
             };
-            plugins::music::check_for_empty_channel(_ctx.clone(), voice.guild_id).await;
+            plugins::music::check_for_empty_channel(ctx.clone(), voice.guild_id).await;
         }
         _ => {}
     }
@@ -79,7 +79,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
         }
         error => {
             if let Err(e) = poise::builtins::on_error(error).await {
-                error!("Error while handling error: {}", e)
+                error!("Error while handling error: {}", e);
             }
         }
     }
@@ -106,6 +106,7 @@ async fn main() {
             plugins::basic::prefix(),
             plugins::basic::stop(),
             plugins::music::music(),
+            plugins::wyr::wyr(),
             // This function registers slash commands on Discord. When you change something about a
             // command signature, for example by changing its name, adding or removing parameters, or
             // changing a parameter type, you should call this function.
@@ -155,7 +156,7 @@ async fn main() {
     let intents = serenity_prelude::GatewayIntents::all();
 
     let framework = poise::Framework::builder()
-        .client_settings(|client| client.register_songbird())
+        .client_settings(SerenityInit::register_songbird)
         .token(token.clone())
         .intents(intents)
         .options(options)

@@ -9,6 +9,8 @@ edition = "2021"
 name = "entities"
 path = "src/lib.rs"
 
+[dependencies]
+serde = {version = "^1"}
 
 [dependencies.sea-orm]
 version = "0.9" # sea-orm version

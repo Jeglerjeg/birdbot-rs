@@ -29,7 +29,7 @@ pub struct Requesters {
 pub struct QueuedTrack {
     pub track: TrackHandle,
     pub requested: serenity_prelude::User,
-    pub skipped: i8,
+    pub skipped: usize,
 }
 
 lazy_static! {
@@ -57,65 +57,57 @@ lazy_static! {
 
 fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
     if duration.as_secs() >= 3600 {
-        match play_time {
-            Some(play_time) => {
-                let played_hours_minutes_and_seconds = (
-                    (play_time.as_secs() / 60 / 60) % 60,
-                    (play_time.as_secs() / 60) % 60,
-                    play_time.as_secs() % 60,
-                );
+        if let Some(play_time) = play_time {
+            let played_hours_minutes_and_seconds = (
+                (play_time.as_secs() / 60 / 60) % 60,
+                (play_time.as_secs() / 60) % 60,
+                play_time.as_secs() % 60,
+            );
 
-                let hours_minutes_and_seconds = (
-                    (duration.as_secs() / 60 / 60) % 60,
-                    (duration.as_secs() / 60) % 60,
-                    duration.as_secs() % 60,
-                );
-                format!(
-                    "**{:02}:{:02}:{:02}/{:02}:{:02}:{:02}**\n",
-                    played_hours_minutes_and_seconds.0,
-                    played_hours_minutes_and_seconds.1,
-                    played_hours_minutes_and_seconds.2,
-                    hours_minutes_and_seconds.0,
-                    hours_minutes_and_seconds.1,
-                    hours_minutes_and_seconds.2
-                )
-            }
-            _ => {
-                let hours_minutes_and_seconds = (
-                    (duration.as_secs() / 60 / 60) % 60,
-                    (duration.as_secs() / 60) % 60,
-                    duration.as_secs() % 60,
-                );
-                format!(
-                    "**{:02}:{:02}:{:02}**\n",
-                    hours_minutes_and_seconds.0,
-                    hours_minutes_and_seconds.1,
-                    hours_minutes_and_seconds.2
-                )
-            }
+            let hours_minutes_and_seconds = (
+                (duration.as_secs() / 60 / 60) % 60,
+                (duration.as_secs() / 60) % 60,
+                duration.as_secs() % 60,
+            );
+            format!(
+                "**{:02}:{:02}:{:02}/{:02}:{:02}:{:02}**\n",
+                played_hours_minutes_and_seconds.0,
+                played_hours_minutes_and_seconds.1,
+                played_hours_minutes_and_seconds.2,
+                hours_minutes_and_seconds.0,
+                hours_minutes_and_seconds.1,
+                hours_minutes_and_seconds.2
+            )
+        } else {
+            let hours_minutes_and_seconds = (
+                (duration.as_secs() / 60 / 60) % 60,
+                (duration.as_secs() / 60) % 60,
+                duration.as_secs() % 60,
+            );
+            format!(
+                "**{:02}:{:02}:{:02}**\n",
+                hours_minutes_and_seconds.0,
+                hours_minutes_and_seconds.1,
+                hours_minutes_and_seconds.2
+            )
         }
+    } else if let Some(play_time) = play_time {
+        let played_minutes_and_seconds =
+            ((play_time.as_secs() / 60) % 60, play_time.as_secs() % 60);
+        let minutes_and_seconds = ((duration.as_secs() / 60) % 60, duration.as_secs() % 60);
+        format!(
+            "**{}:{:02}/{}:{:02}**\n",
+            played_minutes_and_seconds.0,
+            played_minutes_and_seconds.1,
+            minutes_and_seconds.0,
+            minutes_and_seconds.1
+        )
     } else {
-        match play_time {
-            Some(play_time) => {
-                let played_minutes_and_seconds =
-                    ((play_time.as_secs() / 60) % 60, play_time.as_secs() % 60);
-                let minutes_and_seconds = ((duration.as_secs() / 60) % 60, duration.as_secs() % 60);
-                format!(
-                    "**{}:{:02}/{}:{:02}**\n",
-                    played_minutes_and_seconds.0,
-                    played_minutes_and_seconds.1,
-                    minutes_and_seconds.0,
-                    minutes_and_seconds.1
-                )
-            }
-            _ => {
-                let minutes_and_seconds = ((duration.as_secs() / 60) % 60, duration.as_secs() % 60);
-                format!(
-                    "**{}:{:02}**\n",
-                    minutes_and_seconds.0, minutes_and_seconds.1
-                )
-            }
-        }
+        let minutes_and_seconds = ((duration.as_secs() / 60) % 60, duration.as_secs() % 60);
+        format!(
+            "**{}:{:02}**\n",
+            minutes_and_seconds.0, minutes_and_seconds.1
+        )
     }
 }
 
@@ -129,7 +121,7 @@ fn format_track(track: &TrackHandle, play_time: Option<Duration>) -> String {
     if let Some(length) = track.metadata().duration {
         duration = format!("Duration: {}", format_duration(length, play_time));
     } else {
-        duration = "".into()
+        duration = "".into();
     }
 
     let url = match track.metadata().source_url.clone() {
@@ -280,14 +272,13 @@ async fn join(ctx: Context<'_>) -> bool {
         .get(&ctx.author().id)
         .and_then(|voice_state| voice_state.channel_id);
 
-    let connect_to = match channel_id {
-        Some(channel) => channel,
-        None => {
-            ctx.say("Not in a voice channel")
-                .await
-                .expect("Failed to send message");
-            return false;
-        }
+    let connect_to = if let Some(channel) = channel_id {
+        channel
+    } else {
+        ctx.say("Not in a voice channel")
+            .await
+            .expect("Failed to send message");
+        return false;
     };
 
     let manager = songbird::get(ctx.discord())
@@ -341,7 +332,19 @@ async fn queue(
 ) {
     // Here, we use lazy restartable sources to make sure that we don't pay
     // for decoding, playback on tracks which aren't actually live yet.
-    let source = if !url.starts_with("http") {
+    let source = if url.starts_with("http") {
+        match Restartable::ytdl(url, true).await {
+            Ok(source) => source,
+            Err(why) => {
+                error!("Err starting source: {:?}", why);
+
+                ctx.say("Error sourcing ffmpeg")
+                    .await
+                    .expect("Failed to send message");
+                return;
+            }
+        }
+    } else {
         match Restartable::ytdl_search(url, true).await {
             Ok(source) => source,
             Err(why) => {
@@ -354,24 +357,12 @@ async fn queue(
                 return;
             }
         }
-    } else {
-        match Restartable::ytdl(url, true).await {
-            Ok(source) => source,
-            Err(why) => {
-                error!("Err starting source: {:?}", why);
-
-                ctx.say("Error sourcing ffmpeg")
-                    .await
-                    .expect("Failed to send message");
-                return;
-            }
-        }
     };
 
     let input = Input::from(source);
 
     let mut handler = handler_lock.lock().await;
-    let requester_lock = requesters.lock().await;
+    let mut requester_lock = requesters.lock().await;
 
     let mut requested: u16 = 0;
     if !handler.queue().is_empty() {
@@ -392,7 +383,6 @@ async fn queue(
             return;
         }
     }
-    drop(requester_lock);
 
     if let Some(duration) = input.metadata.duration {
         if duration > *MAX_MUSIC_DURATION {
@@ -421,7 +411,6 @@ async fn queue(
         requested: ctx.author().clone(),
         skipped: 0,
     };
-    let mut requester_lock = requesters.lock().await;
 
     requester_lock
         .requester
@@ -499,12 +488,11 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         .get(&ctx.author().id)
         .and_then(|voice_state| voice_state.channel_id);
 
-    let user_channel = match channel_id {
-        Some(channel) => channel,
-        None => {
-            ctx.say("Not in a voice channel").await?;
-            return Ok(());
-        }
+    let user_channel = if let Some(channel) = channel_id {
+        channel
+    } else {
+        ctx.say("Not in a voice channel").await?;
+        return Ok(());
     };
 
     let manager = songbird::get(ctx.discord())
@@ -534,7 +522,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             }
             let guild_channels = guild.channels(ctx.discord()).await.unwrap();
             let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
-            let needed_to_skip = (channel.members(ctx.discord()).await.unwrap().len() - 2) as i8;
+            let needed_to_skip = channel.members(ctx.discord()).await.unwrap().len() - 2;
             queue_lock.skipped += 1;
             if queue_lock.skipped >= needed_to_skip {
                 let _ = queue.skip();
@@ -572,11 +560,11 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
         let handler = handler_lock.lock().await;
         let queue = handler.queue().clone();
         drop(handler);
-        if !queue.is_empty() {
+        if queue.is_empty() {
+            ctx.say("No items queued").await?;
+        } else {
             let removed_item = queue.dequeue(queue.len() - 1).unwrap();
             send_track_embed(ctx, &removed_item.handle(), String::from("Undid:"), None).await?;
-        } else {
-            ctx.say("No items queued").await?;
         }
     } else {
         ctx.say("Not in a voice channel to play in").await?;
@@ -594,7 +582,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn volume(
     ctx: Context<'_>,
-    #[description = "Volume to change the track to, accepts 1-200"] mut new_volume: u32,
+    #[description = "Volume to change the track to, accepts 1-200"] mut new_volume: u8,
 ) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
     let guild_id = guild.id;
@@ -612,7 +600,7 @@ pub async fn volume(
         drop(handler);
         match queue.current() {
             Some(track) => {
-                track.set_volume(new_volume as f32 / 100.0)?;
+                track.set_volume(f32::from(new_volume / 100))?;
                 ctx.say(format!("Changed volume to {}%.", new_volume))
                     .await?;
             }
