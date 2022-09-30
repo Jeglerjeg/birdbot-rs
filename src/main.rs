@@ -4,12 +4,12 @@ pub mod schema;
 mod utils;
 
 use chrono::{DateTime, Utc};
+use diesel::connection::SimpleConnection;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use poise::serenity_prelude;
 use songbird::SerenityInit;
 use std::env;
-use diesel::connection::SimpleConnection;
 use tracing::{error, info};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
@@ -96,11 +96,15 @@ async fn main() {
 
     let connection = &mut utils::db::establish_connection::establish_connection();
 
-    connection.batch_execute("PRAGMA journal_mode = WAL;
+    connection
+        .batch_execute(
+            "PRAGMA journal_mode = WAL;
                               PRAGMA synchronous = NORMAL;
                               PRAGMA cache_size = -364000;
                               PRAGMA analysis_limit = 400;
-                              PRAGMA optimize;").expect("Failed to set pragmas.");
+                              PRAGMA optimize;",
+        )
+        .expect("Failed to set pragmas.");
 
     connection.run_pending_migrations(MIGRATIONS).unwrap();
 

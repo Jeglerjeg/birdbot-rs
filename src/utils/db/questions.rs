@@ -1,13 +1,13 @@
 use crate::models::questions::{NewQuestion, Question};
 use crate::schema::questions;
-use diesel::dsl::sql;
+use diesel::dsl::{count, sql};
 use diesel::prelude::*;
 
 pub fn count_entries() -> i64 {
     let connection = &mut crate::utils::db::establish_connection::establish_connection();
 
     questions::table
-        .count()
+        .select(count(questions::id))
         .get_result(connection)
         .expect("Failed to count questions.")
 }

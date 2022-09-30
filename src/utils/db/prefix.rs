@@ -36,5 +36,5 @@ pub async fn get_guild_prefix(
         Ok(Some(db_prefix[0].guild_prefix.clone()))
     } else {
         Ok(Some(default_prefix))
-    }
+    };
 }
