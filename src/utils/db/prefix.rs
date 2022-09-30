@@ -3,10 +3,10 @@ use crate::schema::prefix;
 use crate::{Error, PartialContext};
 use diesel::prelude::*;
 
-pub fn add_guild_prefix(guild_id: &i64, prefix: &str) {
+pub fn add_guild_prefix(guild_id: i64, prefix: &str) {
     let connection = &mut crate::utils::db::establish_connection::establish_connection();
     let new_prefix = NewPrefix {
-        guild_id,
+        guild_id: &guild_id,
         guild_prefix: prefix,
     };
 
@@ -32,9 +32,9 @@ pub async fn get_guild_prefix(
         .load::<Prefix>(connection)
         .expect("Error loading guild prefix");
 
-    return if db_prefix.len() > 0 {
-        Ok(Some(db_prefix[0].guild_prefix.clone()))
-    } else {
+    if db_prefix.is_empty() {
         Ok(Some(default_prefix))
-    };
+    } else {
+        Ok(Some(db_prefix[0].guild_prefix.clone()))
+    }
 }

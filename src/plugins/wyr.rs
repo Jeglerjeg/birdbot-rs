@@ -155,7 +155,7 @@ async fn create_wyr_message(ctx: Context<'_>, mut question: Question) -> Result<
     Ok(())
 }
 
-async fn add_recent_question(lock: &mut MutexGuard<'_, Vec<i32>>, id: i32) {
+fn add_recent_question(lock: &mut MutexGuard<'_, Vec<i32>>, id: i32) {
     lock.push(id);
 
     let previous_len = crate::utils::db::questions::count_entries();
@@ -212,13 +212,11 @@ pub async fn wyr(
         ctx.say(format!("I would {}!", choice[0])).await?;
     } else {
         let db_question = crate::utils::db::questions::get_random_question();
-
-        let mut db_question = match db_question {
-            Some(db_question) => db_question,
-            _ => {
-                ctx.say("No questions added! Ask me one!").await?;
-                return Ok(());
-            }
+        let mut db_question = if let Some(db_question) = db_question {
+            db_question
+        } else {
+            ctx.say("No questions added! Ask me one!").await?;
+            return Ok(());
         };
 
         let previous_questions_lock = PREVIOUS_SERVER_QUESTIONS.lock().await;
@@ -238,7 +236,7 @@ pub async fn wyr(
             while previous_vec.contains(&db_question.id) {
                 db_question = crate::utils::db::questions::get_random_question().unwrap();
             }
-            add_recent_question(&mut previous_vec, db_question.id).await;
+            add_recent_question(&mut previous_vec, db_question.id);
             drop(previous_vec);
         }
         drop(previous_hash_lock);

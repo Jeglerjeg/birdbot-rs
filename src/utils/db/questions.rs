@@ -25,18 +25,16 @@ pub fn update_choice(id: i32, choice: i8) {
             diesel::update(questions::table.find(id))
                 .set(questions::choice1_answers.eq(new_count))
                 .execute(connection)
-                .expect("Failed to update question choice")
+                .expect("Failed to update question choice");
         }
         2 => {
             let new_count = &question.choice2_answers + 1;
             diesel::update(questions::table.find(id))
                 .set(questions::choice2_answers.eq(new_count))
                 .execute(connection)
-                .expect("Failed to update question choice")
+                .expect("Failed to update question choice");
         }
-        _ => {
-            return;
-        }
+        _ => {}
     };
 }
 
