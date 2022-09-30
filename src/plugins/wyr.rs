@@ -191,8 +191,13 @@ pub async fn wyr(
     };
 
     if let (Some(choice_1), Some(choice_2)) = (choice_1, choice_2) {
+        if choice_1 == choice_2 {
+            ctx.say("Those options are the same.").await?;
+            return Ok(());
+        }
+
         if !check_for_duplicates(choice_1.clone(), choice_2.clone()) {
-            ctx.say("That question already exists").await?;
+            ctx.say("That question already exists.").await?;
             return Ok(());
         }
 
