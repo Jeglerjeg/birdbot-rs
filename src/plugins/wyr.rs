@@ -1,5 +1,5 @@
+use crate::models::questions::Question;
 use crate::serenity_prelude as serenity;
-use crate::utils::db::questions::Question;
 use crate::{Context, Error};
 use lazy_static::lazy_static;
 use poise::futures_util::StreamExt;
@@ -24,7 +24,7 @@ lazy_static! {
 fn format_results(question: &Question) -> String {
     format!(
         "A total of {} would **{}**, while {} would **{}**",
-        question.choice_1_answers, question.choice_1, question.choice_2_answers, question.choice_2
+        question.choice1_answers, question.choice1, question.choice2_answers, question.choice2
     )
 }
 
@@ -35,8 +35,8 @@ fn format_response(user: &serenity::User, choice: &String) -> String {
 fn format_question(question: &Question, responses: &[String]) -> String {
     format!(
         "Would you rather **{}** or **{}**?\n\n{}",
-        question.choice_1,
-        question.choice_2,
+        question.choice1,
+        question.choice2,
         responses.join("\n")
     )
 }
@@ -94,9 +94,9 @@ async fn create_wyr_message(ctx: Context<'_>, mut question: Question) -> Result<
             "choice_1" => {
                 interaction.defer(ctx.discord()).await?;
                 replies.push(interaction.user.id.0);
-                responses.push(format_response(&interaction.user, &question.choice_1));
-                question.choice_1_answers += 1;
-                crate::utils::db::questions::update_choice(ctx, question.id, 1).await?;
+                responses.push(format_response(&interaction.user, &question.choice1));
+                question.choice1_answers += 1;
+                crate::utils::db::questions::update_choice(question.id, 1);
 
                 interaction
                     .message
@@ -109,9 +109,9 @@ async fn create_wyr_message(ctx: Context<'_>, mut question: Question) -> Result<
             "choice_2" => {
                 interaction.defer(ctx.discord()).await?;
                 replies.push(interaction.user.id.0);
-                responses.push(format_response(&interaction.user, &question.choice_2));
-                question.choice_2_answers += 1;
-                crate::utils::db::questions::update_choice(ctx, question.id, 2).await?;
+                responses.push(format_response(&interaction.user, &question.choice2));
+                question.choice2_answers += 1;
+                crate::utils::db::questions::update_choice(question.id, 2);
 
                 interaction
                     .message
@@ -155,35 +155,21 @@ async fn create_wyr_message(ctx: Context<'_>, mut question: Question) -> Result<
     Ok(())
 }
 
-async fn add_recent_question<'a>(
-    ctx: Context<'_>,
-    lock: &'a mut MutexGuard<'_, Vec<i32>>,
-    id: i32,
-) {
+async fn add_recent_question(lock: &mut MutexGuard<'_, Vec<i32>>, id: i32) {
     lock.push(id);
 
-    let previous_len = crate::utils::db::questions::count_entries(ctx)
-        .await
-        .unwrap_or(0);
-    if lock.len() > previous_len {
+    let previous_len = crate::utils::db::questions::count_entries();
+    if lock.len() > previous_len as usize {
         lock.remove(0);
     }
 }
 
-async fn check_for_duplicates(ctx: Context<'_>, choice_1: String, choice_2: String) -> bool {
-    if (crate::utils::db::questions::get_question(ctx, choice_1.clone(), choice_2.clone())
-        .await
-        .unwrap_or(None))
-    .is_some()
-    {
+fn check_for_duplicates(choice_1: String, choice_2: String) -> bool {
+    if (crate::utils::db::questions::get_question(choice_1.clone(), choice_2.clone())).is_some() {
         return false;
     };
 
-    if (crate::utils::db::questions::get_question(ctx, choice_2, choice_1)
-        .await
-        .unwrap_or(None))
-    .is_some()
-    {
+    if (crate::utils::db::questions::get_question(choice_2, choice_1)).is_some() {
         return false;
     };
 
@@ -205,12 +191,12 @@ pub async fn wyr(
     };
 
     if let (Some(choice_1), Some(choice_2)) = (choice_1, choice_2) {
-        if check_for_duplicates(ctx, choice_1.clone(), choice_2.clone()).await {
+        if !check_for_duplicates(choice_1.clone(), choice_2.clone()) {
             ctx.say("That question already exists").await?;
             return Ok(());
         }
 
-        crate::utils::db::questions::add_question(ctx, choice_1.clone(), choice_2.clone()).await?;
+        crate::utils::db::questions::add_question(&*choice_1, &*choice_2);
 
         let choices = vec![choice_1, choice_2];
 
@@ -220,9 +206,15 @@ pub async fn wyr(
 
         ctx.say(format!("I would {}!", choice[0])).await?;
     } else {
-        let mut db_question = crate::utils::db::questions::get_random_question(ctx)
-            .await?
-            .unwrap();
+        let db_question = crate::utils::db::questions::get_random_question();
+
+        let mut db_question = match db_question {
+            Some(db_question) => db_question,
+            _ => {
+                ctx.say("No questions added! Ask me one!").await?;
+                return Ok(());
+            }
+        };
 
         let previous_questions_lock = PREVIOUS_SERVER_QUESTIONS.lock().await;
         let mut previous_hash_lock = previous_questions_lock.previous_questions.lock().await;
@@ -239,11 +231,9 @@ pub async fn wyr(
                 .await;
 
             while previous_vec.contains(&db_question.id) {
-                db_question = crate::utils::db::questions::get_random_question(ctx)
-                    .await?
-                    .unwrap();
+                db_question = crate::utils::db::questions::get_random_question().unwrap();
             }
-            add_recent_question(ctx, &mut previous_vec, db_question.id).await;
+            add_recent_question(&mut previous_vec, db_question.id).await;
             drop(previous_vec);
         }
         drop(previous_hash_lock);

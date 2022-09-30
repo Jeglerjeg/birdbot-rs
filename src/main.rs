@@ -1,17 +1,19 @@
+pub mod models;
 mod plugins;
+pub mod schema;
 mod utils;
 
 use chrono::{DateTime, Utc};
-use migration::{Migrator, MigratorTrait};
 use poise::serenity_prelude;
-use sea_orm::{ConnectOptions, DatabaseConnection};
 use songbird::SerenityInit;
 use std::env;
 use tracing::{error, info};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 pub struct Data {
     time_started: DateTime<Utc>,
-    db: DatabaseConnection,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -91,10 +93,9 @@ async fn main() {
     // the CWD. See `./.env.example` for an example on how to structure this.
     dotenv::dotenv().expect("Failed to load .env file");
 
-    let mut db_options = ConnectOptions::new(String::from("sqlite://bot.db?mode=rwc"));
-    db_options.sqlx_logging(false);
-    let conn = sea_orm::Database::connect(db_options).await.unwrap();
-    Migrator::up(&conn, None).await.unwrap();
+    let connection = &mut utils::db::establish_connection::establish_connection();
+
+    connection.run_pending_migrations(MIGRATIONS).unwrap();
 
     let options = poise::FrameworkOptions {
         commands: vec![
@@ -164,7 +165,6 @@ async fn main() {
             Box::pin(async move {
                 Ok(Data {
                     time_started: Utc::now(),
-                    db: conn,
                 })
             })
         })

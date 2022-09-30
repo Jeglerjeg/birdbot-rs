@@ -1,30 +1,19 @@
-use crate::{Context, Error, PartialContext};
-use entities::prefix::{Entity as Prefix, Model};
-use sea_orm::{
-    entity::{EntityTrait, Set},
-    sea_query,
-};
+use crate::models::prefix::{NewPrefix, Prefix};
+use crate::schema::prefix;
+use crate::{Error, PartialContext};
+use diesel::prelude::*;
 
-pub async fn add_guild_prefix(
-    ctx: Context<'_>,
-    guild_id: i64,
-    prefix: String,
-) -> Result<(), Error> {
-    let table = entities::prefix::ActiveModel {
-        guild_id: Set(guild_id.to_owned()),
-        prefix: Set(prefix),
+pub fn add_guild_prefix(guild_id: &i64, prefix: &str) {
+    let connection = &mut crate::utils::db::establish_connection::establish_connection();
+    let new_prefix = NewPrefix {
+        guild_id,
+        guild_prefix: prefix,
     };
 
-    Prefix::insert(table)
-        .on_conflict(
-            sea_query::OnConflict::column(entities::prefix::Column::GuildId)
-                .update_column(entities::prefix::Column::Prefix)
-                .clone(),
-        )
-        .exec(&ctx.data().db)
-        .await?;
-
-    Ok(())
+    diesel::replace_into(prefix::table)
+        .values(&new_prefix)
+        .execute(connection)
+        .expect("Failed to insert prefix");
 }
 
 pub async fn get_guild_prefix(
@@ -35,10 +24,17 @@ pub async fn get_guild_prefix(
         Some(guild) => guild.0 as i64,
         _ => return Ok(Some(default_prefix)),
     };
-    let db_prefix: Option<Model> = Prefix::find_by_id(guild_id).one(&ctx.data.db).await?;
-    let prefix = match db_prefix {
-        Some(model) => model.prefix,
-        _ => default_prefix,
-    };
-    Ok(Some(prefix))
+
+    let connection = &mut crate::utils::db::establish_connection::establish_connection();
+    let db_prefix = prefix::table
+        .find(guild_id)
+        .limit(1)
+        .load::<Prefix>(connection)
+        .expect("Error loading guild prefix");
+
+    return if db_prefix.len() > 0 {
+        Ok(Some(db_prefix[0].guild_prefix.clone()))
+    } else {
+        Ok(Some(default_prefix))
+    }
 }
