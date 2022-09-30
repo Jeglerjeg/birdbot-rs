@@ -423,6 +423,9 @@ async fn queue(
         .expect("Couldn't send track embed.");
 }
 
+
+
+///Play a song in a guild voice channel.
 #[poise::command(
     prefix_command,
     slash_command,
@@ -472,6 +475,8 @@ pub async fn play(
     Ok(())
 }
 
+
+///Skip the song currently playing.
 #[poise::command(
     prefix_command,
     slash_command,
@@ -546,6 +551,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+///Undo your previously queued song. This will not *skip* the song if it's playing.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
@@ -573,6 +579,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+///Set the volume of the player. Volume should be a number from 1-200.
 #[poise::command(
     prefix_command,
     slash_command,
@@ -615,6 +622,7 @@ pub async fn volume(
     Ok(())
 }
 
+///Pause the currently playing song.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
@@ -652,6 +660,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+///Resume the currently paused song.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
@@ -689,6 +698,7 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+///Display the currently playing song.
 #[poise::command(
     prefix_command,
     slash_command,
