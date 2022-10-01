@@ -16,11 +16,6 @@ chrono = "0.4"
 lazy_static = "1.4"
 diesel_migrations = "2.0"
 
-
-[dependencies.uuid]
-version = "0.8"
-features = ["v4"]
-
 [dependencies.tokio]
 version = "1.21"
 features = ["full"]

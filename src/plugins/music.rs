@@ -8,7 +8,6 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use uuid::Uuid;
 
 use songbird::input::Input;
 use songbird::tracks::PlayMode;
@@ -23,7 +22,7 @@ pub struct PlayingGuilds {
 }
 
 pub struct Requesters {
-    pub requester: HashMap<Uuid, Arc<Mutex<QueuedTrack>>>,
+    pub requester: HashMap<u128, Arc<Mutex<QueuedTrack>>>,
 }
 
 pub struct QueuedTrack {
@@ -253,7 +252,7 @@ impl VoiceEventHandler for TrackEndNotifier {
                         .lock()
                         .await;
                     for track in _track_list.iter() {
-                        guild_lock.requester.remove(&(*track).1.uuid());
+                        guild_lock.requester.remove(&(track).1.uuid().as_u128());
                     }
                     drop(guild_lock);
                 }
@@ -414,7 +413,7 @@ async fn queue(
 
     requester_lock
         .requester
-        .insert(track.uuid(), Arc::from(Mutex::from(queued_track)));
+        .insert(track.uuid().as_u128(), Arc::from(Mutex::from(queued_track)));
 
     drop(requester_lock);
 
@@ -510,7 +509,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         let guild_data_lock = PLAYING_GUILDS.lock().await;
         let playing_guild = guild_data_lock.guilds.get(&guild_id).unwrap();
         let guild_lock = playing_guild.lock().await;
-        let queued_track = guild_lock.requester.get(&track.uuid()).unwrap();
+        let queued_track = guild_lock.requester.get(&track.uuid().as_u128()).unwrap();
         let mut queue_lock = queued_track.lock().await;
         if queue_lock.requested.id == ctx.author().id {
             let _ = queue.skip();
