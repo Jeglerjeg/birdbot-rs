@@ -423,8 +423,6 @@ async fn queue(
         .expect("Couldn't send track embed.");
 }
 
-
-
 ///Play a song in a guild voice channel.
 #[poise::command(
     prefix_command,
@@ -474,7 +472,6 @@ pub async fn play(
     }
     Ok(())
 }
-
 
 ///Skip the song currently playing.
 #[poise::command(

@@ -99,10 +99,11 @@ async fn main() {
     connection
         .batch_execute(
             "PRAGMA journal_mode = WAL;
-                              PRAGMA synchronous = NORMAL;
-                              PRAGMA cache_size = -364000;
-                              PRAGMA analysis_limit = 400;
-                              PRAGMA optimize;",
+             PRAGMA synchronous = NORMAL;
+             PRAGMA cache_size = -364000;
+             VACUUM;
+             PRAGMA analysis_limit = 400;
+             PRAGMA optimize;",
         )
         .expect("Failed to set pragmas.");
 

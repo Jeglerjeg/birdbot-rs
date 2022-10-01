@@ -176,7 +176,6 @@ fn check_for_duplicates(choice_1: String, choice_2: String) -> bool {
     true
 }
 
-
 ///Ask the bot a wyr question, or have the bot ask you.
 #[poise::command(prefix_command, slash_command, category = "Would You Rather")]
 pub async fn wyr(
