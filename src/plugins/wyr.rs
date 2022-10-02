@@ -159,7 +159,7 @@ fn add_recent_question(lock: &mut MutexGuard<'_, Vec<i32>>, id: i32) {
     lock.push(id);
 
     let previous_len = crate::utils::db::questions::count_entries();
-    if lock.len() > (previous_len / 2) as usize {
+    if lock.len() as i64 > (previous_len / 2) {
         lock.remove(0);
     }
 }
