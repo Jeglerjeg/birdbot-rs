@@ -1,0 +1,41 @@
+use crate::utils::misc::remove_trailing_zeros;
+use crate::utils::osu::pp::CalculateResults;
+use crate::Context;
+use rosu_v2::model::beatmap::RankStatus;
+
+pub fn format_rank_status(status: RankStatus) -> String {
+    match status {
+        RankStatus::Graveyard => String::from("Graveyard"),
+        RankStatus::WIP => String::from("WIP"),
+        RankStatus::Pending => String::from("Pending"),
+        RankStatus::Ranked => String::from("Ranked"),
+        RankStatus::Approved => String::from("Approved"),
+        RankStatus::Qualified => String::from("Qualified"),
+        RankStatus::Loved => String::from("Loved"),
+    }
+}
+
+pub fn format_potential_string(pp: &CalculateResults) -> String {
+    match pp.max_pp {
+        Some(max_pp) => {
+            if ((pp.pp / max_pp) * 100.0) < 99.0 {
+                format!(
+                    "Potential: {}pp, {:+}pp",
+                    remove_trailing_zeros(max_pp, 2),
+                    remove_trailing_zeros(max_pp - pp.pp, 2)
+                )
+            } else {
+                String::new()
+            }
+        }
+        _ => String::new(),
+    }
+}
+
+pub async fn format_missing_user_string(ctx: Context<'_>) -> String {
+    format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", ctx.author().name, crate::utils::db::prefix::get_guild_prefix(ctx.into()).await.unwrap().unwrap())
+}
+
+pub fn format_beatmap_link(beatmap_id: &i64, beatmapset_id: &i64, mode: &str) -> String {
+    format!("https://osu.ppy.sh/beatmapsets/{beatmapset_id}#{mode}/{beatmap_id}")
+}

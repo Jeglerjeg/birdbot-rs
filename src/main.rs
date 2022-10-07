@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use poise::serenity_prelude;
+use rosu_v2::prelude::Osu;
 use songbird::SerenityInit;
 use std::env;
 use tracing::{error, info};
@@ -15,6 +16,7 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 pub struct Data {
     time_started: DateTime<Utc>,
+    osu_client: Osu,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -120,6 +122,7 @@ async fn main() {
             plugins::basic::stop(),
             plugins::music::music(),
             plugins::wyr::wyr(),
+            plugins::osu::osu(),
             // This function registers slash commands on Discord. When you change something about a
             // command signature, for example by changing its name, adding or removing parameters, or
             // changing a parameter type, you should call this function.
@@ -138,12 +141,7 @@ async fn main() {
         // Options specific to prefix.rs commands, i.e. commands invoked via chat messages
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: None,
-            dynamic_prefix: Some(|c| {
-                Box::pin(utils::db::prefix::get_guild_prefix(
-                    c,
-                    env::var("PREFIX").unwrap_or_else(|_| String::from(">")),
-                ))
-            }),
+            dynamic_prefix: Some(|c| Box::pin(utils::db::prefix::get_guild_prefix(c))),
             mention_as_prefix: true,
             ..Default::default()
         },
@@ -168,6 +166,22 @@ async fn main() {
 
     let intents = serenity_prelude::GatewayIntents::all();
 
+    let client_id = env::var("OSU_CLIENT_ID")
+        .expect("Expected an osu client id in the environment")
+        .parse::<u64>()
+        .expect("Failed to parse client_id.");
+
+    let client_secret =
+        env::var("OSU_CLIENT_SECRET").expect("Expected an osu client secret in the environment");
+
+    let osu_client: Osu = match Osu::new(client_id, client_secret).await {
+        Ok(client) => client,
+        Err(why) => panic!(
+            "Failed to create client or make initial osu!api interaction: {}",
+            why
+        ),
+    };
+
     let framework = poise::Framework::builder()
         .client_settings(SerenityInit::register_songbird)
         .token(token.clone())
@@ -177,6 +191,7 @@ async fn main() {
             Box::pin(async move {
                 Ok(Data {
                     time_started: Utc::now(),
+                    osu_client,
                 })
             })
         })

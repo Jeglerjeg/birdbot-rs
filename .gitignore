@@ -1,5 +1,6 @@
 target
 logs
+osu_files
 .idea
 .env
 *.db
