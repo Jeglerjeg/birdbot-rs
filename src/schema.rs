@@ -53,13 +53,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    osu_files (id) {
-        id -> BigInt,
-        data -> Binary,
-    }
-}
-
-diesel::table! {
     prefix (guild_id) {
         guild_id -> BigInt,
         guild_prefix -> Text,
@@ -80,7 +73,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     beatmaps,
     beatmapsets,
     linked_osu_profiles,
-    osu_files,
     prefix,
     questions,
 );
