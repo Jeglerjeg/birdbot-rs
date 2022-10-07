@@ -2,11 +2,11 @@ use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
 
 pub fn gamemode_from_string(mode: &str) -> Option<GameMode> {
-    match mode {
-        "osu" => Some(GameMode::Osu),
-        "taiko" => Some(GameMode::Taiko),
-        "mania" => Some(GameMode::Mania),
-        "catch" => Some(GameMode::Catch),
+    match mode.to_lowercase().as_str() {
+        "osu" | "standard" | "std" | "osu!" => Some(GameMode::Osu),
+        "taiko" | "osu!taiko" => Some(GameMode::Taiko),
+        "mania" | "keys" | "osu!mania" => Some(GameMode::Mania),
+        "catch" | "ctb" | "fruits" | "osu!catch" => Some(GameMode::Catch),
         _ => None,
     }
 }
