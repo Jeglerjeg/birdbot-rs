@@ -5,30 +5,24 @@ use crate::utils::db::beatmapsets;
 use crate::{Context, Error};
 use chrono::Utc;
 
-pub async fn cache_beatmapset(ctx: Context<'_>, id: i64) {
-    let beatmapset = ctx
-        .data()
-        .osu_client
-        .beatmapset(id as u32)
-        .await
-        .expect("Couldn't get beatmapset");
+pub async fn cache_beatmapset(ctx: Context<'_>, id: i64) -> Result<(), Error> {
+    let beatmapset = ctx.data().osu_client.beatmapset(id as u32).await?;
 
     if let Some(beatmaps) = beatmapset.maps {
         for beatmap in &beatmaps {
             beatmaps::create(beatmap);
         }
     }
+
+    Ok(())
 }
 
-pub async fn cache_beatmapset_from_beatmap(ctx: Context<'_>, id: i64) {
-    let beatmapset_result = ctx
+pub async fn cache_beatmapset_from_beatmap(ctx: Context<'_>, id: i64) -> Result<(), Error> {
+    let beatmapset = ctx
         .data()
         .osu_client
-        .beatmapset_search()
-        .query(format!("{}", id))
-        .await
-        .expect("Found no beatmapsets");
-    let beatmapset = beatmapset_result.mapsets[0].clone();
+        .beatmapset_from_map_id(id as u32)
+        .await?;
 
     beatmapsets::create(beatmapset.clone());
 
@@ -37,15 +31,19 @@ pub async fn cache_beatmapset_from_beatmap(ctx: Context<'_>, id: i64) {
             beatmaps::create(beatmap);
         }
     }
+
+    Ok(())
 }
 
-pub fn delete_cache(id: i64) {
+pub fn delete_cache(id: i64) -> Result<(), Error> {
     let beatmaps = beatmaps::get_mapset_maps(id);
     for beatmap in &beatmaps {
-        beatmaps::delete(beatmap.id).expect("Couldn't delete beatmaps");
+        beatmaps::delete(beatmap.id)?;
     }
 
-    beatmapsets::delete(id).expect("Couldn't delete beatmapset");
+    beatmapsets::delete(id)?;
+
+    Ok(())
 }
 
 pub async fn get_beatmap(ctx: Context<'_>, id: u32) -> Result<Beatmap, Error> {
@@ -54,11 +52,11 @@ pub async fn get_beatmap(ctx: Context<'_>, id: u32) -> Result<Beatmap, Error> {
         if check_beatmap_valid_result(&beatmap) {
             return Ok(beatmap);
         }
-        delete_cache(beatmap.beatmapset_id);
-        cache_beatmapset(ctx, beatmap.beatmapset_id).await;
+        delete_cache(beatmap.beatmapset_id)?;
+        cache_beatmapset(ctx, beatmap.beatmapset_id).await?;
         return Ok(beatmaps::get_single(i64::from(id)).unwrap());
     }
-    cache_beatmapset_from_beatmap(ctx, i64::from(id)).await;
+    cache_beatmapset_from_beatmap(ctx, i64::from(id)).await?;
     Ok(beatmaps::get_single(i64::from(id)).unwrap())
 }
 
@@ -68,11 +66,11 @@ pub async fn get_beatmapset(ctx: Context<'_>, id: u32) -> Result<Beatmapset, Err
         if check_beatmapset_valid_result(&beatmapset) {
             return Ok(beatmapset);
         }
-        delete_cache(beatmapset.id);
-        cache_beatmapset(ctx, beatmapset.id).await;
+        delete_cache(beatmapset.id)?;
+        cache_beatmapset(ctx, beatmapset.id).await?;
         return Ok(beatmapsets::read(i64::from(id)).unwrap());
     }
-    cache_beatmapset(ctx, i64::from(id)).await;
+    cache_beatmapset(ctx, i64::from(id)).await?;
     Ok(beatmapsets::read(i64::from(id)).unwrap())
 }
 
