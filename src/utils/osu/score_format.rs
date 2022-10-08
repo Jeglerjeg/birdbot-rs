@@ -14,12 +14,10 @@ pub fn format_score_statistic(
     beatmap: &Beatmap,
     pp: &Option<CalculateResults>,
 ) -> String {
-    let sign = if score.accuracy.eq(&100.0) {
-        "!"
-    } else if score.perfect {
-        "+"
+    let color = if score.perfect {
+        "\u{001b}[0;32m"
     } else {
-        "-"
+        "\u{001b}[0;31m"
     };
 
     let max_combo: i32;
@@ -35,8 +33,8 @@ pub fn format_score_statistic(
     match score.mode {
         GameMode::Osu => {
             format!(
-                "  acc    300s  100s  50s  miss  combo\
-                \n{sign} {:<7}{:<6}{:<6}{:<5}{:<6}{}/{}",
+                "acc    300s  100s  50s  miss  combo\
+                \n{color}{:<7}{:<6}{:<6}{:<5}{:<6}{}/{}",
                 format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
                 score.statistics.count_300,
                 score.statistics.count_100,
@@ -47,8 +45,8 @@ pub fn format_score_statistic(
             )
         }
         GameMode::Taiko => format!(
-            "  acc    great  good  miss  combo\
-            \n{sign} {:<7}{:<7}{:<6}{:<6}{}/{}",
+            "acc    great  good  miss  combo\
+            \n{color}{:<7}{:<7}{:<6}{:<6}{}/{}",
             format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
             score.statistics.count_300,
             score.statistics.count_100,
@@ -58,7 +56,7 @@ pub fn format_score_statistic(
         ),
         GameMode::Mania => format!(
             "  acc    max   300s  200s  100s  50s  miss\
-        \n{sign} {:<7}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
+        \n{color}{:<7}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
             format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
             score.statistics.count_geki,
             score.statistics.count_300,
@@ -68,8 +66,8 @@ pub fn format_score_statistic(
             score.statistics.count_miss
         ),
         GameMode::Catch => format!(
-            "  acc    fruits ticks drpm miss combo\
-           \n{sign} {:<7}{:<7}{:<6}{:<5}{:<5}{}/{}",
+            "acc    fruits ticks drpm miss combo\
+           \n{color}{:<7}{:<7}{:<6}{:<5}{:<5}{}/{}",
             format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
             score.statistics.count_300,
             score.statistics.count_100,
@@ -128,7 +126,7 @@ pub fn format_new_score(
     pp: &Option<CalculateResults>,
 ) -> String {
     format!(
-        "{}```diff\n{}```",
+        "{}```ansi\n{}```",
         format_score_info(score, beatmap, beatmapset, pp),
         format_score_statistic(score, beatmap, pp)
     )
