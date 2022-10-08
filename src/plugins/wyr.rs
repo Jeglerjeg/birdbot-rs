@@ -2,8 +2,7 @@ use crate::models::questions::Question;
 use crate::serenity_prelude as serenity;
 use crate::{Context, Error};
 use lazy_static::lazy_static;
-use poise::futures_util::StreamExt;
-use poise::serenity_prelude;
+use poise::{serenity_prelude, ReplyHandle};
 use rand::seq::SliceRandom;
 use serenity_prelude::Mentionable;
 use std::collections::HashMap;
@@ -41,12 +40,10 @@ fn format_question(question: &Question, responses: &[String]) -> String {
     )
 }
 
-async fn create_wyr_message(ctx: Context<'_>, mut question: Question) -> Result<(), Error> {
-    let mut responses: Vec<String> = vec![];
-
+async fn create_wyr_message(ctx: Context<'_>, question: Question) -> Result<(), Error> {
     let reply = ctx
         .send(|m| {
-            m.embed(|e| e.description(format_question(&question, &responses)))
+            m.embed(|e| e.description(format_question(&question, &[])))
                 .components(|c| {
                     c.create_action_row(|r| {
                         r.create_button(|b| {
@@ -64,16 +61,32 @@ async fn create_wyr_message(ctx: Context<'_>, mut question: Question) -> Result<
         })
         .await?;
 
-    // Wait for multiple interactions
-    let mut interaction_stream = reply
-        .message()
-        .await?
-        .await_component_interactions(ctx.discord())
-        .timeout(Duration::from_secs(30))
-        .build();
+    handle_interaction_responses(ctx, reply, question).await?;
 
+    Ok(())
+}
+
+async fn handle_interaction_responses(
+    ctx: Context<'_>,
+    reply: ReplyHandle<'_>,
+    mut question: Question,
+) -> Result<(), Error> {
+    let mut responses: Vec<String> = vec![];
     let mut replies: Vec<u64> = vec![];
-    while let Some(interaction) = interaction_stream.next().await {
+    loop {
+        let interaction = match reply
+            .message()
+            .await?
+            .await_component_interaction(ctx.discord())
+            .timeout(Duration::from_secs(15))
+            .await
+        {
+            Some(x) => x,
+            None => {
+                break;
+            }
+        };
+
         if replies.contains(&interaction.user.id.0) {
             interaction
                 .create_interaction_response(ctx.discord(), |r| {

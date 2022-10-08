@@ -1,81 +1,11 @@
-use crate::models::beatmaps::Beatmap;
-use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::utils::db::linked_osu_profiles;
-use crate::utils::osu::misc::{calculate_potential_acc, gamemode_from_string};
-use crate::utils::osu::misc_format::{
-    format_missing_user_string, format_potential_string, format_user_link,
-};
-use crate::utils::osu::score_format::format_score_list;
+use crate::utils::osu::misc::gamemode_from_string;
+use crate::utils::osu::misc_format::format_missing_user_string;
+
 use crate::{Context, Error};
-use humantime::format_duration;
-use rosu_v2::prelude::{Score, User};
-use serenity::utils::colours::roles::BLUE;
-use serenity::utils::Color;
-use std::time::Duration;
-use time::OffsetDateTime;
 
-async fn send_score_embed(
-    ctx: Context<'_>,
-    score: Score,
-    beatmap: Beatmap,
-    beatmapset: Beatmapset,
-    user: User,
-) {
-    let color: Color;
-
-    let pp =
-        crate::utils::osu::calculate::calculate(&score, &beatmap, calculate_potential_acc(&score))
-            .await;
-
-    let time_since = format!(
-        "\n{} ago",
-        format_duration(Duration::new(
-            (OffsetDateTime::now_utc() - score.ended_at)
-                .as_seconds_f64()
-                .round() as u64,
-            0,
-        ))
-    );
-
-    let potential_string: String;
-    let pp = if let Ok(pp) = pp {
-        potential_string = format_potential_string(&pp);
-        Some(pp)
-    } else {
-        potential_string = String::new();
-        None
-    };
-
-    let formatted_score =
-        crate::utils::osu::score_format::format_new_score(&score, &beatmap, &beatmapset, &pp);
-
-    if let Some(guild) = ctx.guild() {
-        if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
-            color = member.colour(ctx.discord()).unwrap_or(BLUE);
-        } else {
-            color = BLUE;
-        }
-    } else {
-        color = BLUE;
-    };
-
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.thumbnail(beatmapset.list_cover)
-                .color(color)
-                .description(formatted_score)
-                .footer(|f| f.text(potential_string + &*time_since))
-                .author(|a| {
-                    a.icon_url(user.avatar_url)
-                        .name(user.username)
-                        .url(format_user_link(&user.user_id))
-                })
-        })
-    })
-    .await
-    .expect("Couldn't send score embed.");
-}
+use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
 
 /// Display information about your osu! user.
 #[poise::command(
@@ -210,7 +140,7 @@ pub async fn score(
 
                     let user = ctx.data().osu_client.user(profile.osu_id as u32).await?;
 
-                    send_score_embed(ctx, score.score, beatmap, beatmapset, user).await;
+                    send_score_embed(ctx, score.score, beatmap, beatmapset, user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get beatmap score. {}", why))
@@ -263,7 +193,7 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
 
                         let user = ctx.data().osu_client.user(profile.osu_id as u32).await?;
 
-                        send_score_embed(ctx, score, beatmap, beatmapset, user).await;
+                        send_score_embed(ctx, score, beatmap, beatmapset, user).await?;
                     }
                 }
                 Err(why) => {
@@ -282,8 +212,12 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
 
 /// Display a list of your top scores.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
-pub async fn top(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn top(
+    ctx: Context<'_>,
+    #[description = "Sort your top scores by something other than pp."] sort_type: Option<String>,
+) -> Result<(), Error> {
     let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let sort_type = sort_type.unwrap_or_default();
     match profile {
         Ok(profile) => {
             let best_scores = ctx
@@ -294,37 +228,21 @@ pub async fn top(ctx: Context<'_>) -> Result<(), Error> {
                 .mode(gamemode_from_string(&profile.mode).unwrap())
                 .limit(100)
                 .await;
-
             match best_scores {
-                Ok(best_scores) => {
-                    let color: Color;
-                    if let Some(guild) = ctx.guild() {
-                        if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
-                            color = member.colour(ctx.discord()).unwrap_or(BLUE);
-                        } else {
-                            color = BLUE;
+                Ok(mut best_scores) => {
+                    match sort_type.as_str() {
+                        "newest" | "recent" => {
+                            best_scores.sort_by(|a, b| b.ended_at.cmp(&a.ended_at));
                         }
-                    } else {
-                        color = BLUE;
-                    };
-
-                    let formatted_scores = format_score_list(ctx, best_scores, None, None).await?;
-
-                    let user = ctx.data().osu_client.user(profile.osu_id as u32).await?;
-
-                    ctx.send(|m| {
-                        m.embed(|e| {
-                            e.description(formatted_scores)
-                                .thumbnail(&user.avatar_url)
-                                .color(color)
-                                .author(|a| {
-                                    a.name(&user.username.as_str())
-                                        .icon_url(&user.avatar_url)
-                                        .url(format_user_link(&user.user_id))
-                                })
-                        })
-                    })
-                    .await?;
+                        "oldest" => best_scores.sort_by(|a, b| a.ended_at.cmp(&b.ended_at)),
+                        "acc" | "accuracy" => {
+                            best_scores.sort_by(|a, b| b.accuracy.total_cmp(&a.accuracy));
+                        }
+                        "combo" => best_scores.sort_by(|a, b| b.max_combo.cmp(&a.max_combo)),
+                        "score" => best_scores.sort_by(|a, b| b.score.cmp(&a.score)),
+                        _ => {}
+                    }
+                    send_top_scores_embed(ctx, &best_scores, profile).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get best scores. {}", why))

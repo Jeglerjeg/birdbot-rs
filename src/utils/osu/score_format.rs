@@ -136,7 +136,7 @@ pub fn format_new_score(
 
 pub async fn format_score_list(
     ctx: Context<'_>,
-    scores: Vec<Score>,
+    scores: &[Score],
     limit: Option<usize>,
     offset: Option<usize>,
 ) -> Result<String, Error> {
@@ -186,7 +186,7 @@ pub async fn format_score_list(
 
         formatted_list.push(format!(
             "{}.\n{}{}{}\n",
-            pos + 1 + offset,
+            pos + 1,
             formatted_score,
             time_since,
             potential_string
