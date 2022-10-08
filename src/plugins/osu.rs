@@ -46,8 +46,8 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
 
             let mode = match profile.mode.as_str() {
                 "osu" => 0,
-                "fruits" => 1,
-                "catch" => 2,
+                "taiko" => 1,
+                "fruits" => 2,
                 "mania" => 3,
                 _ => 10,
             };
