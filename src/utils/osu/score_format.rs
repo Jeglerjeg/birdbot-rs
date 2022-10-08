@@ -1,7 +1,10 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
-use crate::utils::osu::misc_format::format_beatmap_link;
+use crate::utils::misc::remove_trailing_zeros;
+use crate::utils::osu::misc::calculate_potential_acc;
+use crate::utils::osu::misc_format::{format_beatmap_link, format_potential_string};
 use crate::utils::osu::pp::CalculateResults;
+use crate::{Context, Error};
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
@@ -34,10 +37,7 @@ pub fn format_score_statistic(
             format!(
                 "  acc    300s  100s  50s  miss  combo\
                 \n{sign} {:<7}{:<6}{:<6}{:<5}{:<6}{}/{}",
-                format!(
-                    "{}%",
-                    crate::utils::misc::remove_trailing_zeros(score.accuracy.into(), 2)
-                ),
+                format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
                 score.statistics.count_300,
                 score.statistics.count_100,
                 score.statistics.count_50,
@@ -49,10 +49,7 @@ pub fn format_score_statistic(
         GameMode::Taiko => format!(
             "  acc    great  good  miss  combo\
             \n{sign} {:<7}{:<7}{:<6}{:<6}{}/{}",
-            format!(
-                "{}%",
-                crate::utils::misc::remove_trailing_zeros(score.accuracy.into(), 2)
-            ),
+            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
             score.statistics.count_300,
             score.statistics.count_100,
             score.statistics.count_miss,
@@ -62,10 +59,7 @@ pub fn format_score_statistic(
         GameMode::Mania => format!(
             "  acc    max   300s  200s  100s  50s  miss\
         \n{sign} {:<7}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
-            format!(
-                "{}%",
-                crate::utils::misc::remove_trailing_zeros(score.accuracy.into(), 2)
-            ),
+            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
             score.statistics.count_geki,
             score.statistics.count_300,
             score.statistics.count_katu,
@@ -76,10 +70,7 @@ pub fn format_score_statistic(
         GameMode::Catch => format!(
             "  acc    fruits ticks drpm miss combo\
            \n{sign} {:<7}{:<7}{:<6}{:<5}{:<5}{}/{}",
-            format!(
-                "{}%",
-                crate::utils::misc::remove_trailing_zeros(score.accuracy.into(), 2)
-            ),
+            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
             score.statistics.count_300,
             score.statistics.count_100,
             score.statistics.count_katu,
@@ -122,8 +113,8 @@ pub fn format_score_info(
         beatmapset.title,
         beatmap.version,
         format_beatmap_link(&beatmap.id, &beatmapset.id, &score.mode.to_string()),
-        crate::utils::misc::remove_trailing_zeros(score_pp, 2),
-        crate::utils::misc::remove_trailing_zeros(stars, 2),
+        remove_trailing_zeros(score_pp, 2),
+        remove_trailing_zeros(stars, 2),
         score.grade,
         score.mods,
         score.score.to_formatted_string(&Locale::en)
@@ -138,7 +129,69 @@ pub fn format_new_score(
 ) -> String {
     format!(
         "{}```diff\n{}```",
-        format_score_info(score, beatmap, beatmapset, &pp),
-        format_score_statistic(score, beatmap, &pp)
+        format_score_info(score, beatmap, beatmapset, pp),
+        format_score_statistic(score, beatmap, pp)
     )
+}
+
+pub async fn format_score_list(
+    ctx: Context<'_>,
+    scores: Vec<Score>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<String, Error> {
+    let offset = offset.unwrap_or(0);
+    let limit = limit.unwrap_or(5);
+
+    let mut formatted_list: Vec<String> = Vec::new();
+    for (pos, score) in scores.iter().enumerate() {
+        if pos < offset {
+            continue;
+        }
+        if pos > (limit + offset) - 1 {
+            break;
+        }
+
+        let beatmap =
+            crate::utils::osu::caching::get_beatmap(ctx, score.map.as_ref().unwrap().map_id)
+                .await?;
+
+        let beatmapset =
+            crate::utils::osu::caching::get_beatmapset(ctx, beatmap.beatmapset_id as u32).await?;
+
+        let pp = crate::utils::osu::calculate::calculate(
+            score,
+            &beatmap,
+            calculate_potential_acc(score),
+        )
+        .await;
+
+        let potential_string: String;
+        let pp = if let Ok(pp) = pp {
+            let formatted_potential = format_potential_string(&pp);
+            if formatted_potential.is_empty() {
+                potential_string = String::new();
+            } else {
+                potential_string = format!("\n{}", formatted_potential);
+            }
+            Some(pp)
+        } else {
+            potential_string = String::new();
+            None
+        };
+
+        let time_since = format!("<t:{}:R>", score.ended_at.unix_timestamp());
+
+        let formatted_score = format_new_score(score, &beatmap, &beatmapset, &pp);
+
+        formatted_list.push(format!(
+            "{}.\n{}{}{}\n",
+            pos + 1 + offset,
+            formatted_score,
+            time_since,
+            potential_string
+        ));
+    }
+
+    Ok(formatted_list.join("\n"))
 }

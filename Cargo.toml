@@ -16,7 +16,7 @@ chrono = "0.4"
 lazy_static = "1.4"
 diesel_migrations = "2.0"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/Jeglerjeg/rosu-v2", branch = "beatmapsets_lookup", features = ["cache", "rkyv"] }
+rosu-v2 = "0.5"
 num-format = "0.4"
 reqwest = "0.11"
 time = { version = "0.3"}

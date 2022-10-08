@@ -1,8 +1,12 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
-use crate::utils::osu::misc::calculate_potential_acc;
-use crate::utils::osu::misc_format::{format_potential_string, format_user_link};
+use crate::utils::db::linked_osu_profiles;
+use crate::utils::osu::misc::{calculate_potential_acc, gamemode_from_string};
+use crate::utils::osu::misc_format::{
+    format_missing_user_string, format_potential_string, format_user_link,
+};
+use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use humantime::format_duration;
 use rosu_v2::prelude::{Score, User};
@@ -78,18 +82,17 @@ async fn send_score_embed(
     prefix_command,
     slash_command,
     category = "osu!",
-    subcommands("link", "score", "unlink", "mode", "recent")
+    subcommands("link", "score", "unlink", "mode", "recent", "top")
 )]
 pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
-    let profile = crate::utils::db::linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
             ctx.say(format!("Your profile is `{}`.", profile.osu_id))
                 .await?;
         }
         Err(_) => {
-            ctx.say(crate::utils::osu::misc_format::format_missing_user_string(ctx).await)
-                .await?;
+            ctx.say(format_missing_user_string(ctx).await).await?;
         }
     }
 
@@ -111,7 +114,7 @@ pub async fn link(
         mode: user.mode.to_string(),
     };
 
-    crate::utils::db::linked_osu_profiles::create(&query_item);
+    linked_osu_profiles::create(&query_item);
 
     ctx.say(format!(
         "Set your osu! profile to `{}`.",
@@ -125,17 +128,15 @@ pub async fn link(
 /// Unlink your osu! profile.
 #[poise::command(prefix_command, slash_command, guild_only, category = "osu!")]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
-    let profile = crate::utils::db::linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
 
     match profile {
         Ok(profile) => {
-            crate::utils::db::linked_osu_profiles::delete(profile.id)
-                .expect("Failed to delete profile");
+            linked_osu_profiles::delete(profile.id).expect("Failed to delete profile");
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {
-            ctx.say(crate::utils::osu::misc_format::format_missing_user_string(ctx).await)
-                .await?;
+            ctx.say(format_missing_user_string(ctx).await).await?;
         }
     };
 
@@ -148,16 +149,15 @@ pub async fn mode(
     ctx: Context<'_>,
     #[description = "Gamemode to switch to."] mode: String,
 ) -> Result<(), Error> {
-    let profile = crate::utils::db::linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
-            let parsed_mode =
-                if let Some(mode) = crate::utils::osu::misc::gamemode_from_string(&mode) {
-                    mode
-                } else {
-                    ctx.say("Invalid gamemode specified.").await?;
-                    return Ok(());
-                };
+            let parsed_mode = if let Some(mode) = gamemode_from_string(&mode) {
+                mode
+            } else {
+                ctx.say("Invalid gamemode specified.").await?;
+                return Ok(());
+            };
 
             let query_item = NewLinkedOsuProfile {
                 id: profile.id,
@@ -166,14 +166,13 @@ pub async fn mode(
                 mode: parsed_mode.to_string(),
             };
 
-            crate::utils::db::linked_osu_profiles::update(profile.id, &query_item);
+            linked_osu_profiles::update(profile.id, &query_item);
 
             ctx.say(format!("Updated your osu! mode to {}.", parsed_mode))
                 .await?;
         }
         Err(_) => {
-            ctx.say(crate::utils::osu::misc_format::format_missing_user_string(ctx).await)
-                .await?;
+            ctx.say(format_missing_user_string(ctx).await).await?;
         }
     }
 
@@ -186,14 +185,14 @@ pub async fn score(
     ctx: Context<'_>,
     #[description = "Beatmap ID to check for a score."] beatmap_id: u32,
 ) -> Result<(), Error> {
-    let profile = crate::utils::db::linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
             let score = ctx
                 .data()
                 .osu_client
                 .beatmap_user_score(beatmap_id, profile.osu_id as u32)
-                .mode(crate::utils::osu::misc::gamemode_from_string(&profile.mode).unwrap())
+                .mode(gamemode_from_string(&profile.mode).unwrap())
                 .await;
             match score {
                 Ok(score) => {
@@ -220,8 +219,7 @@ pub async fn score(
             }
         }
         Err(_) => {
-            ctx.say(crate::utils::osu::misc_format::format_missing_user_string(ctx).await)
-                .await?;
+            ctx.say(format_missing_user_string(ctx).await).await?;
         }
     }
 
@@ -231,7 +229,7 @@ pub async fn score(
 /// Display your most recent osu score.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
-    let profile = crate::utils::db::linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
             let recent_score = ctx
@@ -239,7 +237,7 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
                 .osu_client
                 .user_scores(profile.osu_id as u32)
                 .recent()
-                .mode(crate::utils::osu::misc::gamemode_from_string(&profile.mode).unwrap())
+                .mode(gamemode_from_string(&profile.mode).unwrap())
                 .include_fails(true)
                 .limit(1)
                 .await;
@@ -275,8 +273,67 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
             }
         }
         Err(_) => {
-            ctx.say(crate::utils::osu::misc_format::format_missing_user_string(ctx).await)
-                .await?;
+            ctx.say(format_missing_user_string(ctx).await).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Display a list of your top scores.
+#[poise::command(prefix_command, slash_command, category = "osu!")]
+pub async fn top(ctx: Context<'_>) -> Result<(), Error> {
+    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    match profile {
+        Ok(profile) => {
+            let best_scores = ctx
+                .data()
+                .osu_client
+                .user_scores(profile.osu_id as u32)
+                .best()
+                .mode(gamemode_from_string(&profile.mode).unwrap())
+                .limit(100)
+                .await;
+
+            match best_scores {
+                Ok(best_scores) => {
+                    let color: Color;
+                    if let Some(guild) = ctx.guild() {
+                        if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
+                            color = member.colour(ctx.discord()).unwrap_or(BLUE);
+                        } else {
+                            color = BLUE;
+                        }
+                    } else {
+                        color = BLUE;
+                    };
+
+                    let formatted_scores = format_score_list(ctx, best_scores, None, None).await?;
+
+                    let user = ctx.data().osu_client.user(profile.osu_id as u32).await?;
+
+                    ctx.send(|m| {
+                        m.embed(|e| {
+                            e.description(formatted_scores)
+                                .thumbnail(&user.avatar_url)
+                                .color(color)
+                                .author(|a| {
+                                    a.name(&user.username.as_str())
+                                        .icon_url(&user.avatar_url)
+                                        .url(format_user_link(&user.user_id))
+                                })
+                        })
+                    })
+                    .await?;
+                }
+                Err(why) => {
+                    ctx.say(format!("Failed to get best scores. {}", why))
+                        .await?;
+                }
+            }
+        }
+        Err(_) => {
+            ctx.say(format_missing_user_string(ctx).await).await?;
         }
     }
 
