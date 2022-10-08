@@ -20,14 +20,14 @@ pub fn format_score_statistic(
         "\u{001b}[0;31m"
     };
 
-    let max_combo: i32;
+    let max_combo: i64;
     if let Some(pp) = pp {
         max_combo = match pp.max_combo {
-            Some(calculated_combo) => calculated_combo as i32,
-            _ => beatmap.max_combo,
+            Some(calculated_combo) => calculated_combo as i64,
+            _ => i64::from(beatmap.max_combo),
         }
     } else {
-        max_combo = beatmap.max_combo;
+        max_combo = i64::from(beatmap.max_combo);
     }
 
     match score.mode {
@@ -110,7 +110,7 @@ pub fn format_score_info(
         beatmapset.artist,
         beatmapset.title,
         beatmap.version,
-        format_beatmap_link(&beatmap.id, &beatmapset.id, &score.mode.to_string()),
+        format_beatmap_link(beatmap.id, beatmapset.id, &score.mode.to_string()),
         remove_trailing_zeros(score_pp, 2),
         remove_trailing_zeros(stars, 2),
         score.grade,

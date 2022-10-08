@@ -80,7 +80,7 @@ pub async fn send_score_embed(
                 .author(|a| {
                     a.icon_url(user.avatar_url)
                         .name(user.username)
-                        .url(format_user_link(&user.user_id))
+                        .url(format_user_link(user.user_id))
                 })
         })
     })
@@ -118,7 +118,7 @@ pub async fn send_top_scores_embed(
                     .author(|a| {
                         a.name(&user.username.as_str())
                             .icon_url(&user.avatar_url)
-                            .url(format_user_link(&user.user_id))
+                            .url(format_user_link(user.user_id))
                     })
                     .footer(|f| {
                         f.text(format!(
@@ -282,7 +282,7 @@ async fn remove_top_score_paginators(
                     .author(|a| {
                         a.name(&user.username.as_str())
                             .icon_url(&user.avatar_url)
-                            .url(format_user_link(&user.user_id))
+                            .url(format_user_link(user.user_id))
                     })
                     .footer(|f| f.text(format!("Page {} of {}", page, max_pages)))
             })
@@ -315,7 +315,7 @@ async fn change_top_scores_page(
                     .author(|a| {
                         a.name(&user.username.as_str())
                             .icon_url(&user.avatar_url)
-                            .url(format_user_link(&user.user_id))
+                            .url(format_user_link(user.user_id))
                     })
                     .footer(|f| f.text(format!("Page {} of {}", page, max_pages)))
             })
