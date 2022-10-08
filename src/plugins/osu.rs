@@ -69,6 +69,7 @@ async fn send_score_embed(
     .expect("Couldn't send score embed.");
 }
 
+/// Display information about your osu! user.
 #[poise::command(
     prefix_command,
     slash_command,
@@ -91,6 +92,7 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Link an osu! profile.
 #[poise::command(prefix_command, slash_command, guild_only, category = "osu!")]
 pub async fn link(
     ctx: Context<'_>,
@@ -116,6 +118,7 @@ pub async fn link(
     Ok(())
 }
 
+/// Unlink your osu! profile.
 #[poise::command(prefix_command, slash_command, guild_only, category = "osu!")]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     let profile = crate::utils::db::linked_osu_profiles::read(ctx.author().id.0 as i64);
@@ -135,6 +138,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Changed your osu! mode.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn mode(
     ctx: Context<'_>,
@@ -172,6 +176,7 @@ pub async fn mode(
     Ok(())
 }
 
+/// Display your score on a beatmap.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn score(
     ctx: Context<'_>,
@@ -219,6 +224,7 @@ pub async fn score(
     Ok(())
 }
 
+/// Display your most recent osu score.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
     let profile = crate::utils::db::linked_osu_profiles::read(ctx.author().id.0 as i64);
