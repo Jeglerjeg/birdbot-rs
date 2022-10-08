@@ -39,3 +39,7 @@ pub async fn format_missing_user_string(ctx: Context<'_>) -> String {
 pub fn format_beatmap_link(beatmap_id: &i64, beatmapset_id: &i64, mode: &str) -> String {
     format!("https://osu.ppy.sh/beatmapsets/{beatmapset_id}#{mode}/{beatmap_id}")
 }
+
+pub fn format_user_link(user_id: &u32) -> String {
+    format!("https://osu.ppy.sh/users/{}", user_id)
+}

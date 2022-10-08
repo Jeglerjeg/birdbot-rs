@@ -2,7 +2,7 @@ use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::utils::osu::misc::calculate_potential_acc;
-use crate::utils::osu::misc_format::format_potential_string;
+use crate::utils::osu::misc_format::{format_potential_string, format_user_link};
 use crate::{Context, Error};
 use humantime::format_duration;
 use rosu_v2::prelude::{Score, User};
@@ -62,7 +62,11 @@ async fn send_score_embed(
                 .color(color)
                 .description(formatted_score)
                 .footer(|f| f.text(potential_string + &*time_since))
-                .author(|a| a.icon_url(user.avatar_url).name(user.username))
+                .author(|a| {
+                    a.icon_url(user.avatar_url)
+                        .name(user.username)
+                        .url(format_user_link(&user.user_id))
+                })
         })
     })
     .await
