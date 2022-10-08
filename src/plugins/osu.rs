@@ -2,6 +2,9 @@ use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::utils::db::linked_osu_profiles;
 use crate::utils::osu::misc::gamemode_from_string;
 use crate::utils::osu::misc_format::format_missing_user_string;
+use chrono::Utc;
+use serenity::utils::colours::roles::BLUE;
+use serenity::utils::Color;
 
 use crate::{Context, Error};
 
@@ -18,7 +21,43 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
     let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
-            ctx.say(format!("Your profile is `{}`.", profile.osu_id))
+            let color: Color;
+            if let Some(guild) = ctx.guild() {
+                if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
+                    color = member.colour(ctx.discord()).unwrap_or(BLUE);
+                } else {
+                    color = BLUE;
+                }
+            } else {
+                color = BLUE;
+            };
+
+            let colour_formatted =
+                format!("%23{:02x}{:02x}{:02x}", color.r(), color.g(), color.b());
+
+            let darkheader =
+                if (f32::from(color.r()) * 0.299 + f32::from(color.g()) * 0.587 + f32::from(color.b()) * 0.144)
+                    > 186.0
+                {
+                    "&darkheader"
+                } else {
+                    ""
+                };
+
+            let mode = match profile.mode.as_str() {
+                "osu" => 0,
+                "taiko" => 1,
+                "catch" => 2,
+                "mania" => 3,
+                _ => 10,
+            };
+
+            ctx.send(|m|
+                m.embed(|e|
+                    e.image(format!("https://lemmmy.pw/osusig//sig.php?colour={}&uname={}&countryrank=&xpbar=&mode={}&date={}{}",
+                                    colour_formatted, profile.osu_id, mode, Utc::now().timestamp(), darkheader))
+                        .author(|a| a.icon_url(ctx.author().face()).name(&ctx.author().name))
+                        .color(color)))
                 .await?;
         }
         Err(_) => {
