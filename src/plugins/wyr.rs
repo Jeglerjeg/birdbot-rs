@@ -2,6 +2,7 @@ use crate::models::questions::Question;
 use crate::serenity_prelude as serenity;
 use crate::{Context, Error};
 use lazy_static::lazy_static;
+use poise::futures_util::StreamExt;
 use poise::{serenity_prelude, ReplyHandle};
 use rand::seq::SliceRandom;
 use serenity_prelude::Mentionable;
@@ -73,20 +74,16 @@ async fn handle_interaction_responses(
 ) -> Result<(), Error> {
     let mut responses: Vec<String> = vec![];
     let mut replies: Vec<u64> = vec![];
-    loop {
-        let interaction = match reply
-            .message()
-            .await?
-            .await_component_interaction(ctx.discord())
-            .timeout(Duration::from_secs(15))
-            .await
-        {
-            Some(x) => x,
-            None => {
-                break;
-            }
-        };
 
+    // Wait for multiple interactions
+    let mut interaction_stream = reply
+        .message()
+        .await?
+        .await_component_interactions(ctx.discord())
+        .timeout(Duration::from_secs(30))
+        .build();
+
+    while let Some(interaction) = interaction_stream.next().await {
         if replies.contains(&interaction.user.id.0) {
             interaction
                 .create_interaction_response(ctx.discord(), |r| {

@@ -102,7 +102,6 @@ async fn main() {
         .batch_execute(
             "PRAGMA journal_mode = WAL;
              PRAGMA synchronous = NORMAL;
-             PRAGMA cache_size = -364000;
              VACUUM;
              PRAGMA analysis_limit = 400;
              PRAGMA optimize;",
