@@ -1,7 +1,9 @@
+use crate::models::beatmaps::Beatmap;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::pp::CalculateResults;
 use crate::Context;
 use rosu_v2::model::beatmap::RankStatus;
+use rosu_v2::prelude::Score;
 
 pub fn format_rank_status(status: RankStatus) -> String {
     match status {
@@ -30,6 +32,16 @@ pub fn format_potential_string(pp: &CalculateResults) -> String {
         }
         _ => String::new(),
     }
+}
+
+pub fn format_completion_rate(score: &Score, beatmap: &Beatmap, pp: &CalculateResults) -> String {
+    let beatmap_objects =
+        (beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders) as f64;
+    format!(
+        "Completion rate: {}%({}★)",
+        remove_trailing_zeros((score.total_hits() as f64 / beatmap_objects) * 100.0, 2),
+        remove_trailing_zeros(pp.partial_stars, 2)
+    )
 }
 
 pub async fn format_missing_user_string(ctx: Context<'_>) -> String {

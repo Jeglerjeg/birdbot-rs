@@ -65,13 +65,19 @@ pub async fn calculate(
                 Some(score.statistics.count_100 as usize),
                 Some(score.statistics.count_50 as usize),
                 Some(score.statistics.count_miss as usize),
-                None,
+                Some(score.total_hits() as usize),
             )
             .await)
         }
         GameMode::Mania => {
             let path = get_beatmap_bath(beatmap).await?;
-            Ok(calculate_mania_pp(path, score.mods.bits(), Some(score.score), None).await)
+            Ok(calculate_mania_pp(
+                path,
+                score.mods.bits(),
+                Some(score.score),
+                Some(score.total_hits() as usize),
+            )
+            .await)
         }
         GameMode::Taiko => {
             let path = get_beatmap_bath(beatmap).await?;
@@ -83,7 +89,7 @@ pub async fn calculate(
                 Some(score.statistics.count_300 as usize),
                 Some(score.statistics.count_100 as usize),
                 Some(score.statistics.count_miss as usize),
-                None,
+                Some(score.total_hits() as usize),
             )
             .await)
         }
@@ -98,7 +104,7 @@ pub async fn calculate(
                 Some(score.statistics.count_50 as usize),
                 Some(score.statistics.count_katu as usize),
                 Some(score.statistics.count_miss as usize),
-                None,
+                Some(score.total_hits() as usize),
             )
             .await)
         }

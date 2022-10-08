@@ -3,11 +3,14 @@ use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
 use crate::serenity_prelude;
 use crate::utils::osu::misc::{calculate_potential_acc, count_score_pages};
-use crate::utils::osu::misc_format::{format_potential_string, format_user_link};
+use crate::utils::osu::misc_format::{
+    format_completion_rate, format_potential_string, format_user_link,
+};
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use humantime::format_duration;
 use poise::ReplyHandle;
+use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{Score, User};
 use serenity::model::prelude::interaction::message_component::MessageComponentInteraction;
 use serenity::utils::colours::roles::BLUE;
@@ -40,11 +43,18 @@ pub async fn send_score_embed(
     );
 
     let potential_string: String;
+    let completion_rate: String;
     let pp = if let Ok(pp) = pp {
         potential_string = format_potential_string(&pp);
+        if score.grade == Grade::F && score.mode != GameMode::Catch {
+            completion_rate = format!("\n{}", format_completion_rate(&score, &beatmap, &pp));
+        } else {
+            completion_rate = String::new();
+        }
         Some(pp)
     } else {
         potential_string = String::new();
+        completion_rate = String::new();
         None
     };
 
@@ -66,7 +76,7 @@ pub async fn send_score_embed(
             e.thumbnail(beatmapset.list_cover)
                 .color(color)
                 .description(formatted_score)
-                .footer(|f| f.text(potential_string + &*time_since))
+                .footer(|f| f.text(potential_string + &*time_since + &*completion_rate))
                 .author(|a| {
                     a.icon_url(user.avatar_url)
                         .name(user.username)
