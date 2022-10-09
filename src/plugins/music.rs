@@ -587,7 +587,10 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn volume(
     ctx: Context<'_>,
-    #[description = "Volume to change the track to, accepts 1-200"] mut new_volume: u8,
+    #[min = 0]
+    #[max = 200]
+    #[description = "Volume to change the track to, accepts 1-200"]
+    mut new_volume: u8,
 ) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
     let guild_id = guild.id;
