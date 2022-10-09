@@ -12,6 +12,7 @@ use humantime::format_duration;
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{Score, User};
+use std::borrow::Borrow;
 
 use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
@@ -21,12 +22,12 @@ use time::OffsetDateTime;
 pub fn create_embed<'a, 'b>(
     f: &'a mut CreateReply<'b>,
     color: Color,
-    thumbnail: String,
-    description: String,
-    footer: String,
-    author_icon: String,
-    author_name: String,
-    author_url: String,
+    thumbnail: &str,
+    description: &str,
+    footer: &str,
+    author_icon: &str,
+    author_name: &str,
+    author_url: &str,
 ) -> &'a mut CreateReply<'b> {
     f.embed(|e| {
         e.thumbnail(thumbnail)
@@ -95,12 +96,12 @@ pub async fn send_score_embed(
         create_embed(
             m,
             color,
-            beatmapset.list_cover,
-            formatted_score,
-            footer,
-            user.avatar_url,
-            user.username.to_string(),
-            format_user_link(user.user_id),
+            beatmapset.list_cover.borrow(),
+            formatted_score.borrow(),
+            footer.borrow(),
+            user.avatar_url.borrow(),
+            user.username.as_str(),
+            format_user_link(user.user_id).borrow(),
         )
     })
     .await?;
@@ -294,12 +295,12 @@ async fn remove_top_score_paginators(
             create_embed(
                 b,
                 color,
-                user.avatar_url.clone(),
-                formatted_scores,
-                format!("Page {} of {}", page, max_pages),
-                user.avatar_url.clone(),
-                user.username.to_string(),
-                format_user_link(user.user_id),
+                user.avatar_url.borrow(),
+                formatted_scores.borrow(),
+                format!("Page {} of {}", page, max_pages).borrow(),
+                user.avatar_url.borrow(),
+                user.username.as_str(),
+                format_user_link(user.user_id).borrow(),
             )
             .components(|b| b)
         })
@@ -325,12 +326,12 @@ async fn change_top_scores_page(
             create_embed(
                 b,
                 color,
-                user.avatar_url.clone(),
-                formatted_scores,
-                format!("Page {} of {}", page, max_pages),
-                user.avatar_url.clone(),
-                user.username.to_string(),
-                format_user_link(user.user_id),
+                user.avatar_url.borrow(),
+                formatted_scores.borrow(),
+                format!("Page {} of {}", page, max_pages).borrow(),
+                user.avatar_url.borrow(),
+                user.username.as_str(),
+                format_user_link(user.user_id).borrow(),
             )
         })
         .await?;
