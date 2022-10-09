@@ -108,7 +108,8 @@ async fn handle_interaction_responses(
                 question.choice1_answers += 1;
                 crate::utils::db::questions::update_choice(question.id, 1);
 
-                reply.edit(ctx, |b| {
+                reply
+                    .edit(ctx, |b| {
                         b.embed(|e| e.description(format_question(&question, &responses)))
                     })
                     .await?;
@@ -120,7 +121,8 @@ async fn handle_interaction_responses(
                 question.choice2_answers += 1;
                 crate::utils::db::questions::update_choice(question.id, 2);
 
-                reply.edit(ctx, |b| {
+                reply
+                    .edit(ctx, |b| {
                         b.embed(|e| e.description(format_question(&question, &responses)))
                     })
                     .await?;
@@ -141,7 +143,8 @@ async fn handle_interaction_responses(
         }
     }
 
-    reply.edit(ctx, |b| {
+    reply
+        .edit(ctx, |b| {
             b.components(|b| b);
             b.embed(|e| {
                 e.description(format!(

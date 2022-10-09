@@ -9,13 +9,33 @@ use crate::utils::osu::misc_format::{
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use humantime::format_duration;
-use poise::ReplyHandle;
+use poise::{CreateReply, ReplyHandle};
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{Score, User};
+
 use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
 use std::time::Duration;
 use time::OffsetDateTime;
+
+pub fn create_embed<'a, 'b>(
+    f: &'a mut CreateReply<'b>,
+    color: Color,
+    thumbnail: String,
+    description: String,
+    footer: String,
+    author_icon: String,
+    author_name: String,
+    author_url: String,
+) -> &'a mut CreateReply<'b> {
+    f.embed(|e| {
+        e.thumbnail(thumbnail)
+            .color(color)
+            .description(description)
+            .footer(|f| f.text(footer))
+            .author(|a| a.icon_url(author_icon).name(author_name).url(author_url))
+    })
+}
 
 pub async fn send_score_embed(
     ctx: Context<'_>,
@@ -56,6 +76,8 @@ pub async fn send_score_embed(
         None
     };
 
+    let footer = format!("{}{}{}", potential_string, time_since, completion_rate);
+
     let formatted_score =
         crate::utils::osu::score_format::format_new_score(&score, &beatmap, &beatmapset, &pp);
 
@@ -70,17 +92,16 @@ pub async fn send_score_embed(
     };
 
     ctx.send(|m| {
-        m.embed(|e| {
-            e.thumbnail(beatmapset.list_cover)
-                .color(color)
-                .description(formatted_score)
-                .footer(|f| f.text(potential_string + &*time_since + &*completion_rate))
-                .author(|a| {
-                    a.icon_url(user.avatar_url)
-                        .name(user.username)
-                        .url(format_user_link(user.user_id))
-                })
-        })
+        create_embed(
+            m,
+            color,
+            beatmapset.list_cover,
+            formatted_score,
+            footer,
+            user.avatar_url,
+            user.username.to_string(),
+            format_user_link(user.user_id),
+        )
     })
     .await?;
 
@@ -268,19 +289,19 @@ async fn remove_top_score_paginators(
     user: &User,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(ctx, best_scores, None, Some(offset)).await?;
-    reply.edit(ctx, |b| {
-            b.components(|b| b);
-            b.embed(|e| {
-                e.description(formatted_scores)
-                    .thumbnail(&user.avatar_url)
-                    .color(color)
-                    .author(|a| {
-                        a.name(&user.username.as_str())
-                            .icon_url(&user.avatar_url)
-                            .url(format_user_link(user.user_id))
-                    })
-                    .footer(|f| f.text(format!("Page {} of {}", page, max_pages)))
-            })
+    reply
+        .edit(ctx, |b| {
+            create_embed(
+                b,
+                color,
+                user.avatar_url.clone(),
+                formatted_scores,
+                format!("Page {} of {}", page, max_pages),
+                user.avatar_url.clone(),
+                user.username.to_string(),
+                format_user_link(user.user_id),
+            )
+            .components(|b| b)
         })
         .await?;
 
@@ -297,20 +318,20 @@ async fn change_top_scores_page(
     color: Color,
     user: &User,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(ctx.clone(), best_scores, None, Some(offset)).await?;
+    let formatted_scores = format_score_list(ctx, best_scores, None, Some(offset)).await?;
 
-    reply.edit(ctx, |b| {
-            b.embed(|e| {
-                e.description(formatted_scores)
-                    .thumbnail(&user.avatar_url)
-                    .color(color)
-                    .author(|a| {
-                        a.name(&user.username.as_str())
-                            .icon_url(&user.avatar_url)
-                            .url(format_user_link(user.user_id))
-                    })
-                    .footer(|f| f.text(format!("Page {} of {}", page, max_pages)))
-            })
+    reply
+        .edit(ctx, |b| {
+            create_embed(
+                b,
+                color,
+                user.avatar_url.clone(),
+                formatted_scores,
+                format!("Page {} of {}", page, max_pages),
+                user.avatar_url.clone(),
+                user.username.to_string(),
+                format_user_link(user.user_id),
+            )
         })
         .await?;
 
