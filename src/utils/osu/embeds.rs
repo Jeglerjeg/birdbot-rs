@@ -12,10 +12,8 @@ use humantime::format_duration;
 use poise::ReplyHandle;
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{Score, User};
-use serenity::model::prelude::interaction::message_component::MessageComponentInteraction;
 use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
-use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -193,7 +191,7 @@ async fn handle_top_score_interactions(
                 }
                 change_top_scores_page(
                     ctx,
-                    interaction,
+                    &reply,
                     best_scores,
                     offset,
                     &page,
@@ -214,7 +212,7 @@ async fn handle_top_score_interactions(
                 }
                 change_top_scores_page(
                     ctx,
-                    interaction,
+                    &reply,
                     best_scores,
                     offset,
                     &page,
@@ -230,7 +228,7 @@ async fn handle_top_score_interactions(
                 offset = 0;
                 change_top_scores_page(
                     ctx,
-                    interaction,
+                    &reply,
                     best_scores,
                     offset,
                     &page,
@@ -270,10 +268,7 @@ async fn remove_top_score_paginators(
     user: &User,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(ctx, best_scores, None, Some(offset)).await?;
-    reply
-        .into_message()
-        .await?
-        .edit(ctx.discord(), |b| {
+    reply.edit(ctx, |b| {
             b.components(|b| b);
             b.embed(|e| {
                 e.description(formatted_scores)
@@ -294,7 +289,7 @@ async fn remove_top_score_paginators(
 
 async fn change_top_scores_page(
     ctx: Context<'_>,
-    interaction: Arc<MessageComponentInteraction>,
+    reply: &ReplyHandle<'_>,
     best_scores: &[Score],
     offset: usize,
     page: &usize,
@@ -302,12 +297,9 @@ async fn change_top_scores_page(
     color: Color,
     user: &User,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(ctx, best_scores, None, Some(offset)).await?;
+    let formatted_scores = format_score_list(ctx.clone(), best_scores, None, Some(offset)).await?;
 
-    interaction
-        .message
-        .clone()
-        .edit(ctx.discord(), |b| {
+    reply.edit(ctx, |b| {
             b.embed(|e| {
                 e.description(formatted_scores)
                     .thumbnail(&user.avatar_url)

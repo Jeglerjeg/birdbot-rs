@@ -108,10 +108,7 @@ async fn handle_interaction_responses(
                 question.choice1_answers += 1;
                 crate::utils::db::questions::update_choice(question.id, 1);
 
-                interaction
-                    .message
-                    .clone()
-                    .edit(ctx.discord(), |b| {
+                reply.edit(ctx, |b| {
                         b.embed(|e| e.description(format_question(&question, &responses)))
                     })
                     .await?;
@@ -123,10 +120,7 @@ async fn handle_interaction_responses(
                 question.choice2_answers += 1;
                 crate::utils::db::questions::update_choice(question.id, 2);
 
-                interaction
-                    .message
-                    .clone()
-                    .edit(ctx.discord(), |b| {
+                reply.edit(ctx, |b| {
                         b.embed(|e| e.description(format_question(&question, &responses)))
                     })
                     .await?;
@@ -147,10 +141,7 @@ async fn handle_interaction_responses(
         }
     }
 
-    reply
-        .into_message()
-        .await?
-        .edit(ctx.discord(), |b| {
+    reply.edit(ctx, |b| {
             b.components(|b| b);
             b.embed(|e| {
                 e.description(format!(
