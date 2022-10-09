@@ -73,7 +73,9 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, guild_only, category = "osu!")]
 pub async fn link(
     ctx: Context<'_>,
-    #[description = "osu! username to link to"] username: String,
+    #[rest]
+    #[description = "osu! username to link to"]
+    username: String,
 ) -> Result<(), Error> {
     let user = ctx.data().osu_client.user(username).await?;
 

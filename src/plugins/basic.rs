@@ -240,7 +240,9 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, hide_in_help = true, category = "Basic")]
 pub async fn help(
     ctx: Context<'_>,
-    #[description = "Specific command to show help about"] command: Option<String>,
+    #[rest]
+    #[description = "Specific command to show help about"]
+    command: Option<String>,
 ) -> Result<(), Error> {
     let config = HelpConfiguration {
         extra_text_at_bottom: &*format!(
@@ -315,7 +317,9 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn avatar(
     ctx: Context<'_>,
-    #[description = "User to get avatar for"] user: Option<User>,
+    #[rest]
+    #[description = "User to get avatar for"]
+    user: Option<User>,
 ) -> Result<(), Error> {
     let color: Color;
     let name: String;

@@ -432,7 +432,9 @@ async fn queue(
 )]
 pub async fn play(
     ctx: Context<'_>,
-    #[description = "Name or URL of song to play"] url_or_name: String,
+    #[rest]
+    #[description = "Name or URL of song to play"]
+    url_or_name: String,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let guild = ctx.guild().unwrap();
