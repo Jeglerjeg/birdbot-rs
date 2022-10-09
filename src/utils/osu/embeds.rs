@@ -12,7 +12,6 @@ use humantime::format_duration;
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{Score, User};
-use std::borrow::Borrow;
 
 use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
@@ -96,12 +95,12 @@ pub async fn send_score_embed(
         create_embed(
             m,
             color,
-            beatmapset.list_cover.borrow(),
-            formatted_score.borrow(),
-            footer.borrow(),
-            user.avatar_url.borrow(),
-            user.username.as_str(),
-            format_user_link(user.user_id).borrow(),
+            &beatmapset.list_cover,
+            &formatted_score,
+            &footer,
+            &user.avatar_url,
+            &user.username,
+            &format_user_link(user.user_id),
         )
     })
     .await?;
@@ -131,23 +130,16 @@ pub async fn send_top_scores_embed(
 
     let reply = ctx
         .send(|m| {
-            m.embed(|e| {
-                e.description(formatted_scores)
-                    .thumbnail(&user.avatar_url)
-                    .color(color)
-                    .author(|a| {
-                        a.name(&user.username.as_str())
-                            .icon_url(&user.avatar_url)
-                            .url(format_user_link(user.user_id))
-                    })
-                    .footer(|f| {
-                        f.text(format!(
-                            "Page {} of {}",
-                            1,
-                            count_score_pages(best_scores, 5)
-                        ))
-                    })
-            })
+            create_embed(
+                m,
+                color,
+                &user.avatar_url,
+                &formatted_scores,
+                &format!("Page {} of {}", 1, count_score_pages(best_scores, 5)),
+                &user.avatar_url,
+                user.username.as_str(),
+                &format_user_link(user.user_id),
+            )
             .components(|c| {
                 c.create_action_row(|r| {
                     r.create_button(|b| {
@@ -295,12 +287,12 @@ async fn remove_top_score_paginators(
             create_embed(
                 b,
                 color,
-                user.avatar_url.borrow(),
-                formatted_scores.borrow(),
-                format!("Page {} of {}", page, max_pages).borrow(),
-                user.avatar_url.borrow(),
+                &user.avatar_url,
+                &formatted_scores,
+                &format!("Page {} of {}", page, max_pages),
+                &user.avatar_url,
                 user.username.as_str(),
-                format_user_link(user.user_id).borrow(),
+                &format_user_link(user.user_id),
             )
             .components(|b| b)
         })
@@ -326,12 +318,12 @@ async fn change_top_scores_page(
             create_embed(
                 b,
                 color,
-                user.avatar_url.borrow(),
-                formatted_scores.borrow(),
-                format!("Page {} of {}", page, max_pages).borrow(),
-                user.avatar_url.borrow(),
+                &user.avatar_url,
+                &formatted_scores,
+                &format!("Page {} of {}", page, max_pages),
+                &user.avatar_url,
                 user.username.as_str(),
-                format_user_link(user.user_id).borrow(),
+                &format_user_link(user.user_id),
             )
         })
         .await?;
