@@ -74,6 +74,13 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
                 ctx.command().name,
                 error
             );
+            match ctx
+                .say("The command returned an error. Try again later.")
+                .await
+            {
+                Ok(_) => {}
+                Err(why) => error!("Error while handling error: {}", why),
+            }
         }
         poise::FrameworkError::Listener { error, event, .. } => {
             error!(

@@ -35,14 +35,15 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
             let colour_formatted =
                 format!("%23{:02x}{:02x}{:02x}", color.r(), color.g(), color.b());
 
-            let darkheader =
-                if (f32::from(color.r()) * 0.299 + f32::from(color.g()) * 0.587 + f32::from(color.b()) * 0.144)
-                    > 186.0
-                {
-                    "&darkheader"
-                } else {
-                    ""
-                };
+            let darkheader = if (f32::from(color.r()) * 0.299
+                + f32::from(color.g()) * 0.587
+                + f32::from(color.b()) * 0.144)
+                > 186.0
+            {
+                "&darkheader"
+            } else {
+                ""
+            };
 
             let mode = match profile.mode.as_str() {
                 "osu" => 0,
