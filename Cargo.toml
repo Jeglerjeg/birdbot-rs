@@ -32,7 +32,7 @@ features = ["async_tokio"]
 
 [dependencies.diesel]
 version = "2.0"
-features = ["sqlite", "chrono", "postgres"]
+features = ["chrono", "postgres"]
 
 [dependencies.songbird]
 version = "0.3"
