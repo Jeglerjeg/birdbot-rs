@@ -5,6 +5,8 @@ mod utils;
 
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::PgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use poise::serenity_prelude;
 use rosu_v2::prelude::Osu;
@@ -20,6 +22,7 @@ pub struct Data {
     time_started: DateTime<Utc>,
     osu_client: Arc<Osu>,
     osu_tracker: Arc<Mutex<OsuTracker>>,
+    db_pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -106,9 +109,12 @@ async fn main() {
     // the CWD. See `./.env.example` for an example on how to structure this.
     dotenv::dotenv().expect("Failed to load .env file");
 
-    let connection = &mut utils::db::establish_connection::establish_connection();
+    let connection = utils::db::establish_connection::establish_connection();
 
-    connection.run_pending_migrations(MIGRATIONS).unwrap();
+    let migration_connection = &mut connection.get().unwrap();
+    migration_connection
+        .run_pending_migrations(MIGRATIONS)
+        .unwrap();
 
     let options = poise::FrameworkOptions {
         commands: vec![
@@ -194,8 +200,10 @@ async fn main() {
                     osu_tracker: Arc::from(Mutex::from(OsuTracker {
                         ctx: ctx.clone(),
                         osu_client,
+                        pool: connection.clone(),
                         shut_down: false,
                     })),
+                    db_pool: connection,
                 })
             })
         })

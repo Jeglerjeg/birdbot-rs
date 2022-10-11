@@ -29,8 +29,7 @@ fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
     }
 }
 
-pub fn create(beatmap: &rosu_v2::prelude::Beatmap) -> Result<(), Error> {
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
+pub fn create(db: &mut PgConnection, beatmap: &rosu_v2::prelude::Beatmap) -> Result<(), Error> {
     let item = to_insert_beatmap(beatmap);
 
     insert_into(beatmaps::table).values(item).execute(db)?;
@@ -38,17 +37,13 @@ pub fn create(beatmap: &rosu_v2::prelude::Beatmap) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn get_single(param_id: i64) -> QueryResult<Beatmap> {
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn get_single(db: &mut PgConnection, param_id: i64) -> QueryResult<Beatmap> {
     beatmaps::table
         .filter(beatmaps::id.eq(param_id))
         .first::<Beatmap>(db)
 }
 
-pub fn get_mapset_maps(mapset_id: i64) -> Vec<Beatmap> {
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn get_mapset_maps(db: &mut PgConnection, mapset_id: i64) -> Vec<Beatmap> {
     let beatmap_result = beatmaps::table
         .filter(beatmaps::beatmapset_id.eq(mapset_id))
         .load::<Beatmap>(db);
@@ -59,8 +54,6 @@ pub fn get_mapset_maps(mapset_id: i64) -> Vec<Beatmap> {
     }
 }
 
-pub fn delete(param_id: i64) -> QueryResult<usize> {
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn delete(db: &mut PgConnection, param_id: i64) -> QueryResult<usize> {
     diesel::delete(beatmaps::table.filter(beatmaps::id.eq(param_id))).execute(db)
 }

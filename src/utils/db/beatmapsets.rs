@@ -19,8 +19,7 @@ fn to_insert_beatmapset(beatmapset: rosu_v2::prelude::Beatmapset) -> NewBeatmaps
     }
 }
 
-pub fn create(beatmapset: rosu_v2::prelude::Beatmapset) {
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
+pub fn create(db: &mut PgConnection, beatmapset: rosu_v2::prelude::Beatmapset) {
     let item = to_insert_beatmapset(beatmapset);
 
     insert_into(beatmapsets::table)
@@ -29,16 +28,12 @@ pub fn create(beatmapset: rosu_v2::prelude::Beatmapset) {
         .expect("Couldn't insert beatmap");
 }
 
-pub fn read(param_id: i64) -> QueryResult<Beatmapset> {
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn read(db: &mut PgConnection, param_id: i64) -> QueryResult<Beatmapset> {
     beatmapsets::table
         .filter(beatmapsets::id.eq(param_id))
         .first::<Beatmapset>(db)
 }
 
-pub fn delete(param_id: i64) -> QueryResult<usize> {
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn delete(db: &mut PgConnection, param_id: i64) -> QueryResult<usize> {
     diesel::delete(beatmapsets::table.filter(beatmapsets::id.eq(param_id))).execute(db)
 }

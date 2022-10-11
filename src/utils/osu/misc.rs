@@ -1,5 +1,6 @@
 use crate::utils::db::osu_users;
 use crate::Error;
+use diesel::PgConnection;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
 
@@ -30,9 +31,9 @@ pub fn count_score_pages(scores: &[Score], scores_per_page: usize) -> usize {
     (scores.len() + scores_per_page - 1) / scores_per_page
 }
 
-pub fn wipe_profile_data(user_id: i64) -> Result<(), Error> {
-    if osu_users::read(user_id).is_ok() {
-        osu_users::delete(user_id)?;
+pub fn wipe_profile_data(db: &mut PgConnection, user_id: i64) -> Result<(), Error> {
+    if osu_users::read(db, user_id).is_ok() {
+        osu_users::delete(db, user_id)?;
     }
 
     Ok(())

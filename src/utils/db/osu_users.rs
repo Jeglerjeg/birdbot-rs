@@ -21,9 +21,8 @@ pub fn rosu_user_to_db(user: rosu_v2::prelude::User, ticks: Option<i32>) -> NewO
     }
 }
 
-pub fn create(item: &NewOsuUser) -> Result<(), Error> {
+pub fn create(db: &mut PgConnection, item: &NewOsuUser) -> Result<(), Error> {
     use crate::schema::osu_users::dsl::{id, osu_users};
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
 
     insert_into(osu_users)
         .values(item)
@@ -35,16 +34,14 @@ pub fn create(item: &NewOsuUser) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn read(param_id: i64) -> QueryResult<OsuUser> {
+pub fn read(db: &mut PgConnection, param_id: i64) -> QueryResult<OsuUser> {
     use crate::schema::osu_users::dsl::{id, osu_users};
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
 
     osu_users.filter(id.eq(param_id)).first::<OsuUser>(db)
 }
 
-pub fn delete(param_id: i64) -> Result<(), Error> {
+pub fn delete(db: &mut PgConnection, param_id: i64) -> Result<(), Error> {
     use crate::schema::osu_users::dsl::{id, osu_users};
-    let db = &mut crate::utils::db::establish_connection::establish_connection();
 
     diesel::delete(osu_users.filter(id.eq(param_id))).execute(db)?;
 

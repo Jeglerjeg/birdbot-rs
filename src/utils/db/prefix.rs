@@ -9,8 +9,7 @@ lazy_static! {
     static ref DEFAULT_PREFIX: String = env::var("PREFIX").unwrap_or_else(|_| String::from(">"));
 }
 
-pub fn add_guild_prefix(guild_id: i64, prefix: &str) {
-    let connection = &mut crate::utils::db::establish_connection::establish_connection();
+pub fn add_guild_prefix(db: &mut PgConnection, guild_id: i64, prefix: &str) {
     let new_prefix = NewPrefix {
         guild_id: &guild_id,
         guild_prefix: prefix,
@@ -21,7 +20,7 @@ pub fn add_guild_prefix(guild_id: i64, prefix: &str) {
         .on_conflict(prefix::guild_id)
         .do_update()
         .set(&new_prefix)
-        .execute(connection)
+        .execute(db)
         .expect("Failed to insert prefix");
 }
 
@@ -31,7 +30,7 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
         _ => return Ok(Some(DEFAULT_PREFIX.clone())),
     };
 
-    let connection = &mut crate::utils::db::establish_connection::establish_connection();
+    let connection = &mut ctx.data.db_pool.get().unwrap();
     let db_prefix = prefix::table
         .find(guild_id)
         .limit(1)

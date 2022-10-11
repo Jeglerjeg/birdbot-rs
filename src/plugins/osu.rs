@@ -30,7 +30,8 @@ use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
     )
 )]
 pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
-    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let connection = &mut ctx.data().db_pool.get()?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
             let color: Color;
@@ -90,6 +91,7 @@ pub async fn link(
     username: String,
 ) -> Result<(), Error> {
     let user = ctx.data().osu_client.user(username).await?;
+    let connection = &mut ctx.data().db_pool.get()?;
 
     let query_item = NewLinkedOsuProfile {
         id: ctx.author().id.0 as i64,
@@ -98,8 +100,8 @@ pub async fn link(
         mode: user.mode.to_string(),
     };
 
-    linked_osu_profiles::create(&query_item)?;
-    wipe_profile_data(query_item.osu_id)?;
+    linked_osu_profiles::create(connection, &query_item)?;
+    wipe_profile_data(connection, query_item.osu_id)?;
 
     ctx.say(format!(
         "Set your osu! profile to `{}`.",
@@ -113,12 +115,13 @@ pub async fn link(
 /// Unlink your osu! profile.
 #[poise::command(prefix_command, slash_command, guild_only, category = "osu!")]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
-    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let connection = &mut ctx.data().db_pool.get()?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
 
     match profile {
         Ok(profile) => {
-            linked_osu_profiles::delete(profile.id).expect("Failed to delete profile");
-            wipe_profile_data(profile.osu_id)?;
+            linked_osu_profiles::delete(connection, profile.id).expect("Failed to delete profile");
+            wipe_profile_data(connection, profile.osu_id)?;
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {
@@ -135,7 +138,8 @@ pub async fn mode(
     ctx: Context<'_>,
     #[description = "Gamemode to switch to."] mode: String,
 ) -> Result<(), Error> {
-    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let connection = &mut ctx.data().db_pool.get()?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
             let parsed_mode = if let Some(mode) = gamemode_from_string(&mode) {
@@ -152,8 +156,8 @@ pub async fn mode(
                 mode: parsed_mode.to_string(),
             };
 
-            linked_osu_profiles::update(profile.id, &query_item);
-            wipe_profile_data(profile.osu_id)?;
+            linked_osu_profiles::update(connection, profile.id, &query_item);
+            wipe_profile_data(connection, profile.osu_id)?;
 
             ctx.say(format!("Updated your osu! mode to {}.", parsed_mode))
                 .await?;
@@ -172,10 +176,11 @@ pub async fn score(
     ctx: Context<'_>,
     #[description = "Beatmap ID to check for a score."] beatmap_id: u32,
 ) -> Result<(), Error> {
-    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let connection = &mut ctx.data().db_pool.get()?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
-            let user = match osu_users::read(profile.osu_id) {
+            let user = match osu_users::read(connection, profile.osu_id) {
                 Ok(user) => user,
                 Err(_) => {
                     ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
@@ -223,10 +228,11 @@ pub async fn score(
 /// Display your most recent osu score.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
-    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let connection = &mut ctx.data().db_pool.get()?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
-            let user = match osu_users::read(profile.osu_id) {
+            let user = match osu_users::read(connection, profile.osu_id) {
                 Ok(user) => user,
                 Err(_) => {
                     ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
@@ -287,11 +293,12 @@ pub async fn top(
     ctx: Context<'_>,
     #[description = "Sort your top scores by something other than pp."] sort_type: Option<String>,
 ) -> Result<(), Error> {
-    let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
+    let connection = &mut ctx.data().db_pool.get()?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
     let sort_type = sort_type.unwrap_or_default();
     match profile {
         Ok(profile) => {
-            let user = match osu_users::read(profile.osu_id) {
+            let user = match osu_users::read(connection, profile.osu_id) {
                 Ok(user) => user,
                 Err(_) => {
                     ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
@@ -343,7 +350,8 @@ pub async fn score_notifications(
     #[description = "Channel to notify scores in"] scores_channel: GuildChannel,
 ) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
-    let new_item = match osu_guild_channels::read(guild.id.0 as i64) {
+    let connection = &mut ctx.data().db_pool.get()?;
+    let new_item = match osu_guild_channels::read(connection, guild.id.0 as i64) {
         Ok(guild_config) => NewOsuGuildChannel {
             guild_id: guild_config.guild_id,
             score_channel: Some(scores_channel.id.0 as i64),
@@ -356,7 +364,7 @@ pub async fn score_notifications(
         },
     };
 
-    osu_guild_channels::create(&new_item)?;
+    osu_guild_channels::create(connection, &new_item)?;
 
     ctx.say("Updated your guild's score notification channel!")
         .await?;
@@ -370,7 +378,8 @@ pub async fn map_notifications(
     #[description = "Channel to notify scores in"] map_channel: GuildChannel,
 ) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
-    let new_item = match osu_guild_channels::read(guild.id.0 as i64) {
+    let connection = &mut ctx.data().db_pool.get()?;
+    let new_item = match osu_guild_channels::read(connection, guild.id.0 as i64) {
         Ok(guild_config) => NewOsuGuildChannel {
             guild_id: guild_config.guild_id,
             score_channel: guild_config.score_channel,
@@ -383,7 +392,7 @@ pub async fn map_notifications(
         },
     };
 
-    osu_guild_channels::create(&new_item)?;
+    osu_guild_channels::create(connection, &new_item)?;
 
     ctx.say("Updated your guild's map notification channel!")
         .await?;
@@ -394,9 +403,10 @@ pub async fn map_notifications(
 #[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
 pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
-    match osu_guild_channels::read(guild.id.0 as i64) {
+    let connection = &mut ctx.data().db_pool.get()?;
+    match osu_guild_channels::read(connection, guild.id.0 as i64) {
         Ok(guild_config) => {
-            osu_guild_channels::delete(guild_config.guild_id)?;
+            osu_guild_channels::delete(connection, guild_config.guild_id)?;
             ctx.say("Your guild's config has been deleted.").await?;
         }
         Err(_) => {

@@ -1,6 +1,7 @@
 use crate::models::questions::Question;
 use crate::serenity_prelude as serenity;
 use crate::{Context, Error};
+use diesel::PgConnection;
 use lazy_static::lazy_static;
 use poise::futures_util::StreamExt;
 use poise::{serenity_prelude, ReplyHandle};
@@ -41,7 +42,11 @@ fn format_question(question: &Question, responses: &[String]) -> String {
     )
 }
 
-async fn create_wyr_message(ctx: Context<'_>, question: Question) -> Result<(), Error> {
+async fn create_wyr_message(
+    ctx: Context<'_>,
+    question: Question,
+    connection: &mut PgConnection,
+) -> Result<(), Error> {
     let reply = ctx
         .send(|m| {
             m.embed(|e| e.description(format_question(&question, &[])))
@@ -62,7 +67,7 @@ async fn create_wyr_message(ctx: Context<'_>, question: Question) -> Result<(), 
         })
         .await?;
 
-    handle_interaction_responses(ctx, reply, question).await?;
+    handle_interaction_responses(ctx, reply, question, connection).await?;
 
     Ok(())
 }
@@ -71,6 +76,7 @@ async fn handle_interaction_responses(
     ctx: Context<'_>,
     reply: ReplyHandle<'_>,
     mut question: Question,
+    connection: &mut PgConnection,
 ) -> Result<(), Error> {
     let mut responses: Vec<String> = vec![];
     let mut replies: Vec<u64> = vec![];
@@ -106,7 +112,7 @@ async fn handle_interaction_responses(
                 replies.push(interaction.user.id.0);
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
-                crate::utils::db::questions::update_choice(question.id, 1);
+                crate::utils::db::questions::update_choice(connection, question.id, 1);
 
                 reply
                     .edit(ctx, |b| {
@@ -119,7 +125,7 @@ async fn handle_interaction_responses(
                 replies.push(interaction.user.id.0);
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
-                crate::utils::db::questions::update_choice(question.id, 2);
+                crate::utils::db::questions::update_choice(connection, question.id, 2);
 
                 reply
                     .edit(ctx, |b| {
@@ -159,21 +165,27 @@ async fn handle_interaction_responses(
     Ok(())
 }
 
-fn add_recent_question(lock: &mut MutexGuard<'_, Vec<i32>>, id: i32) {
+fn add_recent_question(
+    connection: &mut PgConnection,
+    lock: &mut MutexGuard<'_, Vec<i32>>,
+    id: i32,
+) {
     lock.push(id);
 
-    let previous_len = crate::utils::db::questions::count_entries();
+    let previous_len = crate::utils::db::questions::count_entries(connection);
     if lock.len() as i64 > (previous_len / 2) {
         lock.remove(0);
     }
 }
 
-fn check_for_duplicates(choice_1: String, choice_2: String) -> bool {
-    if (crate::utils::db::questions::get_question(choice_1.clone(), choice_2.clone())).is_some() {
+fn check_for_duplicates(connection: &mut PgConnection, choice_1: String, choice_2: String) -> bool {
+    if (crate::utils::db::questions::get_question(connection, choice_1.clone(), choice_2.clone()))
+        .is_ok()
+    {
         return false;
     };
 
-    if (crate::utils::db::questions::get_question(choice_2, choice_1)).is_some() {
+    if (crate::utils::db::questions::get_question(connection, choice_2, choice_1)).is_ok() {
         return false;
     };
 
@@ -190,6 +202,7 @@ pub async fn wyr(
 ) -> Result<(), Error> {
     let mut choice_1: Option<String> = None;
     let mut choice_2: Option<String> = None;
+    let connection = &mut ctx.data().db_pool.get()?;
     if let Some(question) = question {
         let split_question: Vec<&str> = question.split(" or ").collect();
         choice_1 = Some(String::from(split_question[0]));
@@ -202,12 +215,12 @@ pub async fn wyr(
             return Ok(());
         }
 
-        if !check_for_duplicates(choice_1.clone(), choice_2.clone()) {
+        if !check_for_duplicates(connection, choice_1.clone(), choice_2.clone()) {
             ctx.say("That question already exists.").await?;
             return Ok(());
         }
 
-        crate::utils::db::questions::add_question(&*choice_1, &*choice_2);
+        crate::utils::db::questions::add_question(connection, &*choice_1, &*choice_2);
 
         let choices = vec![choice_1, choice_2];
 
@@ -217,8 +230,8 @@ pub async fn wyr(
 
         ctx.say(format!("I would {}!", choice[0])).await?;
     } else {
-        let db_question = crate::utils::db::questions::get_random_question();
-        let mut db_question = if let Some(db_question) = db_question {
+        let db_question = crate::utils::db::questions::get_random_question(connection);
+        let mut db_question = if let Ok(db_question) = db_question {
             db_question
         } else {
             ctx.say("No questions added! Ask me one!").await?;
@@ -240,15 +253,15 @@ pub async fn wyr(
                 .await;
 
             while previous_vec.contains(&db_question.id) {
-                db_question = crate::utils::db::questions::get_random_question().unwrap();
+                db_question = crate::utils::db::questions::get_random_question(connection)?;
             }
-            add_recent_question(&mut previous_vec, db_question.id);
+            add_recent_question(connection, &mut previous_vec, db_question.id);
             drop(previous_vec);
         }
         drop(previous_hash_lock);
         drop(previous_questions_lock);
 
-        create_wyr_message(ctx, db_question).await?;
+        create_wyr_message(ctx, db_question, connection).await?;
     }
 
     Ok(())

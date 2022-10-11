@@ -3,44 +3,38 @@ use crate::schema::questions;
 use diesel::dsl::{count, sql};
 use diesel::prelude::*;
 
-pub fn count_entries() -> i64 {
-    let connection = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn count_entries(db: &mut PgConnection) -> i64 {
     questions::table
         .select(count(questions::id))
-        .get_result(connection)
+        .get_result(db)
         .expect("Failed to count questions.")
 }
 
-pub fn update_choice(id: i32, choice: i8) {
-    let connection = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn update_choice(db: &mut PgConnection, id: i32, choice: i8) {
     let question: Question = questions::table
         .find(id)
-        .first(connection)
+        .first(db)
         .expect("Failed to get question.");
     match choice {
         1 => {
             let new_count = &question.choice1_answers + 1;
             diesel::update(questions::table.find(id))
                 .set(questions::choice1_answers.eq(new_count))
-                .execute(connection)
+                .execute(db)
                 .expect("Failed to update question choice");
         }
         2 => {
             let new_count = &question.choice2_answers + 1;
             diesel::update(questions::table.find(id))
                 .set(questions::choice2_answers.eq(new_count))
-                .execute(connection)
+                .execute(db)
                 .expect("Failed to update question choice");
         }
         _ => {}
     };
 }
 
-pub fn add_question(choice_1: &str, choice_2: &str) {
-    let connection = &mut crate::utils::db::establish_connection::establish_connection();
-
+pub fn add_question(db: &mut PgConnection, choice_1: &str, choice_2: &str) {
     let new_question = NewQuestion {
         choice1: choice_1,
         choice2: choice_2,
@@ -48,33 +42,23 @@ pub fn add_question(choice_1: &str, choice_2: &str) {
 
     diesel::insert_into(questions::table)
         .values(&new_question)
-        .execute(connection)
+        .execute(db)
         .expect("Failed to insert prefix");
 }
 
-pub fn get_question(choice_1: String, choice_2: String) -> Option<Question> {
-    let connection = &mut crate::utils::db::establish_connection::establish_connection();
-
-    let question = questions::table
+pub fn get_question(
+    db: &mut PgConnection,
+    choice_1: String,
+    choice_2: String,
+) -> QueryResult<Question> {
+    questions::table
         .filter(questions::choice1.eq(choice_1))
         .filter(questions::choice2.eq(choice_2))
-        .first(connection);
-
-    match question {
-        Ok(question) => Some(question),
-        Err(_) => None,
-    }
+        .first(db)
 }
 
-pub fn get_random_question() -> Option<Question> {
-    let connection = &mut crate::utils::db::establish_connection::establish_connection();
-
-    let question = questions::table
+pub fn get_random_question(db: &mut PgConnection) -> QueryResult<Question> {
+    questions::table
         .order(sql::<diesel::sql_types::Integer>("RANDOM()"))
-        .first::<Question>(connection);
-
-    match question {
-        Ok(question) => Some(question),
-        Err(_) => None,
-    }
+        .first::<Question>(db)
 }

@@ -1,5 +1,7 @@
 use crate::models::osu_users::NewOsuUser;
-use crate::Error;
+use crate::{Error, Pool};
+use diesel::r2d2::ConnectionManager;
+use diesel::PgConnection;
 use lazy_static::lazy_static;
 use poise::serenity_prelude;
 use rosu_v2::Osu;
@@ -30,13 +32,15 @@ lazy_static! {
 pub struct OsuTracker {
     pub ctx: serenity_prelude::Context,
     pub osu_client: Arc<Osu>,
+    pub pool: Pool<ConnectionManager<PgConnection>>,
     pub shut_down: bool,
 }
 impl OsuTracker {
     pub async fn tracking_loop(&mut self) {
         while !self.shut_down {
             sleep(Duration::from_secs(*UPDATE_INTERVAL)).await;
-            let profiles = match linked_osu_profiles::get_all() {
+            let connection = &mut self.pool.get().unwrap();
+            let profiles = match linked_osu_profiles::get_all(connection) {
                 Ok(profiles) => profiles,
                 Err(why) => {
                     error!("Failed to get linked osu profiles {}", why);
@@ -46,7 +50,7 @@ impl OsuTracker {
             };
             for profile in profiles {
                 if let Err(why) = self
-                    .update_user_data(profile.id, profile.osu_id, profile.mode)
+                    .update_user_data(profile.id, profile.osu_id, profile.mode, connection)
                     .await
                 {
                     error!("Error occured while running tracking loop: {}", why);
@@ -60,13 +64,14 @@ impl OsuTracker {
         discord_id: i64,
         osu_id: i64,
         mode: String,
+        connection: &mut PgConnection,
     ) -> Result<(), Error> {
         match self.ctx.cache.user(discord_id as u64) {
             Some(user) => user,
             _ => return Ok(()),
         };
 
-        if let Ok(mut profile) = osu_users::read(osu_id) {
+        if let Ok(mut profile) = osu_users::read(connection, osu_id) {
             profile.ticks += 1;
             if (profile.ticks % *NOT_PLAYING_SKIP) == 0 {
                 let osu_profile = match self
@@ -78,7 +83,10 @@ impl OsuTracker {
                     Ok(profile) => profile,
                     Err(_) => return Ok(()),
                 };
-                osu_users::create(&rosu_user_to_db(osu_profile, Some(profile.ticks)))?;
+                osu_users::create(
+                    connection,
+                    &rosu_user_to_db(osu_profile, Some(profile.ticks)),
+                )?;
             } else {
                 let user_update = NewOsuUser {
                     id: profile.id,
@@ -95,7 +103,7 @@ impl OsuTracker {
                     ranked_score: profile.ranked_score,
                 };
 
-                osu_users::create(&user_update)?;
+                osu_users::create(connection, &user_update)?;
             }
         } else {
             let osu_profile = match self
@@ -108,7 +116,7 @@ impl OsuTracker {
                 Err(_) => return Ok(()),
             };
 
-            osu_users::create(&rosu_user_to_db(osu_profile, None))?;
+            osu_users::create(connection, &rosu_user_to_db(osu_profile, None))?;
         }
 
         Ok(())
