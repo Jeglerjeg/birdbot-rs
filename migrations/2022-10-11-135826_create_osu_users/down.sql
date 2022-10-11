@@ -1,0 +1,1 @@
+DROP TABLE osu_users

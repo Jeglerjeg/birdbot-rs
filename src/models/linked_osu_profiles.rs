@@ -2,9 +2,7 @@ use crate::schema::linked_osu_profiles;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 
-#[derive(
-    Debug, Serialize, Deserialize, Clone, Queryable, Insertable, AsChangeset, Identifiable,
-)]
+#[derive(Debug, Serialize, Deserialize, Clone, Queryable, Identifiable)]
 #[diesel(table_name=linked_osu_profiles, primary_key(id))]
 pub struct LinkedOsuProfile {
     pub id: i64,
@@ -13,7 +11,7 @@ pub struct LinkedOsuProfile {
     pub mode: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Queryable, Insertable, AsChangeset)]
+#[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
 #[diesel(table_name=linked_osu_profiles)]
 pub struct NewLinkedOsuProfile {
     pub id: i64,

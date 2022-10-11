@@ -16,8 +16,11 @@ pub fn add_guild_prefix(guild_id: i64, prefix: &str) {
         guild_prefix: prefix,
     };
 
-    diesel::replace_into(prefix::table)
+    diesel::insert_into(prefix::table)
         .values(&new_prefix)
+        .on_conflict(prefix::guild_id)
+        .do_update()
+        .set(&new_prefix)
         .execute(connection)
         .expect("Failed to insert prefix");
 }

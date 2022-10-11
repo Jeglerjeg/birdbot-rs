@@ -10,7 +10,7 @@ pub async fn cache_beatmapset(ctx: Context<'_>, id: i64) -> Result<(), Error> {
 
     if let Some(beatmaps) = beatmapset.maps {
         for beatmap in &beatmaps {
-            beatmaps::create(beatmap);
+            beatmaps::create(beatmap)?;
         }
     }
 
@@ -28,7 +28,7 @@ pub async fn cache_beatmapset_from_beatmap(ctx: Context<'_>, id: i64) -> Result<
 
     if let Some(beatmaps) = beatmapset.maps {
         for beatmap in &beatmaps {
-            beatmaps::create(beatmap);
+            beatmaps::create(beatmap)?;
         }
     }
 
@@ -94,7 +94,7 @@ pub fn check_beatmapset_valid_result(beatmapset: &Beatmapset) -> bool {
 }
 
 pub fn check_beatmap_valid_result(beatmap: &Beatmap) -> bool {
-    let current_time = Utc::now().naive_utc();
+    let current_time = chrono::offset::Utc::now();
     match beatmap.status.as_str() {
         "Loved" => {
             if (current_time - beatmap.time_cached).num_days() > 30 {

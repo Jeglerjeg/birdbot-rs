@@ -1,11 +1,13 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
-use crate::utils::db::linked_osu_profiles;
-use crate::utils::osu::misc::gamemode_from_string;
+use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_users};
+use crate::utils::osu::misc::{gamemode_from_string, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
+use serenity::model::channel::GuildChannel;
 use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
 
+use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::{Context, Error};
 
 use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
@@ -15,7 +17,17 @@ use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
     prefix_command,
     slash_command,
     category = "osu!",
-    subcommands("link", "score", "unlink", "mode", "recent", "top")
+    subcommands(
+        "link",
+        "score",
+        "unlink",
+        "mode",
+        "recent",
+        "top",
+        "score_notifications",
+        "map_notifications",
+        "delete_guild_config"
+    )
 )]
 pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
     let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
@@ -86,7 +98,8 @@ pub async fn link(
         mode: user.mode.to_string(),
     };
 
-    linked_osu_profiles::create(&query_item);
+    linked_osu_profiles::create(&query_item)?;
+    wipe_profile_data(query_item.osu_id)?;
 
     ctx.say(format!(
         "Set your osu! profile to `{}`.",
@@ -105,6 +118,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     match profile {
         Ok(profile) => {
             linked_osu_profiles::delete(profile.id).expect("Failed to delete profile");
+            wipe_profile_data(profile.osu_id)?;
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {
@@ -139,6 +153,7 @@ pub async fn mode(
             };
 
             linked_osu_profiles::update(profile.id, &query_item);
+            wipe_profile_data(profile.osu_id)?;
 
             ctx.say(format!("Updated your osu! mode to {}.", parsed_mode))
                 .await?;
@@ -160,12 +175,21 @@ pub async fn score(
     let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
+            let user = match osu_users::read(profile.osu_id) {
+                Ok(user) => user,
+                Err(_) => {
+                    ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
+                    return Ok(());
+                }
+            };
+
             let score = ctx
                 .data()
                 .osu_client
                 .beatmap_user_score(beatmap_id, profile.osu_id as u32)
                 .mode(gamemode_from_string(&profile.mode).unwrap())
                 .await;
+
             match score {
                 Ok(score) => {
                     let beatmap = crate::utils::osu::caching::get_beatmap(
@@ -179,8 +203,6 @@ pub async fn score(
                         beatmap.beatmapset_id as u32,
                     )
                     .await?;
-
-                    let user = ctx.data().osu_client.user(profile.osu_id as u32).await?;
 
                     send_score_embed(ctx, score.score, beatmap, beatmapset, user).await?;
                 }
@@ -204,6 +226,14 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
     let profile = linked_osu_profiles::read(ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
+            let user = match osu_users::read(profile.osu_id) {
+                Ok(user) => user,
+                Err(_) => {
+                    ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
+                    return Ok(());
+                }
+            };
+
             let recent_score = ctx
                 .data()
                 .osu_client
@@ -213,6 +243,7 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
                 .include_fails(true)
                 .limit(1)
                 .await;
+
             match recent_score {
                 Ok(scores) => {
                     if scores.is_empty() {
@@ -232,8 +263,6 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
                             beatmap.beatmapset_id as u32,
                         )
                         .await?;
-
-                        let user = ctx.data().osu_client.user(profile.osu_id as u32).await?;
 
                         send_score_embed(ctx, score, beatmap, beatmapset, user).await?;
                     }
@@ -262,6 +291,14 @@ pub async fn top(
     let sort_type = sort_type.unwrap_or_default();
     match profile {
         Ok(profile) => {
+            let user = match osu_users::read(profile.osu_id) {
+                Ok(user) => user,
+                Err(_) => {
+                    ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
+                    return Ok(());
+                }
+            };
+
             let best_scores = ctx
                 .data()
                 .osu_client
@@ -284,7 +321,7 @@ pub async fn top(
                         "score" => best_scores.sort_by(|a, b| b.score.cmp(&a.score)),
                         _ => {}
                     }
-                    send_top_scores_embed(ctx, &best_scores, profile).await?;
+                    send_top_scores_embed(ctx, &best_scores, user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get best scores. {}", why))
@@ -296,6 +333,76 @@ pub async fn top(
             ctx.say(format_missing_user_string(ctx).await).await?;
         }
     }
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+pub async fn score_notifications(
+    ctx: Context<'_>,
+    #[description = "Channel to notify scores in"] scores_channel: GuildChannel,
+) -> Result<(), Error> {
+    let guild = ctx.guild().unwrap();
+    let new_item = match osu_guild_channels::read(guild.id.0 as i64) {
+        Ok(guild_config) => NewOsuGuildChannel {
+            guild_id: guild_config.guild_id,
+            score_channel: Some(scores_channel.id.0 as i64),
+            map_channel: guild_config.map_channel,
+        },
+        Err(_) => NewOsuGuildChannel {
+            guild_id: guild.id.0 as i64,
+            score_channel: Some(scores_channel.id.0 as i64),
+            map_channel: None,
+        },
+    };
+
+    osu_guild_channels::create(&new_item)?;
+
+    ctx.say("Updated your guild's score notification channel!")
+        .await?;
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+pub async fn map_notifications(
+    ctx: Context<'_>,
+    #[description = "Channel to notify scores in"] map_channel: GuildChannel,
+) -> Result<(), Error> {
+    let guild = ctx.guild().unwrap();
+    let new_item = match osu_guild_channels::read(guild.id.0 as i64) {
+        Ok(guild_config) => NewOsuGuildChannel {
+            guild_id: guild_config.guild_id,
+            score_channel: guild_config.score_channel,
+            map_channel: Some(map_channel.id.0 as i64),
+        },
+        Err(_) => NewOsuGuildChannel {
+            guild_id: guild.id.0 as i64,
+            score_channel: None,
+            map_channel: Some(map_channel.id.0 as i64),
+        },
+    };
+
+    osu_guild_channels::create(&new_item)?;
+
+    ctx.say("Updated your guild's map notification channel!")
+        .await?;
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
+    let guild = ctx.guild().unwrap();
+    match osu_guild_channels::read(guild.id.0 as i64) {
+        Ok(guild_config) => {
+            osu_guild_channels::delete(guild_config.guild_id)?;
+            ctx.say("Your guild's config has been deleted.").await?;
+        }
+        Err(_) => {
+            ctx.say("Your guild doesn't have a config stored.").await?;
+        }
+    };
 
     Ok(())
 }

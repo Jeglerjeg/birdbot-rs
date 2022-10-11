@@ -7,7 +7,7 @@ fn to_insert_beatmapset(beatmapset: rosu_v2::prelude::Beatmapset) -> NewBeatmaps
     NewBeatmapset {
         id: i64::from(beatmapset.mapset_id),
         artist: beatmapset.artist,
-        bpm: beatmapset.bpm,
+        bpm: f64::from(beatmapset.bpm),
         list_cover: beatmapset.covers.list_2x,
         cover: beatmapset.covers.cover_2x,
         creator: beatmapset.creator_name.into_string(),

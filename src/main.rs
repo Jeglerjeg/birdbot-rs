@@ -3,20 +3,23 @@ mod plugins;
 pub mod schema;
 mod utils;
 
+use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use poise::serenity_prelude;
 use rosu_v2::prelude::Osu;
 use songbird::SerenityInit;
 use std::env;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 pub struct Data {
     time_started: DateTime<Utc>,
-    osu_client: Osu,
+    osu_client: Arc<Osu>,
+    osu_tracker: Arc<Mutex<OsuTracker>>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -105,16 +108,6 @@ async fn main() {
 
     let connection = &mut utils::db::establish_connection::establish_connection();
 
-    connection
-        .batch_execute(
-            "PRAGMA journal_mode = WAL;
-             PRAGMA synchronous = NORMAL;
-             VACUUM;
-             PRAGMA analysis_limit = 400;
-             PRAGMA optimize;",
-        )
-        .expect("Failed to set pragmas.");
-
     connection.run_pending_migrations(MIGRATIONS).unwrap();
 
     let options = poise::FrameworkOptions {
@@ -180,8 +173,8 @@ async fn main() {
     let client_secret =
         env::var("OSU_CLIENT_SECRET").expect("Expected an osu client secret in the environment");
 
-    let osu_client: Osu = match Osu::new(client_id, client_secret).await {
-        Ok(client) => client,
+    let osu_client: Arc<Osu> = match Osu::new(client_id, client_secret).await {
+        Ok(client) => Arc::new(client),
         Err(why) => panic!(
             "Failed to create client or make initial osu!api interaction: {}",
             why
@@ -193,11 +186,16 @@ async fn main() {
         .token(token.clone())
         .intents(intents)
         .options(options)
-        .user_data_setup(|_ctx, _data_about_bot, _framework| {
+        .user_data_setup(|ctx, _data_about_bot, _framework| {
             Box::pin(async move {
                 Ok(Data {
                     time_started: Utc::now(),
-                    osu_client,
+                    osu_client: osu_client.clone(),
+                    osu_tracker: Arc::from(Mutex::from(OsuTracker {
+                        ctx: ctx.clone(),
+                        osu_client,
+                        shut_down: false,
+                    })),
                 })
             })
         })
@@ -213,7 +211,15 @@ async fn main() {
         shard_manager.lock().await.shutdown_all().await;
     });
 
-    if let Err(why) = framework.start().await {
+    let tracker_framework = framework.clone();
+    tokio::spawn(async move {
+        let tracker = tracker_framework.user_data().await.osu_tracker.clone();
+        let mut tracker_lock = tracker.lock().await;
+        tracker_lock.tracking_loop().await;
+        drop(tracker_lock);
+    });
+
+    if let Err(why) = framework.start_autosharded().await {
         error!("Client error: {:?}", why);
     }
 }

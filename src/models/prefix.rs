@@ -7,7 +7,7 @@ pub struct Prefix {
     pub guild_prefix: String,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, AsChangeset)]
 #[diesel(table_name = prefix)]
 pub struct NewPrefix<'a> {
     pub guild_id: &'a i64,

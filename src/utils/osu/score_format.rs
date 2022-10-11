@@ -100,7 +100,7 @@ pub fn format_score_info(
             _ => pp.pp,
         }
     } else {
-        stars = f64::from(beatmap.difficulty_rating);
+        stars = beatmap.difficulty_rating;
         score_pp = f64::from(score.pp.unwrap_or(0.0));
     }
 
