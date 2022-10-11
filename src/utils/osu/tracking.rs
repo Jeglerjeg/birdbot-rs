@@ -101,6 +101,7 @@ impl OsuTracker {
                     max_combo: profile.max_combo,
                     ticks: profile.ticks,
                     ranked_score: profile.ranked_score,
+                    time_cached: profile.time_cached,
                 };
 
                 osu_users::create(connection, &user_update)?;

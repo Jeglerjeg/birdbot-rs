@@ -1,5 +1,6 @@
 use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::Error;
+use chrono::Utc;
 use diesel::prelude::*;
 use diesel::{insert_into, QueryResult, RunQueryDsl};
 
@@ -18,6 +19,7 @@ pub fn rosu_user_to_db(user: rosu_v2::prelude::User, ticks: Option<i32>) -> NewO
         max_combo: statistic.max_combo as i32,
         ranked_score: statistic.ranked_score as i64,
         ticks: ticks.unwrap_or(0),
+        time_cached: Utc::now(),
     }
 }
 

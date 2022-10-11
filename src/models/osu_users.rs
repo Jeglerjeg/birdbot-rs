@@ -35,4 +35,5 @@ pub struct NewOsuUser {
     pub max_combo: i32,
     pub ticks: i32,
     pub ranked_score: i64,
+    pub time_cached: chrono::DateTime<chrono::Utc>,
 }

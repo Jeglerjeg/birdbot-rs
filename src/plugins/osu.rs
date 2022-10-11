@@ -180,12 +180,14 @@ pub async fn score(
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
-            let user = match osu_users::read(connection, profile.osu_id) {
-                Ok(user) => user,
-                Err(_) => {
-                    ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
-                    return Ok(());
-                }
+            let user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
+                user
+            } else {
+                ctx.say(
+                    "User data hasn't been retrieved for you yet. Please wait a bit and try again",
+                )
+                .await?;
+                return Ok(());
             };
 
             let score = ctx
@@ -232,12 +234,14 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
     match profile {
         Ok(profile) => {
-            let user = match osu_users::read(connection, profile.osu_id) {
-                Ok(user) => user,
-                Err(_) => {
-                    ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
-                    return Ok(());
-                }
+            let user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
+                user
+            } else {
+                ctx.say(
+                    "User data hasn't been retrieved for you yet. Please wait a bit and try again",
+                )
+                .await?;
+                return Ok(());
             };
 
             let recent_score = ctx
@@ -298,12 +302,14 @@ pub async fn top(
     let sort_type = sort_type.unwrap_or_default();
     match profile {
         Ok(profile) => {
-            let user = match osu_users::read(connection, profile.osu_id) {
-                Ok(user) => user,
-                Err(_) => {
-                    ctx.say("User data hasn't been retrieved for you yet. Please wait a bit and try again").await?;
-                    return Ok(());
-                }
+            let user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
+                user
+            } else {
+                ctx.say(
+                    "User data hasn't been retrieved for you yet. Please wait a bit and try again",
+                )
+                .await?;
+                return Ok(());
             };
 
             let best_scores = ctx
