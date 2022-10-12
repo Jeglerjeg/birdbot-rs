@@ -112,7 +112,7 @@ async fn handle_interaction_responses(
                 replies.push(interaction.user.id.0);
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
-                crate::utils::db::questions::update_choice(connection, question.id, 1);
+                crate::utils::db::questions::update_choice(connection, question.id, 1)?;
 
                 reply
                     .edit(ctx, |b| {
@@ -125,7 +125,7 @@ async fn handle_interaction_responses(
                 replies.push(interaction.user.id.0);
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
-                crate::utils::db::questions::update_choice(connection, question.id, 2);
+                crate::utils::db::questions::update_choice(connection, question.id, 2)?;
 
                 reply
                     .edit(ctx, |b| {
@@ -169,13 +169,15 @@ fn add_recent_question(
     connection: &mut PgConnection,
     lock: &mut MutexGuard<'_, Vec<i32>>,
     id: i32,
-) {
+) -> Result<(), Error>{
     lock.push(id);
 
-    let previous_len = crate::utils::db::questions::count_entries(connection);
+    let previous_len = crate::utils::db::questions::count_entries(connection)?;
     if lock.len() as i64 > (previous_len / 2) {
         lock.remove(0);
-    }
+    };
+
+    Ok(())
 }
 
 fn check_for_duplicates(connection: &mut PgConnection, choice_1: String, choice_2: String) -> bool {
@@ -220,7 +222,7 @@ pub async fn wyr(
             return Ok(());
         }
 
-        crate::utils::db::questions::add_question(connection, &*choice_1, &*choice_2);
+        crate::utils::db::questions::add_question(connection, &*choice_1, &*choice_2)?;
 
         let choices = vec![choice_1, choice_2];
 
@@ -255,7 +257,7 @@ pub async fn wyr(
             while previous_vec.contains(&db_question.id) {
                 db_question = crate::utils::db::questions::get_random_question(connection)?;
             }
-            add_recent_question(connection, &mut previous_vec, db_question.id);
+            add_recent_question(connection, &mut previous_vec, db_question.id)?;
             drop(previous_vec);
         }
         drop(previous_hash_lock);
