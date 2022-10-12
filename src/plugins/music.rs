@@ -588,35 +588,54 @@ pub async fn volume(
     #[min = 0]
     #[max = 200]
     #[description = "Volume to change the track to, accepts 1-200"]
-    mut new_volume: u8,
+    new_volume: Option<u8>,
 ) -> Result<(), Error> {
     let guild = ctx.guild().unwrap();
     let guild_id = guild.id;
-    if new_volume > 200 {
-        new_volume = 200;
-    }
+
     let manager = songbird::get(ctx.discord())
         .await
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
 
-    if let Some(handler_lock) = manager.get(guild_id) {
-        let handler = handler_lock.lock().await;
-        let queue = handler.queue().clone();
-        drop(handler);
+    let handler = if let Some(handler) = manager.get(guild_id) {
+        handler
+    } else {
+        ctx.say("Not in a voice channel.").await?;
+        return Ok(());
+    };
+
+    let handler_lock = handler.lock().await;
+    if let Some(mut volume) = new_volume {
+        if volume > 200 {
+            volume = 200;
+        }
+        let queue = handler_lock.queue().clone();
         match queue.current() {
             Some(track) => {
-                track.set_volume(f32::from(new_volume) / 100.0)?;
-                ctx.say(format!("Changed volume to {}%.", new_volume))
-                    .await?;
+                track.set_volume(f32::from(volume) / 100.0)?;
+                ctx.say(format!("Changed volume to {}%.", volume)).await?;
             }
             _ => {
                 ctx.say("No items queued").await?;
             }
         }
     } else {
-        ctx.say("Not in a voice channel.").await?;
+        let queue = handler_lock.queue().clone();
+        match queue.current() {
+            Some(track) => {
+                ctx.say(format!(
+                    "Curent volume is {}%.",
+                    track.get_info().await.unwrap().volume
+                ))
+                .await?;
+            }
+            _ => {
+                ctx.say("No items queued").await?;
+            }
+        }
     }
+    drop(handler_lock);
 
     Ok(())
 }
