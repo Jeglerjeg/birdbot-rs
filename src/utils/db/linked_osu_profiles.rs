@@ -30,13 +30,18 @@ pub fn get_all(db: &mut PgConnection) -> Result<Vec<LinkedOsuProfile>, Error> {
     Ok(linked_osu_profiles.load::<LinkedOsuProfile>(db)?)
 }
 
-pub fn update(db: &mut PgConnection, param_id: i64, item: &NewLinkedOsuProfile) {
+pub fn update(
+    db: &mut PgConnection,
+    param_id: i64,
+    item: &NewLinkedOsuProfile,
+) -> Result<(), Error> {
     use crate::schema::linked_osu_profiles::dsl::{id, linked_osu_profiles};
 
     diesel::update(linked_osu_profiles.filter(id.eq(param_id)))
         .set(item)
-        .execute(db)
-        .expect("Couldn't update osu profile");
+        .execute(db)?;
+
+    Ok(())
 }
 
 pub fn delete(db: &mut PgConnection, param_id: i64) -> QueryResult<usize> {

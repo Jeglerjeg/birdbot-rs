@@ -169,7 +169,7 @@ fn add_recent_question(
     connection: &mut PgConnection,
     lock: &mut MutexGuard<'_, Vec<i32>>,
     id: i32,
-) -> Result<(), Error>{
+) -> Result<(), Error> {
     lock.push(id);
 
     let previous_len = crate::utils::db::questions::count_entries(connection)?;

@@ -1,5 +1,6 @@
 use crate::models::beatmapsets::{Beatmapset, NewBeatmapset};
 use crate::schema::beatmapsets;
+use crate::Error;
 use diesel::prelude::*;
 use diesel::{insert_into, QueryResult, RunQueryDsl};
 
@@ -19,13 +20,15 @@ fn to_insert_beatmapset(beatmapset: rosu_v2::prelude::Beatmapset) -> NewBeatmaps
     }
 }
 
-pub fn create(db: &mut PgConnection, beatmapset: rosu_v2::prelude::Beatmapset) {
+pub fn create(
+    db: &mut PgConnection,
+    beatmapset: rosu_v2::prelude::Beatmapset,
+) -> Result<(), Error> {
     let item = to_insert_beatmapset(beatmapset);
 
-    insert_into(beatmapsets::table)
-        .values(item)
-        .execute(db)
-        .expect("Couldn't insert beatmap");
+    insert_into(beatmapsets::table).values(item).execute(db)?;
+
+    Ok(())
 }
 
 pub fn read(db: &mut PgConnection, param_id: i64) -> QueryResult<Beatmapset> {

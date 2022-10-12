@@ -156,7 +156,7 @@ pub async fn mode(
                 mode: parsed_mode.to_string(),
             };
 
-            linked_osu_profiles::update(connection, profile.id, &query_item);
+            linked_osu_profiles::update(connection, profile.id, &query_item)?;
             wipe_profile_data(connection, profile.osu_id)?;
 
             ctx.say(format!("Updated your osu! mode to {}.", parsed_mode))

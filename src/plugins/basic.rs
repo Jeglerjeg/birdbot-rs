@@ -269,7 +269,7 @@ pub async fn prefix(
         connection,
         ctx.guild_id().unwrap().0 as i64,
         &*new_prefix,
-    );
+    )?;
 
     ctx.say(format!("Set guild prefix to {}", new_prefix))
         .await?;

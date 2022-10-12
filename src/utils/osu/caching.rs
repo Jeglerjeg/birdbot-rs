@@ -32,7 +32,7 @@ pub async fn cache_beatmapset_from_beatmap(
         .beatmapset_from_map_id(id as u32)
         .await?;
 
-    beatmapsets::create(connection, beatmapset.clone());
+    beatmapsets::create(connection, beatmapset.clone())?;
 
     if let Some(beatmaps) = beatmapset.maps {
         for beatmap in &beatmaps {

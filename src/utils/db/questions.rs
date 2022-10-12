@@ -1,19 +1,17 @@
 use crate::models::questions::{NewQuestion, Question};
 use crate::schema::questions;
+use crate::Error;
 use diesel::dsl::{count, sql};
 use diesel::prelude::*;
-use crate::Error;
 
-pub fn count_entries(db: &mut PgConnection) -> Result<i64, Error>  {
+pub fn count_entries(db: &mut PgConnection) -> Result<i64, Error> {
     Ok(questions::table
         .select(count(questions::id))
         .get_result(db)?)
 }
 
 pub fn update_choice(db: &mut PgConnection, id: i32, choice: i8) -> Result<(), Error> {
-    let question: Question = questions::table
-        .find(id)
-        .first(db)?;
+    let question: Question = questions::table.find(id).first(db)?;
     match choice {
         1 => {
             let new_count = &question.choice1_answers + 1;
