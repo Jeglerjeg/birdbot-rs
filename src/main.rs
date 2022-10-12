@@ -46,7 +46,7 @@ async fn event_listener(
                 Some(old) => old.clone(),
                 _ => return Ok(()),
             };
-            plugins::music::check_for_empty_channel(ctx.clone(), voice.guild_id).await;
+            plugins::music::check_for_empty_channel(ctx.clone(), voice.guild_id).await?;
         }
         _ => {}
     }
