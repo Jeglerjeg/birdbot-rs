@@ -120,7 +120,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
 
     match profile {
         Ok(profile) => {
-            linked_osu_profiles::delete(connection, profile.id).expect("Failed to delete profile");
+            linked_osu_profiles::delete(connection, profile.id)?;
             wipe_profile_data(connection, profile.osu_id)?;
             ctx.say("Unlinked your profile.").await?;
         }

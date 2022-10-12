@@ -160,11 +160,14 @@ async fn send_track_embed(
     Ok(())
 }
 
-pub async fn check_for_empty_channel(ctx: serenity_prelude::Context, guild: Option<GuildId>) {
+pub async fn check_for_empty_channel(
+    ctx: serenity_prelude::Context,
+    guild: Option<GuildId>,
+) -> Result<(), Error> {
     let guild_id = match guild {
         Some(guild) => guild,
         _ => {
-            return;
+            return Ok(());
         }
     };
 
@@ -180,23 +183,25 @@ pub async fn check_for_empty_channel(ctx: serenity_prelude::Context, guild: Opti
         let channel = lock.current_channel();
         drop(lock);
         if channel.is_none() {
-            return;
+            return Ok(());
         }
         let channel_id = ChannelId::from(channel.unwrap().0);
         let guild = ctx.http.get_guild(guild_id.0).await.unwrap();
         let guild_channels = guild.channels(&ctx).await.unwrap();
         let channel = guild_channels.get(&channel_id).unwrap();
         if channel.members(&ctx).await.unwrap().len() <= 1 {
-            leave(ctx, Some(guild_id)).await;
+            leave(ctx, Some(guild_id)).await?;
         }
-    }
+    };
+
+    Ok(())
 }
 
-pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) {
+pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) -> Result<(), Error> {
     let guild_id = match guild {
         Some(guild) => guild,
         _ => {
-            return;
+            return Ok(());
         }
     };
 
@@ -210,12 +215,9 @@ pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) {
         let channel = lock.current_channel();
         drop(lock);
         if channel.is_none() {
-            return;
+            return Ok(());
         }
-        manager
-            .remove(guild_id)
-            .await
-            .expect("Failed to leave channel.");
+        manager.remove(guild_id).await?;
     };
 
     let mut guild_lock = PLAYING_GUILDS.lock().await;
@@ -223,6 +225,8 @@ pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) {
         guild_lock.guilds.remove(&guild_id);
     };
     drop(guild_lock);
+
+    Ok(())
 }
 
 struct TrackEndNotifier {
@@ -242,7 +246,9 @@ impl VoiceEventHandler for TrackEndNotifier {
                 let handler = handler_lock.lock().await;
                 if handler.queue().is_empty() {
                     drop(handler);
-                    leave(self.ctx.clone(), Option::from(self.guild_id)).await;
+                    if let Err(why) = leave(self.ctx.clone(), Option::from(self.guild_id)).await {
+                        error!("Failed to leave voice channel: {}", why);
+                    };
                 } else {
                     let playing_guilds_lock = PLAYING_GUILDS.lock().await;
                     let mut guild_lock = playing_guilds_lock
@@ -262,7 +268,7 @@ impl VoiceEventHandler for TrackEndNotifier {
     }
 }
 
-async fn join(ctx: Context<'_>) -> bool {
+async fn join(ctx: Context<'_>) -> Result<bool, Error> {
     let guild = ctx.guild().unwrap();
     let guild_id = guild.id;
 
@@ -274,10 +280,8 @@ async fn join(ctx: Context<'_>) -> bool {
     let connect_to = if let Some(channel) = channel_id {
         channel
     } else {
-        ctx.say("Not in a voice channel")
-            .await
-            .expect("Failed to send message");
-        return false;
+        ctx.say("Not in a voice channel").await?;
+        return Ok(false);
     };
 
     let manager = songbird::get(ctx.discord())
@@ -305,7 +309,7 @@ async fn join(ctx: Context<'_>) -> bool {
         },
     );
 
-    true
+    Ok(true)
 }
 
 #[poise::command(
@@ -328,7 +332,7 @@ async fn queue(
     handler_lock: Arc<Mutex<Call>>,
     requesters: Arc<Mutex<Requesters>>,
     url: String,
-) {
+) -> Result<(), Error> {
     // Here, we use lazy restartable sources to make sure that we don't pay
     // for decoding, playback on tracks which aren't actually live yet.
     let source = if url.starts_with("http") {
@@ -337,10 +341,8 @@ async fn queue(
             Err(why) => {
                 error!("Err starting source: {:?}", why);
 
-                ctx.say("Error sourcing ffmpeg")
-                    .await
-                    .expect("Failed to send message");
-                return;
+                ctx.say("Error queueing this song.").await?;
+                return Ok(());
             }
         }
     } else {
@@ -349,11 +351,9 @@ async fn queue(
             Err(why) => {
                 error!("Err starting source: {:?}", why);
 
-                ctx.say("Error sourcing ffmpeg")
-                    .await
-                    .expect("Failed to send message");
+                ctx.say("Error queueing this song.").await?;
 
-                return;
+                return Ok(());
             }
         }
     };
@@ -375,11 +375,10 @@ async fn queue(
                 "You have queued more than the maximum of {} songs.",
                 *MAX_SONGS_QUEUED
             ))
-            .await
-            .expect("Couldn't send message");
+            .await?;
             drop(handler);
             drop(requester_lock);
-            return;
+            return Ok(());
         }
     }
 
@@ -389,13 +388,12 @@ async fn queue(
                 "Song is longer than the max allowed duration of {}",
                 format_duration(*MAX_MUSIC_DURATION, None)
             ))
-            .await
-            .expect("Failed to send message");
+            .await?;
             if handler.queue().is_empty() {
                 drop(handler);
-                leave(ctx.discord().clone(), ctx.guild_id()).await;
+                leave(ctx.discord().clone(), ctx.guild_id()).await?;
             }
-            return;
+            return Ok(());
         }
     }
 
@@ -403,7 +401,7 @@ async fn queue(
 
     drop(handler);
 
-    track.set_volume(0.6).expect("Failed to queue track");
+    track.set_volume(0.6)?;
 
     let queued_track = QueuedTrack {
         track: track.clone(),
@@ -417,9 +415,9 @@ async fn queue(
 
     drop(requester_lock);
 
-    send_track_embed(ctx, &track, String::from("Queued:"), None)
-        .await
-        .expect("Couldn't send track embed.");
+    send_track_embed(ctx, &track, String::from("Queued:"), None).await?;
+
+    Ok(())
 }
 
 ///Play a song in a guild voice channel.
@@ -453,9 +451,9 @@ pub async fn play(
             .unwrap()
             .clone();
         drop(guild_lock);
-        queue(ctx, handler_lock, requesters, url_or_name).await;
+        queue(ctx, handler_lock, requesters, url_or_name).await?;
     } else {
-        if !join(ctx).await {
+        if !join(ctx).await? {
             return Ok(());
         }
 
@@ -468,7 +466,7 @@ pub async fn play(
         drop(guild_lock);
 
         if let Some(handler_lock) = manager.get(guild_id) {
-            queue(ctx, handler_lock, requesters.clone(), url_or_name).await;
+            queue(ctx, handler_lock, requesters.clone(), url_or_name).await?;
         }
     }
     Ok(())

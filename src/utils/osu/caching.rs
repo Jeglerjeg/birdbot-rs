@@ -105,7 +105,7 @@ pub fn check_beatmapset_valid_result(beatmapset: &Beatmapset) -> bool {
 }
 
 pub fn check_beatmap_valid_result(beatmap: &Beatmap) -> bool {
-    let current_time = chrono::offset::Utc::now();
+    let current_time = Utc::now();
     match beatmap.status.as_str() {
         "Loved" => {
             if (current_time - beatmap.time_cached).num_days() > 30 {

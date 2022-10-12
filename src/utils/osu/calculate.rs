@@ -12,35 +12,30 @@ use std::path::PathBuf;
 
 const CACHE_PATH: &str = "osu_files/";
 
-async fn download_beatmap(path: &PathBuf, map_id: i64) {
-    let response = reqwest::get(format!("https://osu.ppy.sh/osu/{}", map_id))
-        .await
-        .expect("Couldn't download beatmap file.");
-    let mut file = std::fs::File::create(path).expect("Couldn't create beatmap file");
-    let mut content = Cursor::new(
-        response
-            .bytes()
-            .await
-            .expect("Couldn't download beatmap file."),
-    );
-    std::io::copy(&mut content, &mut file).expect("Couldn't save beatmap file.");
+async fn download_beatmap(path: &PathBuf, map_id: i64) -> Result<(), Error> {
+    let response = reqwest::get(format!("https://osu.ppy.sh/osu/{}", map_id)).await?;
+    let mut file = std::fs::File::create(path)?;
+    let mut content = Cursor::new(response.bytes().await?);
+    std::io::copy(&mut content, &mut file)?;
+
+    Ok(())
 }
 
 async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
     let mut path = PathBuf::from(CACHE_PATH);
     if !path.exists() {
-        create_dir(&path).expect("Couldn't create path");
+        create_dir(&path)?;
     }
     match beatmap.status.as_str() {
         "Ranked" | "Approved" => {
             path.push(format!("{}.osu", beatmap.id));
             if !path.exists() {
-                download_beatmap(&path, beatmap.id).await;
+                download_beatmap(&path, beatmap.id).await?;
             }
         }
         _ => {
             path.push("temp.osu");
-            download_beatmap(&path, beatmap.id).await;
+            download_beatmap(&path, beatmap.id).await?;
         }
     };
 
