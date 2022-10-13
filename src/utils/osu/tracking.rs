@@ -1,3 +1,4 @@
+use crate::models::linked_osu_profiles::LinkedOsuProfile;
 use crate::models::osu_users::NewOsuUser;
 use crate::{Error, Pool};
 use diesel::r2d2::ConnectionManager;
@@ -13,7 +14,7 @@ use tracing::error;
 
 use crate::utils::db::osu_users::rosu_user_to_db;
 use crate::utils::db::{linked_osu_profiles, osu_users};
-use crate::utils::osu::misc::gamemode_from_string;
+use crate::utils::osu::misc::{gamemode_from_string, is_playing};
 
 lazy_static! {
     static ref UPDATE_INTERVAL: u64 = env::var("UPDATE_INTERVAL")
@@ -49,10 +50,7 @@ impl OsuTracker {
                 }
             };
             for profile in profiles {
-                if let Err(why) = self
-                    .update_user_data(profile.id, profile.osu_id, profile.mode, connection)
-                    .await
-                {
+                if let Err(why) = self.update_user_data(profile, connection).await {
                     error!("Error occured while running tracking loop: {}", why);
                 }
             }
@@ -61,23 +59,23 @@ impl OsuTracker {
 
     async fn update_user_data(
         &mut self,
-        discord_id: i64,
-        osu_id: i64,
-        mode: String,
+        linked_profile: LinkedOsuProfile,
         connection: &mut PgConnection,
     ) -> Result<(), Error> {
-        match self.ctx.cache.user(discord_id as u64) {
+        let user = match self.ctx.cache.user(linked_profile.id as u64) {
             Some(user) => user,
             _ => return Ok(()),
         };
 
-        if let Ok(mut profile) = osu_users::read(connection, osu_id) {
+        if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id) {
             profile.ticks += 1;
-            if (profile.ticks % *NOT_PLAYING_SKIP) == 0 {
+            if is_playing(&self.ctx, &user, linked_profile.home_guild).await
+                || (profile.ticks % *NOT_PLAYING_SKIP) == 0
+            {
                 let osu_profile = match self
                     .osu_client
-                    .user(osu_id as u32)
-                    .mode(gamemode_from_string(&mode).unwrap())
+                    .user(linked_profile.osu_id as u32)
+                    .mode(gamemode_from_string(&linked_profile.mode).unwrap())
                     .await
                 {
                     Ok(profile) => profile,
@@ -109,8 +107,8 @@ impl OsuTracker {
         } else {
             let osu_profile = match self
                 .osu_client
-                .user(osu_id as u32)
-                .mode(gamemode_from_string(&mode).unwrap())
+                .user(linked_profile.osu_id as u32)
+                .mode(gamemode_from_string(&linked_profile.mode).unwrap())
                 .await
             {
                 Ok(proile) => proile,
