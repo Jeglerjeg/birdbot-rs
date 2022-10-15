@@ -83,7 +83,7 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Link an osu! profile.
-#[poise::command(prefix_command, slash_command, guild_only, category = "osu!")]
+#[poise::command(prefix_command, slash_command, guild_only, category = "osu!", aliases("set"))]
 pub async fn link(
     ctx: Context<'_>,
     #[rest]
@@ -113,7 +113,7 @@ pub async fn link(
 }
 
 /// Unlink your osu! profile.
-#[poise::command(prefix_command, slash_command, guild_only, category = "osu!")]
+#[poise::command(prefix_command, slash_command, guild_only, category = "osu!", aliases("unset"))]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
@@ -133,7 +133,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Changed your osu! mode.
-#[poise::command(prefix_command, slash_command, category = "osu!")]
+#[poise::command(prefix_command, slash_command, category = "osu!", aliases("mode", "m", "track"))]
 pub async fn mode(
     ctx: Context<'_>,
     #[description = "Gamemode to switch to."] mode: String,
@@ -171,7 +171,7 @@ pub async fn mode(
 }
 
 /// Display your score on a beatmap.
-#[poise::command(prefix_command, slash_command, category = "osu!")]
+#[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
 pub async fn score(
     ctx: Context<'_>,
     #[description = "Beatmap ID to check for a score."] beatmap_id: u32,
@@ -228,7 +228,7 @@ pub async fn score(
 }
 
 /// Display your most recent osu score.
-#[poise::command(prefix_command, slash_command, category = "osu!")]
+#[poise::command(prefix_command, slash_command, category = "osu!", aliases("last", "new", "r"))]
 pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
