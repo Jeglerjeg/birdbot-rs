@@ -35,7 +35,7 @@ fn format_response(user: &serenity::User, choice: &String) -> String {
 
 fn format_question(question: &Question, responses: &[String]) -> String {
     format!(
-        "Would you rather **{}** or **{}**?\n\n{}",
+        "Would you rather 🟢 **{}** or 🔴 **{}**?\n\n{}",
         question.choice1,
         question.choice2,
         responses.join("\n")
