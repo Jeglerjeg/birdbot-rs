@@ -4,6 +4,7 @@ use crate::utils::osu::pp::CalculateResults;
 use crate::Context;
 use rosu_v2::model::beatmap::RankStatus;
 use rosu_v2::prelude::Score;
+use serenity::model::user::User;
 
 pub fn format_rank_status(status: RankStatus) -> String {
     match status {
@@ -44,8 +45,8 @@ pub fn format_completion_rate(score: &Score, beatmap: &Beatmap, pp: &CalculateRe
     )
 }
 
-pub async fn format_missing_user_string(ctx: Context<'_>) -> String {
-    format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", ctx.author().name, crate::utils::db::prefix::get_guild_prefix(ctx.into()).await.unwrap().unwrap())
+pub async fn format_missing_user_string(ctx: Context<'_>, user: &User) -> String {
+    format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", user.name, crate::utils::db::prefix::get_guild_prefix(ctx.into()).await.unwrap().unwrap())
 }
 
 pub fn format_beatmap_link(beatmap_id: i64, beatmapset_id: i64, mode: &str) -> String {

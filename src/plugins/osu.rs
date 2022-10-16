@@ -4,6 +4,7 @@ use crate::utils::osu::misc::{gamemode_from_string, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
 use serenity::model::channel::GuildChannel;
+use serenity::model::prelude::User;
 use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
 
@@ -29,14 +30,20 @@ use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
         "delete_guild_config"
     )
 )]
-pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn osu(
+    ctx: Context<'_>,
+    #[rest]
+    #[description = "User to see profile for."]
+    user: Option<User>,
+) -> Result<(), Error> {
+    let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
     match profile {
         Ok(profile) => {
             let color: Color;
             if let Some(guild) = ctx.guild() {
-                if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
+                if let Ok(member) = guild.member(ctx.discord(), user.id).await {
                     color = member.colour(ctx.discord()).unwrap_or(BLUE);
                 } else {
                     color = BLUE;
@@ -70,12 +77,12 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
                 m.embed(|e|
                     e.image(format!("https://lemmmy.pw/osusig//sig.php?colour={}&uname={}&countryrank=&xpbar=&mode={}&date={}{}",
                                     colour_formatted, profile.osu_id, mode, Utc::now().timestamp(), darkheader))
-                        .author(|a| a.icon_url(ctx.author().face()).name(&ctx.author().name))
+                        .author(|a| a.icon_url(user.face()).name(&user.name))
                         .color(color)))
                 .await?;
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx).await).await?;
+            ctx.say(format_missing_user_string(ctx, user).await).await?;
         }
     }
 
@@ -83,7 +90,13 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Link an osu! profile.
-#[poise::command(prefix_command, slash_command, guild_only, category = "osu!", aliases("set"))]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    guild_only,
+    category = "osu!",
+    aliases("set")
+)]
 pub async fn link(
     ctx: Context<'_>,
     #[rest]
@@ -113,7 +126,13 @@ pub async fn link(
 }
 
 /// Unlink your osu! profile.
-#[poise::command(prefix_command, slash_command, guild_only, category = "osu!", aliases("unset"))]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    guild_only,
+    category = "osu!",
+    aliases("unset")
+)]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
@@ -125,7 +144,8 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx).await).await?;
+            ctx.say(format_missing_user_string(ctx, ctx.author()).await)
+                .await?;
         }
     };
 
@@ -133,7 +153,12 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Changed your osu! mode.
-#[poise::command(prefix_command, slash_command, category = "osu!", aliases("mode", "m", "track"))]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    category = "osu!",
+    aliases("mode", "m", "track")
+)]
 pub async fn mode(
     ctx: Context<'_>,
     #[description = "Gamemode to switch to."] mode: String,
@@ -163,7 +188,8 @@ pub async fn mode(
                 .await?;
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx).await).await?;
+            ctx.say(format_missing_user_string(ctx, ctx.author()).await)
+                .await?;
         }
     }
 
@@ -175,12 +201,16 @@ pub async fn mode(
 pub async fn score(
     ctx: Context<'_>,
     #[description = "Beatmap ID to check for a score."] beatmap_id: u32,
+    #[rest]
+    #[description = "User to see score for."]
+    user: Option<User>,
 ) -> Result<(), Error> {
+    let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
     match profile {
         Ok(profile) => {
-            let user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
+            let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
                 user
             } else {
                 ctx.say(
@@ -211,7 +241,7 @@ pub async fn score(
                     )
                     .await?;
 
-                    send_score_embed(ctx, score.score, beatmap, beatmapset, user).await?;
+                    send_score_embed(ctx, score.score, beatmap, beatmapset, osu_user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get beatmap score. {}", why))
@@ -220,7 +250,7 @@ pub async fn score(
             }
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx).await).await?;
+            ctx.say(format_missing_user_string(ctx, user).await).await?;
         }
     }
 
@@ -228,13 +258,24 @@ pub async fn score(
 }
 
 /// Display your most recent osu score.
-#[poise::command(prefix_command, slash_command, category = "osu!", aliases("last", "new", "r"))]
-pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
+#[poise::command(
+    prefix_command,
+    slash_command,
+    category = "osu!",
+    aliases("last", "new", "r")
+)]
+pub async fn recent(
+    ctx: Context<'_>,
+    #[rest]
+    #[description = "User to see profile for."]
+    user: Option<User>,
+) -> Result<(), Error> {
+    let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
     match profile {
         Ok(profile) => {
-            let user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
+            let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
                 user
             } else {
                 ctx.say(
@@ -257,7 +298,7 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
             match recent_score {
                 Ok(scores) => {
                     if scores.is_empty() {
-                        ctx.say(format!("No recent scores found for {}.", ctx.author().name))
+                        ctx.say(format!("No recent scores found for {}.", user.name))
                             .await?;
                     } else {
                         let score = scores[0].clone();
@@ -274,7 +315,7 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
                         )
                         .await?;
 
-                        send_score_embed(ctx, score, beatmap, beatmapset, user).await?;
+                        send_score_embed(ctx, score, beatmap, beatmapset, osu_user).await?;
                     }
                 }
                 Err(why) => {
@@ -284,7 +325,7 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
             }
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx).await).await?;
+            ctx.say(format_missing_user_string(ctx, user).await).await?;
         }
     }
 
@@ -295,14 +336,16 @@ pub async fn recent(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn top(
     ctx: Context<'_>,
+    #[description = "User to see profile for."] user: Option<User>,
     #[description = "Sort your top scores by something other than pp."] sort_type: Option<String>,
 ) -> Result<(), Error> {
+    let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
     let sort_type = sort_type.unwrap_or_default();
     match profile {
         Ok(profile) => {
-            let user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
+            let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
                 user
             } else {
                 ctx.say(
@@ -334,7 +377,7 @@ pub async fn top(
                         "score" => best_scores.sort_by(|a, b| b.score.cmp(&a.score)),
                         _ => {}
                     }
-                    send_top_scores_embed(ctx, &best_scores, user).await?;
+                    send_top_scores_embed(ctx, &best_scores, osu_user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get best scores. {}", why))
@@ -343,7 +386,7 @@ pub async fn top(
             }
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx).await).await?;
+            ctx.say(format_missing_user_string(ctx, user).await).await?;
         }
     }
 
