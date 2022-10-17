@@ -45,17 +45,14 @@ pub async fn calculate_taiko_pp(
 
     let map_attributes = map.attributes().mods(mods).mode(GameMode::Taiko).build();
 
+    let map_calc = map.stars().mods(mods).mode(GameMode::Taiko).calculate();
+
     CalculateResults {
-        total_stars: map
-            .stars()
-            .mods(mods)
-            .mode(GameMode::Taiko)
-            .calculate()
-            .stars(),
+        total_stars: map_calc.stars(),
         partial_stars: result.difficulty.stars,
         pp: result.pp,
         max_pp: None,
-        max_combo: Some(result.difficulty.max_combo),
+        max_combo: map_calc.max_combo(),
         ar: map_attributes.ar,
         cs: map_attributes.cs,
         od: map_attributes.od,
