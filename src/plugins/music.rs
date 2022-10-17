@@ -2,32 +2,37 @@ use crate::{Context, Error};
 use lazy_static::lazy_static;
 use poise::serenity_prelude;
 use serenity::model::id::{ChannelId, GuildId};
+use serenity::model::prelude::User;
 use serenity::utils::colours::roles::BLUE;
-use std::collections::HashMap;
-use std::env;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::Mutex;
-
 use songbird::input::Input;
 use songbird::tracks::PlayMode;
 use songbird::{
     input::Restartable, tracks::TrackHandle, Call, Event, EventContext,
     EventHandler as VoiceEventHandler, TrackEvent,
 };
+use std::collections::HashMap;
+use std::env;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::{Mutex, MutexGuard};
 use tracing::error;
 
 pub struct PlayingGuilds {
-    pub guilds: HashMap<GuildId, Arc<Mutex<Requesters>>>,
+    pub guilds: HashMap<GuildId, Arc<Mutex<Guild>>>,
 }
 
-pub struct Requesters {
-    pub requester: HashMap<u128, Arc<Mutex<QueuedTrack>>>,
+pub struct Guild {
+    queued_tracks: Queue,
+    volume: f32,
+}
+
+pub struct Queue {
+    pub queue: HashMap<u128, Mutex<QueuedTrack>>,
 }
 
 pub struct QueuedTrack {
     pub track: TrackHandle,
-    pub requested: serenity_prelude::User,
+    pub requested: User,
     pub skipped: usize,
 }
 
@@ -257,10 +262,15 @@ impl VoiceEventHandler for TrackEndNotifier {
                         .unwrap()
                         .lock()
                         .await;
+
                     for track in _track_list.iter() {
-                        guild_lock.requester.remove(&(track).1.uuid().as_u128());
+                        guild_lock
+                            .queued_tracks
+                            .queue
+                            .remove(&(track).1.uuid().as_u128());
                     }
                     drop(guild_lock);
+                    drop(playing_guilds_lock);
                 }
             }
         }
@@ -294,8 +304,11 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
     let mut guild_lock = PLAYING_GUILDS.lock().await;
     guild_lock.guilds.insert(
         guild_id,
-        Arc::from(Mutex::from(Requesters {
-            requester: HashMap::new(),
+        Arc::from(Mutex::from(Guild {
+            queued_tracks: Queue {
+                queue: HashMap::new(),
+            },
+            volume: 0.6,
         })),
     );
     drop(guild_lock);
@@ -330,7 +343,7 @@ pub(crate) async fn music(ctx: Context<'_>) -> Result<(), Error> {
 async fn queue(
     ctx: Context<'_>,
     handler_lock: Arc<Mutex<Call>>,
-    requesters: Arc<Mutex<Requesters>>,
+    mut playing_guild: MutexGuard<'_, Guild>,
     url: String,
 ) -> Result<(), Error> {
     // Here, we use lazy restartable sources to make sure that we don't pay
@@ -361,11 +374,10 @@ async fn queue(
     let input = Input::from(source);
 
     let mut handler = handler_lock.lock().await;
-    let mut requester_lock = requesters.lock().await;
 
     let mut requested: u16 = 0;
     if !handler.queue().is_empty() {
-        for requester in &requester_lock.requester {
+        for requester in &playing_guild.queued_tracks.queue {
             if requester.1.lock().await.requested.id == ctx.author().id {
                 requested += 1;
             }
@@ -377,7 +389,6 @@ async fn queue(
             ))
             .await?;
             drop(handler);
-            drop(requester_lock);
             return Ok(());
         }
     }
@@ -401,7 +412,7 @@ async fn queue(
 
     drop(handler);
 
-    track.set_volume(0.6)?;
+    track.set_volume(playing_guild.volume)?;
 
     let queued_track = QueuedTrack {
         track: track.clone(),
@@ -409,11 +420,10 @@ async fn queue(
         skipped: 0,
     };
 
-    requester_lock
-        .requester
-        .insert(track.uuid().as_u128(), Arc::from(Mutex::from(queued_track)));
-
-    drop(requester_lock);
+    playing_guild
+        .queued_tracks
+        .queue
+        .insert(track.uuid().as_u128(), Mutex::from(queued_track));
 
     send_track_embed(ctx, &track, String::from("Queued:"), None).await?;
 
@@ -445,28 +455,29 @@ pub async fn play(
     if let Some(handler_lock) = manager.get(guild_id) {
         let guild_lock = PLAYING_GUILDS.lock().await;
 
-        let requesters = guild_lock
+        let playing_guild = guild_lock
             .guilds
             .get(&ctx.guild_id().unwrap())
             .unwrap()
-            .clone();
-        drop(guild_lock);
-        queue(ctx, handler_lock, requesters, url_or_name).await?;
+            .lock()
+            .await;
+
+        queue(ctx, handler_lock, playing_guild, url_or_name).await?;
     } else {
         if !join(ctx).await? {
             return Ok(());
         }
-
         let guild_lock = PLAYING_GUILDS.lock().await;
-        let requesters = guild_lock
+
+        let playing_guild = guild_lock
             .guilds
             .get(&ctx.guild_id().unwrap())
             .unwrap()
-            .clone();
-        drop(guild_lock);
+            .lock()
+            .await;
 
         if let Some(handler_lock) = manager.get(guild_id) {
-            queue(ctx, handler_lock, requesters.clone(), url_or_name).await?;
+            queue(ctx, handler_lock, playing_guild, url_or_name).await?;
         }
     }
     Ok(())
@@ -506,14 +517,28 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         let queue = handler.queue().clone();
 
         let track = queue.current().unwrap();
-        let guild_data_lock = PLAYING_GUILDS.lock().await;
-        let playing_guild = guild_data_lock.guilds.get(&guild_id).unwrap();
-        let guild_lock = playing_guild.lock().await;
-        let queued_track = guild_lock.requester.get(&track.uuid().as_u128()).unwrap();
-        let mut queue_lock = queued_track.lock().await;
-        if queue_lock.requested.id == ctx.author().id {
+        let playing_guilds_lock = PLAYING_GUILDS.lock().await;
+        let current_guild_lock = playing_guilds_lock
+            .guilds
+            .get(&guild_id)
+            .unwrap()
+            .lock()
+            .await;
+
+        let mut track_lock = current_guild_lock
+            .queued_tracks
+            .queue
+            .get(&track.uuid().as_u128())
+            .unwrap()
+            .lock()
+            .await;
+
+        if track_lock.requested.id == ctx.author().id {
             let _ = queue.skip();
             drop(handler);
+            drop(track_lock);
+            drop(current_guild_lock);
+            drop(playing_guilds_lock);
             send_track_embed(ctx, &track, String::from("Skipped:"), None).await?;
         } else {
             let channel_id = handler.current_channel().unwrap();
@@ -524,22 +549,27 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             let guild_channels = guild.channels(ctx.discord()).await.unwrap();
             let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
             let needed_to_skip = channel.members(ctx.discord()).await.unwrap().len() - 2;
-            queue_lock.skipped += 1;
-            if queue_lock.skipped >= needed_to_skip {
+            track_lock.skipped += 1;
+            if track_lock.skipped >= needed_to_skip {
                 let _ = queue.skip();
                 drop(handler);
+                drop(track_lock);
+                drop(current_guild_lock);
+                drop(playing_guilds_lock);
                 send_track_embed(ctx, &track, String::from("Skipped:"), None).await?;
             } else {
+                let skipped = track_lock.skipped;
+                drop(handler);
+                drop(track_lock);
+                drop(current_guild_lock);
+                drop(playing_guilds_lock);
                 ctx.say(format!(
                     "Voted to skip the current song. `{}/{}`",
-                    queue_lock.skipped, needed_to_skip
+                    skipped, needed_to_skip
                 ))
                 .await?;
             }
         }
-        drop(queue_lock);
-        drop(guild_lock);
-        drop(guild_data_lock);
     } else {
         ctx.say("Not in a voice channel to play in").await?;
     }
@@ -613,7 +643,13 @@ pub async fn volume(
         let queue = handler_lock.queue().clone();
         match queue.current() {
             Some(track) => {
-                track.set_volume(f32::from(volume) / 100.0)?;
+                let adjusted_volume = f32::from(volume) / 100.0;
+                track.set_volume(adjusted_volume)?;
+                let guild_lock = PLAYING_GUILDS.lock().await;
+                let mut playing_guild_lock = guild_lock.guilds.get(&guild_id).unwrap().lock().await;
+                playing_guild_lock.volume = adjusted_volume;
+                drop(playing_guild_lock);
+                drop(guild_lock);
                 ctx.say(format!("Changed volume to {}%.", volume)).await?;
             }
             _ => {
