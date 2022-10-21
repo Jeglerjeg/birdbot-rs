@@ -43,10 +43,10 @@ async fn event_listener(
         }
         poise::Event::VoiceStateUpdate { old, new: _new } => {
             let voice = match old {
-                Some(old) => old.clone(),
+                Some(old) => old,
                 _ => return Ok(()),
             };
-            plugins::music::check_for_empty_channel(ctx.clone(), voice.guild_id).await?;
+            plugins::music::check_for_empty_channel(ctx, voice.guild_id).await?;
         }
         _ => {}
     }

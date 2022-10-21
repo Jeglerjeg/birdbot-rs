@@ -116,7 +116,7 @@ fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
 }
 
 fn format_track(track: &TrackHandle, play_time: Option<Duration>) -> String {
-    let title = match track.metadata().title.clone() {
+    let title = match &track.metadata().title {
         Some(title) => format!("**{}**\n", title),
         _ => String::from(""),
     };
@@ -128,7 +128,7 @@ fn format_track(track: &TrackHandle, play_time: Option<Duration>) -> String {
         duration = "".into();
     }
 
-    let url = match track.metadata().source_url.clone() {
+    let url = match &track.metadata().source_url {
         Some(url) => format!("**URL**: <{}>", url),
         _ => String::from(""),
     };
@@ -139,7 +139,7 @@ fn format_track(track: &TrackHandle, play_time: Option<Duration>) -> String {
 async fn send_track_embed(
     ctx: Context<'_>,
     track: &TrackHandle,
-    action: String,
+    action: &str,
     play_time: Option<Duration>,
 ) -> Result<(), Error> {
     let color = ctx
@@ -149,9 +149,9 @@ async fn send_track_embed(
         .colour(ctx.discord())
         .unwrap_or(BLUE);
 
-    let thumbnail_url = match track.metadata().thumbnail.clone() {
+    let thumbnail_url = match &track.metadata().thumbnail {
         Some(thumbnail) => thumbnail,
-        _ => String::from(""),
+        _ => "",
     };
 
     ctx.send(|m| {
@@ -166,7 +166,7 @@ async fn send_track_embed(
 }
 
 pub async fn check_for_empty_channel(
-    ctx: serenity_prelude::Context,
+    ctx: &serenity_prelude::Context,
     guild: Option<GuildId>,
 ) -> Result<(), Error> {
     let guild_id = match guild {
@@ -176,7 +176,7 @@ pub async fn check_for_empty_channel(
         }
     };
 
-    let manager = songbird::get(&ctx.clone())
+    let manager = songbird::get(ctx)
         .await
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
@@ -202,7 +202,7 @@ pub async fn check_for_empty_channel(
     Ok(())
 }
 
-pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) -> Result<(), Error> {
+pub async fn leave(ctx: &serenity_prelude::Context, guild: Option<GuildId>) -> Result<(), Error> {
     let guild_id = match guild {
         Some(guild) => guild,
         _ => {
@@ -210,7 +210,7 @@ pub async fn leave(ctx: serenity_prelude::Context, guild: Option<GuildId>) -> Re
         }
     };
 
-    let manager = songbird::get(&ctx)
+    let manager = songbird::get(ctx)
         .await
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
@@ -251,7 +251,7 @@ impl VoiceEventHandler for TrackEndNotifier {
                 let handler = handler_lock.lock().await;
                 if handler.queue().is_empty() {
                     drop(handler);
-                    if let Err(why) = leave(self.ctx.clone(), Option::from(self.guild_id)).await {
+                    if let Err(why) = leave(&self.ctx, Option::from(self.guild_id)).await {
                         error!("Failed to leave voice channel: {}", why);
                     };
                 } else {
@@ -402,7 +402,7 @@ async fn queue(
             .await?;
             if handler.queue().is_empty() {
                 drop(handler);
-                leave(ctx.discord().clone(), ctx.guild_id()).await?;
+                leave(ctx.discord(), ctx.guild_id()).await?;
             }
             return Ok(());
         }
@@ -425,7 +425,7 @@ async fn queue(
         .queue
         .insert(track.uuid().as_u128(), Mutex::from(queued_track));
 
-    send_track_embed(ctx, &track, String::from("Queued:"), None).await?;
+    send_track_embed(ctx, &track, "Queued:", None).await?;
 
     Ok(())
 }
@@ -514,7 +514,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue().clone();
+        let queue = handler.queue();
 
         let track = queue.current().unwrap();
         let playing_guilds_lock = PLAYING_GUILDS.lock().await;
@@ -539,7 +539,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             drop(track_lock);
             drop(current_guild_lock);
             drop(playing_guilds_lock);
-            send_track_embed(ctx, &track, String::from("Skipped:"), None).await?;
+            send_track_embed(ctx, &track, "Skipped:", None).await?;
         } else {
             let channel_id = handler.current_channel().unwrap();
             if user_channel.0 != channel_id.0 {
@@ -556,7 +556,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 drop(track_lock);
                 drop(current_guild_lock);
                 drop(playing_guilds_lock);
-                send_track_embed(ctx, &track, String::from("Skipped:"), None).await?;
+                send_track_embed(ctx, &track, "Skipped:", None).await?;
             } else {
                 let skipped = track_lock.skipped;
                 drop(handler);
@@ -590,13 +590,14 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue().clone();
-        drop(handler);
+        let queue = handler.queue();
         if queue.is_empty() {
+            drop(handler);
             ctx.say("No items queued").await?;
         } else {
             let removed_item = queue.dequeue(queue.len() - 1).unwrap();
-            send_track_embed(ctx, &removed_item.handle(), String::from("Undid:"), None).await?;
+            drop(handler);
+            send_track_embed(ctx, &removed_item.handle(), "Undid:", None).await?;
         }
     } else {
         ctx.say("Not in a voice channel to play in").await?;
@@ -640,7 +641,7 @@ pub async fn volume(
         if volume > 200 {
             volume = 200;
         }
-        let queue = handler_lock.queue().clone();
+        let queue = handler_lock.queue();
         match queue.current() {
             Some(track) => {
                 let adjusted_volume = f32::from(volume) / 100.0;
@@ -657,7 +658,7 @@ pub async fn volume(
             }
         }
     } else {
-        let queue = handler_lock.queue().clone();
+        let queue = handler_lock.queue();
         match queue.current() {
             Some(track) => {
                 ctx.say(format!(
@@ -689,23 +690,21 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue().clone();
-        drop(handler);
-        match queue.current() {
-            Some(track) => {
-                if track.get_info().await.unwrap().playing != PlayMode::Play {
-                    ctx.say("Current track isn't playing.").await?;
-                    return Ok(());
-                }
-                if let Err(e) = track.pause() {
-                    ctx.say(format!("Failed: {:?}", e)).await?;
-                    return Ok(());
-                }
-                ctx.say("Paused song").await?;
+        let queue = handler.queue();
+        if let Some(track) = queue.current() {
+            drop(handler);
+            if track.get_info().await.unwrap().playing != PlayMode::Play {
+                ctx.say("Current track isn't playing.").await?;
+                return Ok(());
             }
-            _ => {
-                ctx.say("No items queued").await?;
+            if let Err(e) = track.pause() {
+                ctx.say(format!("Failed: {:?}", e)).await?;
+                return Ok(());
             }
+            ctx.say("Paused song").await?;
+        } else {
+            drop(handler);
+            ctx.say("No items queued").await?;
         }
     } else {
         ctx.say("Not in a voice channel.").await?;
@@ -727,23 +726,21 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue().clone();
-        drop(handler);
-        match queue.current() {
-            Some(track) => {
-                if track.get_info().await.unwrap().playing != PlayMode::Pause {
-                    ctx.say("Current track isn't paused.").await?;
-                    return Ok(());
-                }
-                if let Err(e) = track.play() {
-                    ctx.say(format!("Failed: {:?}", e)).await?;
-                    return Ok(());
-                }
-                ctx.say("Resumed song").await?;
+        let queue = handler.queue();
+        if let Some(track) = queue.current() {
+            drop(handler);
+            if track.get_info().await.unwrap().playing != PlayMode::Pause {
+                ctx.say("Current track isn't paused.").await?;
+                return Ok(());
             }
-            _ => {
-                ctx.say("No items queued").await?;
+            if let Err(e) = track.play() {
+                ctx.say(format!("Failed: {:?}", e)).await?;
+                return Ok(());
             }
+            ctx.say("Resumed song").await?;
+        } else {
+            drop(handler);
+            ctx.say("No items queued").await?;
         }
     } else {
         ctx.say("Not in a voice channel.").await?;
@@ -771,21 +768,19 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
-        let queue = handler.queue().clone();
-        drop(handler);
-        match queue.current() {
-            Some(track) => {
-                send_track_embed(
-                    ctx,
-                    &track,
-                    String::from("Now playing:"),
-                    Some(track.get_info().await.unwrap().play_time),
-                )
-                .await?;
-            }
-            _ => {
-                ctx.say("No item playing.").await?;
-            }
+        let queue = handler.queue();
+        if let Some(track) = queue.current() {
+            drop(handler);
+            send_track_embed(
+                ctx,
+                &track,
+                "Now playing:",
+                Some(track.get_info().await.unwrap().play_time),
+            )
+            .await?;
+        } else {
+            drop(handler);
+            ctx.say("No item playing.").await?;
         }
     } else {
         ctx.say("Not in a voice channel.").await?;
