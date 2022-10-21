@@ -33,7 +33,7 @@ pub struct Queue {
 pub struct QueuedTrack {
     pub track: TrackHandle,
     pub requested: User,
-    pub skipped: usize,
+    pub skipped: Vec<u64>,
 }
 
 lazy_static! {
@@ -417,7 +417,7 @@ async fn queue(
     let queued_track = QueuedTrack {
         track: track.clone(),
         requested: ctx.author().clone(),
-        skipped: 0,
+        skipped: Vec::new(),
     };
 
     playing_guild
@@ -514,6 +514,13 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
+
+        let channel_id = handler.current_channel().unwrap();
+        if user_channel.0 != channel_id.0 {
+            ctx.say("Not connected to the voice channel").await?;
+            return Ok(());
+        }
+
         let queue = handler.queue();
 
         let track = queue.current().unwrap();
@@ -541,16 +548,22 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             drop(playing_guilds_lock);
             send_track_embed(ctx, &track, "Skipped:", None).await?;
         } else {
-            let channel_id = handler.current_channel().unwrap();
-            if user_channel.0 != channel_id.0 {
-                ctx.say("Not connected to the voice channel").await?;
+            if track_lock.skipped.contains(&ctx.author().id.0) {
+                drop(handler);
+                drop(track_lock);
+                drop(current_guild_lock);
+                drop(playing_guilds_lock);
+                ctx.say("You've already skipped this track").await?;
                 return Ok(());
             }
+
             let guild_channels = guild.channels(ctx.discord()).await.unwrap();
             let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
             let needed_to_skip = channel.members(ctx.discord()).await.unwrap().len() - 2;
-            track_lock.skipped += 1;
-            if track_lock.skipped >= needed_to_skip {
+
+            track_lock.skipped.push(ctx.author().id.0);
+
+            if track_lock.skipped.len() >= needed_to_skip {
                 let _ = queue.skip();
                 drop(handler);
                 drop(track_lock);
@@ -558,7 +571,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 drop(playing_guilds_lock);
                 send_track_embed(ctx, &track, "Skipped:", None).await?;
             } else {
-                let skipped = track_lock.skipped;
+                let skipped = track_lock.skipped.len();
                 drop(handler);
                 drop(track_lock);
                 drop(current_guild_lock);
