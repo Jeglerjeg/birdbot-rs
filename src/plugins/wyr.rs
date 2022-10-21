@@ -180,10 +180,8 @@ fn add_recent_question(
     Ok(())
 }
 
-fn check_for_duplicates(connection: &mut PgConnection, choice_1: String, choice_2: String) -> bool {
-    if (crate::utils::db::questions::get_question(connection, choice_1.clone(), choice_2.clone()))
-        .is_ok()
-    {
+fn check_for_duplicates(connection: &mut PgConnection, choice_1: &str, choice_2: &str) -> bool {
+    if (crate::utils::db::questions::get_question(connection, choice_1, choice_2)).is_ok() {
         return false;
     };
 
@@ -217,12 +215,12 @@ pub async fn wyr(
             return Ok(());
         }
 
-        if !check_for_duplicates(connection, choice_1.clone(), choice_2.clone()) {
+        if !check_for_duplicates(connection, &choice_1, &choice_2) {
             ctx.say("That question already exists.").await?;
             return Ok(());
         }
 
-        crate::utils::db::questions::add_question(connection, &*choice_1, &*choice_2)?;
+        crate::utils::db::questions::add_question(connection, &choice_1, &choice_2)?;
 
         let choices = vec![choice_1, choice_2];
 

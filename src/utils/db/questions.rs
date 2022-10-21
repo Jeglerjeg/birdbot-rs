@@ -46,8 +46,8 @@ pub fn add_question(db: &mut PgConnection, choice_1: &str, choice_2: &str) -> Re
 
 pub fn get_question(
     db: &mut PgConnection,
-    choice_1: String,
-    choice_2: String,
+    choice_1: &str,
+    choice_2: &str,
 ) -> QueryResult<Question> {
     questions::table
         .filter(questions::choice1.eq(choice_1))

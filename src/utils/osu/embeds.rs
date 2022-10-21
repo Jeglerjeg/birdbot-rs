@@ -38,7 +38,7 @@ pub fn create_embed<'a, 'b>(
 
 pub async fn send_score_embed(
     ctx: Context<'_>,
-    score: Score,
+    score: &Score,
     beatmap: Beatmap,
     beatmapset: Beatmapset,
     user: OsuUser,

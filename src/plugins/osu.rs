@@ -241,7 +241,7 @@ pub async fn score(
                     )
                     .await?;
 
-                    send_score_embed(ctx, score.score, beatmap, beatmapset, osu_user).await?;
+                    send_score_embed(ctx, &score.score, beatmap, beatmapset, osu_user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get beatmap score. {}", why))
@@ -301,7 +301,7 @@ pub async fn recent(
                         ctx.say(format!("No recent scores found for {}.", user.name))
                             .await?;
                     } else {
-                        let score = scores[0].clone();
+                        let score = &scores[0];
 
                         let beatmap = crate::utils::osu::caching::get_beatmap(
                             ctx,
