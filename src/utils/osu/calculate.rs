@@ -69,7 +69,12 @@ pub async fn calculate(
             Ok(calculate_mania_pp(
                 path,
                 score.mods.bits(),
-                Some(score.score),
+                Some(score.statistics.count_geki as usize),
+                Some(score.statistics.count_300 as usize),
+                Some(score.statistics.count_katu as usize),
+                Some(score.statistics.count_100 as usize),
+                Some(score.statistics.count_50 as usize),
+                Some(score.statistics.count_miss as usize),
                 Some(score.total_hits() as usize),
             )
             .await)

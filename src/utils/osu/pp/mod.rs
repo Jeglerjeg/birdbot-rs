@@ -18,7 +18,7 @@ pub struct CalculateResults {
     pub partial_stars: f64,
     pub pp: f64,
     pub max_pp: Option<f64>,
-    pub max_combo: Option<usize>,
+    pub max_combo: usize,
     pub ar: f64,
     pub cs: f64,
     pub od: f64,

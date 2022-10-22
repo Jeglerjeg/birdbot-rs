@@ -27,7 +27,7 @@ pub async fn calculate_std_pp(
     };
 
     if let Some(nmiss) = nmiss {
-        result = result.misses(nmiss);
+        result = result.n_misses(nmiss);
     };
 
     if let Some(n300) = n300 {
@@ -46,7 +46,7 @@ pub async fn calculate_std_pp(
         result = result.accuracy(acc);
     };
 
-    let potential_result = OsuPP::new(&map).mods(mods).mode(GameMode::Osu).misses(0);
+    let potential_result = OsuPP::new(&map).mods(mods).mode(GameMode::Osu).n_misses(0);
 
     let map_attributes = map.attributes().mods(mods).build();
 

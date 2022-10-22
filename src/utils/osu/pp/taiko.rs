@@ -26,7 +26,7 @@ pub async fn calculate_taiko_pp(
     };
 
     if let Some(nmiss) = nmiss {
-        result = result.misses(nmiss);
+        result = result.n_misses(nmiss);
     };
 
     if let Some(n300) = n300 {

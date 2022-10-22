@@ -22,10 +22,7 @@ pub fn format_score_statistic(
 
     let max_combo: i64;
     if let Some(pp) = pp {
-        max_combo = match pp.max_combo {
-            Some(calculated_combo) => calculated_combo as i64,
-            _ => i64::from(beatmap.max_combo),
-        }
+        max_combo = pp.max_combo as i64;
     } else {
         max_combo = i64::from(beatmap.max_combo);
     }
@@ -55,7 +52,7 @@ pub fn format_score_statistic(
             max_combo
         ),
         GameMode::Mania => format!(
-            "  acc    max   300s  200s  100s  50s  miss\
+            "acc    max   300s  200s  100s  50s  miss\
         \n{color}{:<7}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
             format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
             score.statistics.count_geki,

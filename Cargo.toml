@@ -21,14 +21,11 @@ num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
 humantime = "2.1"
+rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", branch = "next", features = ["async_tokio"] }
 
 [dependencies.tokio]
 version = "1.21"
 features = ["full"]
-
-[dependencies.rosu-pp]
-version = "0.8"
-features = ["async_tokio"]
 
 [dependencies.diesel]
 version = "2.0"

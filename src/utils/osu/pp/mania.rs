@@ -5,7 +5,12 @@ use std::path::PathBuf;
 pub async fn calculate_mania_pp(
     file_path: PathBuf,
     mods: u32,
-    score: Option<u32>,
+    n320: Option<usize>,
+    n300: Option<usize>,
+    n200: Option<usize>,
+    n100: Option<usize>,
+    n50: Option<usize>,
+    nmiss: Option<usize>,
     passed_objects: Option<usize>,
 ) -> CalculateResults {
     let map = parse_map(file_path).await;
@@ -17,8 +22,28 @@ pub async fn calculate_mania_pp(
         result = result.passed_objects(passed_objects);
     };
 
-    if let Some(score) = score {
-        result = result.score(score);
+    if let Some(nmiss) = nmiss {
+        result = result.n_misses(nmiss);
+    };
+
+    if let Some(n320) = n320 {
+        result = result.n320(n320);
+    };
+
+    if let Some(n300) = n300 {
+        result = result.n300(n300);
+    };
+
+    if let Some(n200) = n200 {
+        result = result.n100(n200);
+    };
+
+    if let Some(n100) = n100 {
+        result = result.n100(n100);
+    };
+
+    if let Some(n50) = n50 {
+        result = result.n50(n50);
     };
 
     let result = result.calculate();
