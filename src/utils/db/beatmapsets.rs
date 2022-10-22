@@ -37,6 +37,14 @@ pub fn read(db: &mut PgConnection, param_id: i64) -> QueryResult<Beatmapset> {
         .first::<Beatmapset>(db)
 }
 
-pub fn delete(db: &mut PgConnection, param_id: i64) -> QueryResult<usize> {
-    diesel::delete(beatmapsets::table.filter(beatmapsets::id.eq(param_id))).execute(db)
+pub fn update(
+    db: &mut PgConnection,
+    param_id: i64,
+    beatmapset: rosu_v2::prelude::Beatmapset,
+) -> QueryResult<usize> {
+    let item = to_insert_beatmapset(beatmapset);
+
+    diesel::update(beatmapsets::table.find(param_id))
+        .set(item)
+        .execute(db)
 }

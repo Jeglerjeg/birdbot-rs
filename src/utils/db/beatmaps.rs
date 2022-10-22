@@ -43,17 +43,14 @@ pub fn get_single(db: &mut PgConnection, param_id: i64) -> QueryResult<Beatmap> 
         .first::<Beatmap>(db)
 }
 
-pub fn get_mapset_maps(db: &mut PgConnection, mapset_id: i64) -> Vec<Beatmap> {
-    let beatmap_result = beatmaps::table
-        .filter(beatmaps::beatmapset_id.eq(mapset_id))
-        .load::<Beatmap>(db);
+pub fn update(
+    db: &mut PgConnection,
+    param_id: i64,
+    beatmap: &rosu_v2::prelude::Beatmap,
+) -> QueryResult<usize> {
+    let item = to_insert_beatmap(beatmap);
 
-    match beatmap_result {
-        Ok(beatmaps) => beatmaps,
-        Err(_) => Vec::new(),
-    }
-}
-
-pub fn delete(db: &mut PgConnection, param_id: i64) -> QueryResult<usize> {
-    diesel::delete(beatmaps::table.filter(beatmaps::id.eq(param_id))).execute(db)
+    diesel::update(beatmaps::table.find(param_id))
+        .set(item)
+        .execute(db)
 }
