@@ -110,7 +110,7 @@ pub async fn send_score_embed(
 pub async fn send_top_scores_embed(
     ctx: Context<'_>,
     connection: &mut PgConnection,
-    best_scores: &[Score],
+    best_scores: &[(Score, usize)],
     user: OsuUser,
 ) -> Result<(), Error> {
     let color: Color;
@@ -178,7 +178,7 @@ async fn handle_top_score_interactions(
     ctx: Context<'_>,
     connection: &mut PgConnection,
     reply: ReplyHandle<'_>,
-    best_scores: &[Score],
+    best_scores: &[(Score, usize)],
     color: Color,
     user: &OsuUser,
 ) -> Result<(), Error> {
@@ -287,7 +287,7 @@ async fn remove_top_score_paginators(
     ctx: Context<'_>,
     connection: &mut PgConnection,
     reply: ReplyHandle<'_>,
-    best_scores: &[Score],
+    best_scores: &[(Score, usize)],
     offset: usize,
     page: &usize,
     max_pages: &usize,
@@ -327,7 +327,7 @@ async fn change_top_scores_page(
     ctx: Context<'_>,
     connection: &mut PgConnection,
     reply: &ReplyHandle<'_>,
-    best_scores: &[Score],
+    best_scores: &[(Score, usize)],
     offset: usize,
     page: &usize,
     max_pages: &usize,

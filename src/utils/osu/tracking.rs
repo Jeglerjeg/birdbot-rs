@@ -151,6 +151,7 @@ impl OsuTracker {
         connection: &mut PgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
+        let author_text: String;
         let formatted_score: String;
         let footer: String;
         let thumbnail: String;
@@ -167,7 +168,7 @@ impl OsuTracker {
                 let beatmap = crate::utils::osu::caching::get_beatmap(
                     connection,
                     self.osu_client.clone(),
-                    score.map.as_ref().unwrap().map_id,
+                    score.0.map.as_ref().unwrap().map_id,
                 )
                 .await?;
 
@@ -179,11 +180,13 @@ impl OsuTracker {
                 .await?;
 
                 let pp = crate::utils::osu::calculate::calculate(
-                    score,
+                    &score.0,
                     &beatmap,
-                    calculate_potential_acc(score),
+                    calculate_potential_acc(&score.0),
                 )
                 .await;
+
+                author_text = format!("{} set a new best score (#{}/{})", &new.username, score.1, 100);
 
                 let potential_string: String;
                 let pp = if let Ok(pp) = pp {
@@ -198,7 +201,7 @@ impl OsuTracker {
 
                 formatted_score = format!(
                     "{}{}",
-                    format_new_score(score, &beatmap, &beatmapset, &pp,),
+                    format_new_score(&score.0, &beatmap, &beatmapset, &pp,),
                     format_diff(
                         &new,
                         &old,
@@ -208,6 +211,8 @@ impl OsuTracker {
 
                 footer = potential_string;
             } else {
+                author_text = format!("{} set a new best scores", &new.username);
+                
                 thumbnail = new.avatar_url.clone();
 
                 footer = String::new();
@@ -243,7 +248,7 @@ impl OsuTracker {
                                         &formatted_score,
                                         &footer,
                                         &new.avatar_url,
-                                        &new.username,
+                                        &author_text,
                                         &format_user_link(new.id),
                                     )
                                 })
@@ -262,7 +267,7 @@ impl OsuTracker {
         osu_id: i64,
         linked_profile: &LinkedOsuProfile,
         connection: &mut PgConnection,
-    ) -> Vec<Score> {
+    ) -> Vec<(Score, usize)> {
         let last_notifications = if let Ok(updates) = osu_notifications::read(connection, osu_id) {
             updates
         } else {
@@ -285,9 +290,9 @@ impl OsuTracker {
             .await
             .unwrap_or_default();
 
-        for score in &best_scores {
+        for (pos, score) in best_scores.iter().enumerate() {
             if score.ended_at.unix_timestamp() > last_notifications.last_pp.timestamp() {
-                new_scores.push(score.clone());
+                new_scores.push((score.clone(), pos+1));
             }
         }
 

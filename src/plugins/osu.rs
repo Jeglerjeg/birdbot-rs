@@ -3,6 +3,7 @@ use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notification
 use crate::utils::osu::misc::{gamemode_from_string, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
+use rosu_v2::prelude::Score;
 use serenity::model::channel::GuildChannel;
 use serenity::model::prelude::User;
 use serenity::utils::colours::roles::BLUE;
@@ -380,17 +381,22 @@ pub async fn top(
                 .limit(100)
                 .await;
             match best_scores {
-                Ok(mut best_scores) => {
+                Ok(api_scores) => {
+                    let mut best_scores: Vec<(Score, usize)> = Vec::new();
+                    for (pos, score) in api_scores.iter().enumerate() {
+                        best_scores.push((score.clone(), pos+1));
+                    }
+
                     match sort_type.as_str() {
                         "newest" | "recent" => {
-                            best_scores.sort_by(|a, b| b.ended_at.cmp(&a.ended_at));
+                            best_scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
                         }
-                        "oldest" => best_scores.sort_by(|a, b| a.ended_at.cmp(&b.ended_at)),
+                        "oldest" => best_scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at)),
                         "acc" | "accuracy" => {
-                            best_scores.sort_by(|a, b| b.accuracy.total_cmp(&a.accuracy));
+                            best_scores.sort_by(|a, b| b.0.accuracy.total_cmp(&a.0.accuracy));
                         }
-                        "combo" => best_scores.sort_by(|a, b| b.max_combo.cmp(&a.max_combo)),
-                        "score" => best_scores.sort_by(|a, b| b.score.cmp(&a.score)),
+                        "combo" => best_scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo)),
+                        "score" => best_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
                         _ => {}
                     }
                     send_top_scores_embed(ctx, connection, &best_scores, osu_user).await?;

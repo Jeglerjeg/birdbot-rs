@@ -135,7 +135,7 @@ pub fn format_new_score(
 pub async fn format_score_list(
     connection: &mut PgConnection,
     osu_client: Arc<Osu>,
-    scores: &[Score],
+    scores: &[(Score, usize)],
     limit: Option<usize>,
     offset: Option<usize>,
 ) -> Result<String, Error> {
@@ -154,7 +154,7 @@ pub async fn format_score_list(
         let beatmap = crate::utils::osu::caching::get_beatmap(
             connection,
             osu_client.clone(),
-            score.map.as_ref().unwrap().map_id,
+            score.0.map.as_ref().unwrap().map_id,
         )
         .await?;
 
@@ -166,9 +166,9 @@ pub async fn format_score_list(
         .await?;
 
         let pp = crate::utils::osu::calculate::calculate(
-            score,
+            &score.0,
             &beatmap,
-            calculate_potential_acc(score),
+            calculate_potential_acc(&score.0),
         )
         .await;
 
@@ -186,13 +186,13 @@ pub async fn format_score_list(
             None
         };
 
-        let time_since = format!("<t:{}:R>", score.ended_at.unix_timestamp());
+        let time_since = format!("<t:{}:R>", score.0.ended_at.unix_timestamp());
 
-        let formatted_score = format_new_score(score, &beatmap, &beatmapset, &pp);
+        let formatted_score = format_new_score(&score.0, &beatmap, &beatmapset, &pp);
 
         formatted_list.push(format!(
             "{}.\n{}{}{}\n",
-            pos + 1,
+            score.1,
             formatted_score,
             time_since,
             potential_string
