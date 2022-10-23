@@ -13,7 +13,6 @@ use rosu_v2::prelude::Osu;
 use songbird::SerenityInit;
 use std::env;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tracing::{error, info};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
@@ -21,7 +20,6 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 pub struct Data {
     time_started: DateTime<Utc>,
     osu_client: Arc<Osu>,
-    osu_tracker: Arc<Mutex<OsuTracker>>,
     db_pool: Pool<ConnectionManager<PgConnection>>,
 }
 
@@ -35,11 +33,22 @@ async fn event_listener(
     ctx: &serenity_prelude::Context,
     event: &poise::Event<'_>,
     _framework: poise::FrameworkContext<'_, Data, Error>,
-    _user_data: &Data,
+    user_data: &Data,
 ) -> Result<(), Error> {
     match event {
         poise::Event::Ready { data_about_bot } => {
             info!("{} is connected!", data_about_bot.user.name);
+
+            let mut osu_tracker = OsuTracker {
+                ctx: ctx.clone(),
+                osu_client: user_data.osu_client.clone(),
+                pool: user_data.db_pool.clone(),
+                shut_down: false,
+            };
+
+            let _ = Box::pin(tokio::spawn(async move {
+                osu_tracker.tracking_loop().await;
+            }));
         }
         poise::Event::VoiceStateUpdate { old, new: _new } => {
             let voice = match old {
@@ -195,17 +204,11 @@ async fn main() {
         .token(token.clone())
         .intents(intents)
         .options(options)
-        .user_data_setup(|ctx, _data_about_bot, _framework| {
+        .user_data_setup(|_ctx, _data_about_bot, _framework| {
             Box::pin(async move {
                 Ok(Data {
                     time_started: Utc::now(),
-                    osu_client: osu_client.clone(),
-                    osu_tracker: Arc::from(Mutex::from(OsuTracker {
-                        ctx: ctx.clone(),
-                        osu_client,
-                        pool: connection.clone(),
-                        shut_down: false,
-                    })),
+                    osu_client,
                     db_pool: connection,
                 })
             })
@@ -220,14 +223,6 @@ async fn main() {
             .await
             .expect("Could not register ctrl+c handler");
         shard_manager.lock().await.shutdown_all().await;
-    });
-
-    let tracker_framework = framework.clone();
-    tokio::spawn(async move {
-        let tracker = tracker_framework.user_data().await.osu_tracker.clone();
-        let mut tracker_lock = tracker.lock().await;
-        tracker_lock.tracking_loop().await;
-        drop(tracker_lock);
     });
 
     if let Err(why) = framework.start_autosharded().await {

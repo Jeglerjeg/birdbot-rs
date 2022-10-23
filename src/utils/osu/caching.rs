@@ -86,7 +86,6 @@ pub async fn get_beatmapset(ctx: Context<'_>, id: u32) -> Result<Beatmapset, Err
             return Ok(beatmapset);
         }
         update_cache(ctx, connection, beatmapset.id).await?;
-        cache_beatmapset(ctx, connection, beatmapset.id).await?;
         return Ok(beatmapsets::read(connection, i64::from(id)).unwrap());
     }
     cache_beatmapset(ctx, connection, i64::from(id)).await?;
