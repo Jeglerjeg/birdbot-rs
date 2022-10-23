@@ -61,6 +61,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    osu_notifications (id) {
+        id -> Int8,
+        last_pp -> Timestamptz,
+        last_event -> Timestamptz,
+    }
+}
+
+diesel::table! {
     osu_users (id) {
         id -> Int8,
         username -> Text,
@@ -100,6 +108,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     beatmapsets,
     linked_osu_profiles,
     osu_guild_channels,
+    osu_notifications,
     osu_users,
     prefix,
     questions,

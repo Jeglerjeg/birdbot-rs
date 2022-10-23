@@ -1,4 +1,5 @@
-use crate::utils::db::osu_users;
+use crate::models::osu_users::OsuUser;
+use crate::utils::db::{osu_notifications, osu_users};
 use crate::Error;
 use diesel::PgConnection;
 use rosu_v2::model::GameMode;
@@ -6,6 +7,43 @@ use rosu_v2::prelude::Score;
 use serenity::client::Context;
 use serenity::model::gateway::Presence;
 use serenity::model::prelude::User;
+
+pub enum DiffTypes {
+    Pp,
+    Acc,
+    GlobalRank,
+    CountryRank,
+    Score,
+}
+
+pub fn get_stat_diff(old: &OsuUser, new: &OsuUser, diff_type: &DiffTypes) -> f64 {
+    let old_value: f64;
+    let new_value: f64;
+    match diff_type {
+        DiffTypes::Pp => {
+            old_value = old.pp;
+            new_value = new.pp;
+        }
+        DiffTypes::Acc => {
+            old_value = old.accuracy;
+            new_value = new.accuracy;
+        }
+        DiffTypes::GlobalRank => {
+            old_value = f64::from(old.global_rank);
+            new_value = f64::from(new.global_rank);
+        }
+        DiffTypes::CountryRank => {
+            old_value = f64::from(old.country_rank);
+            new_value = f64::from(new.country_rank);
+        }
+        DiffTypes::Score => {
+            old_value = old.ranked_score as f64;
+            new_value = new.ranked_score as f64;
+        }
+    }
+
+    new_value - old_value
+}
 
 pub fn gamemode_from_string(mode: &str) -> Option<GameMode> {
     match mode.to_lowercase().as_str() {
@@ -37,6 +75,10 @@ pub fn count_score_pages(scores: &[Score], scores_per_page: usize) -> usize {
 pub fn wipe_profile_data(db: &mut PgConnection, user_id: i64) -> Result<(), Error> {
     if osu_users::read(db, user_id).is_ok() {
         osu_users::delete(db, user_id)?;
+    }
+
+    if osu_notifications::read(db, user_id).is_ok() {
+        osu_notifications::delete(db, user_id)?;
     }
 
     Ok(())

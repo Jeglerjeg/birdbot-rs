@@ -46,9 +46,9 @@ async fn event_listener(
                 shut_down: false,
             };
 
-            let _ = Box::pin(tokio::spawn(async move {
+            drop(Box::pin(tokio::spawn(async move {
                 osu_tracker.tracking_loop().await;
-            }));
+            })));
         }
         poise::Event::VoiceStateUpdate { old, new: _new } => {
             let voice = match old {

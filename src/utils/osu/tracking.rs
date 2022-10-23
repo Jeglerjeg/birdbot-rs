@@ -1,20 +1,37 @@
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
-use crate::models::osu_users::NewOsuUser;
+use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::{Error, Pool};
+use chrono::Utc;
 use diesel::r2d2::ConnectionManager;
-use diesel::PgConnection;
+use diesel::{PgConnection, QueryResult};
 use lazy_static::lazy_static;
 use poise::serenity_prelude;
+use rosu_v2::prelude::Score;
 use rosu_v2::Osu;
+use serenity::model::id::ChannelId;
+use serenity::utils::colours::roles::BLUE;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::error;
 
+use crate::models::osu_notifications::NewOsuNotification;
 use crate::utils::db::osu_users::rosu_user_to_db;
-use crate::utils::db::{linked_osu_profiles, osu_users};
-use crate::utils::osu::misc::{gamemode_from_string, is_playing};
+use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
+use crate::utils::osu::embeds::create_embed;
+use crate::utils::osu::misc::{
+    calculate_potential_acc, gamemode_from_string, get_stat_diff, is_playing, DiffTypes,
+};
+use crate::utils::osu::misc_format::{format_diff, format_potential_string, format_user_link};
+use crate::utils::osu::score_format::{format_new_score, format_score_list};
+
+lazy_static! {
+    static ref PP_THRESHOLD: f64 = env::var("PP_THRESHOLD")
+        .unwrap_or_else(|_| String::from("0.1"))
+        .parse::<f64>()
+        .expect("Failed to parse tracking update interval.");
+}
 
 lazy_static! {
     static ref UPDATE_INTERVAL: u64 = env::var("UPDATE_INTERVAL")
@@ -38,20 +55,26 @@ pub struct OsuTracker {
 }
 impl OsuTracker {
     pub async fn tracking_loop(&mut self) {
-        while !self.shut_down {
+        loop {
             sleep(Duration::from_secs(*UPDATE_INTERVAL)).await;
             let connection = &mut self.pool.get().unwrap();
             let profiles = match linked_osu_profiles::get_all(connection) {
                 Ok(profiles) => profiles,
                 Err(why) => {
                     error!("Failed to get linked osu profiles {}", why);
-                    self.shut_down = true;
                     continue;
                 }
             };
             for profile in profiles {
-                if let Err(why) = self.update_user_data(profile, connection).await {
+                let old = osu_users::read(connection, profile.osu_id);
+                if let Err(why) = self.update_user_data(&profile, connection).await {
                     error!("Error occured while running tracking loop: {}", why);
+                    continue;
+                }
+                let new = osu_users::read(connection, profile.osu_id).unwrap();
+                if let Err(why) = self.notify_pp(old, new, connection, &profile).await {
+                    error!("Error occured while running tracking loop: {}", why);
+                    continue;
                 }
             }
         }
@@ -59,7 +82,7 @@ impl OsuTracker {
 
     async fn update_user_data(
         &mut self,
-        linked_profile: LinkedOsuProfile,
+        linked_profile: &LinkedOsuProfile,
         connection: &mut PgConnection,
     ) -> Result<(), Error> {
         let user = match self.ctx.cache.user(linked_profile.id as u64) {
@@ -119,5 +142,167 @@ impl OsuTracker {
         }
 
         Ok(())
+    }
+
+    async fn notify_pp(
+        &mut self,
+        old: QueryResult<OsuUser>,
+        new: OsuUser,
+        connection: &mut PgConnection,
+        linked_profile: &LinkedOsuProfile,
+    ) -> Result<(), Error> {
+        let formatted_score: String;
+        let footer: String;
+        let thumbnail: String;
+        if let Ok(old) = old {
+            if get_stat_diff(&old, &new, &DiffTypes::Pp) < *PP_THRESHOLD {
+                return Ok(());
+            }
+            let new_scores = self.get_new_score(new.id, linked_profile, connection).await;
+            if new_scores.is_empty() {
+                return Ok(());
+            } else if new_scores.len() == 1 {
+                let score = &new_scores[0];
+
+                let beatmap = crate::utils::osu::caching::get_beatmap(
+                    connection,
+                    self.osu_client.clone(),
+                    score.map.as_ref().unwrap().map_id,
+                )
+                .await?;
+
+                let beatmapset = crate::utils::osu::caching::get_beatmapset(
+                    connection,
+                    self.osu_client.clone(),
+                    beatmap.beatmapset_id as u32,
+                )
+                .await?;
+
+                let pp = crate::utils::osu::calculate::calculate(
+                    score,
+                    &beatmap,
+                    calculate_potential_acc(score),
+                )
+                .await;
+
+                let potential_string: String;
+                let pp = if let Ok(pp) = pp {
+                    potential_string = format_potential_string(&pp);
+                    Some(pp)
+                } else {
+                    potential_string = String::new();
+                    None
+                };
+
+                thumbnail = beatmapset.list_cover.clone();
+
+                formatted_score = format!(
+                    "{}{}",
+                    format_new_score(score, &beatmap, &beatmapset, &pp,),
+                    format_diff(
+                        &new,
+                        &old,
+                        gamemode_from_string(&linked_profile.mode).unwrap()
+                    )
+                );
+
+                footer = potential_string;
+            } else {
+                thumbnail = new.avatar_url.clone();
+
+                footer = String::new();
+
+                formatted_score = format!(
+                    "{}{}",
+                    format_score_list(connection, self.osu_client.clone(), &new_scores, None, None)
+                        .await?,
+                    format_diff(
+                        &new,
+                        &old,
+                        gamemode_from_string(&linked_profile.mode).unwrap()
+                    )
+                );
+            };
+        } else {
+            return Ok(());
+        }
+
+        for guild_id in self.ctx.cache.guilds() {
+            if let Ok(guild_channels) = osu_guild_channels::read(connection, guild_id.0 as i64) {
+                if let Some(score_channel) = guild_channels.score_channel {
+                    if let Ok(member) = guild_id.member(&self.ctx, linked_profile.id as u64).await {
+                        let color = member.colour(&self.ctx).unwrap_or(BLUE);
+
+                        ChannelId(score_channel as u64)
+                            .send_message(&self.ctx, |m| {
+                                m.embed(|e| {
+                                    create_embed(
+                                        e,
+                                        color,
+                                        &thumbnail,
+                                        &formatted_score,
+                                        &footer,
+                                        &new.avatar_url,
+                                        &new.username,
+                                        &format_user_link(new.id),
+                                    )
+                                })
+                            })
+                            .await?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn get_new_score(
+        &mut self,
+        osu_id: i64,
+        linked_profile: &LinkedOsuProfile,
+        connection: &mut PgConnection,
+    ) -> Vec<Score> {
+        let last_notifications = if let Ok(updates) = osu_notifications::read(connection, osu_id) {
+            updates
+        } else {
+            let item = NewOsuNotification {
+                id: osu_id,
+                last_pp: Utc::now(),
+                last_event: Utc::now(),
+            };
+            osu_notifications::create(connection, &item).unwrap()
+        };
+
+        let mut new_scores = Vec::new();
+
+        let best_scores = self
+            .osu_client
+            .user_scores(osu_id as u32)
+            .best()
+            .mode(gamemode_from_string(&linked_profile.mode).unwrap())
+            .limit(100)
+            .await
+            .unwrap_or_default();
+
+        for score in &best_scores {
+            if score.ended_at.unix_timestamp() > last_notifications.last_pp.timestamp() {
+                new_scores.push(score.clone());
+            }
+        }
+
+        if !new_scores.is_empty() {
+            let item = NewOsuNotification {
+                id: osu_id,
+                last_pp: Utc::now(),
+                last_event: last_notifications.last_event,
+            };
+
+            if let Err(why) = osu_notifications::update(connection, osu_id, &item) {
+                error!("Error occured while running tracking loop: {}", why);
+            };
+        }
+
+        new_scores
     }
 }

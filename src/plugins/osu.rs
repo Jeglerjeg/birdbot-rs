@@ -1,5 +1,5 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
-use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_users};
+use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
 use crate::utils::osu::misc::{gamemode_from_string, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
@@ -9,6 +9,7 @@ use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
 
 use crate::models::osu_guild_channels::NewOsuGuildChannel;
+use crate::models::osu_notifications::NewOsuNotification;
 use crate::{Context, Error};
 
 use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
@@ -106,6 +107,11 @@ pub async fn link(
     let user = ctx.data().osu_client.user(username).await?;
     let connection = &mut ctx.data().db_pool.get()?;
 
+    if let Ok(profile) = linked_osu_profiles::read(connection, ctx.author().id.0 as i64) {
+        linked_osu_profiles::delete(connection, profile.id)?;
+        wipe_profile_data(connection, profile.osu_id)?;
+    }
+
     let query_item = NewLinkedOsuProfile {
         id: ctx.author().id.0 as i64,
         osu_id: i64::from(user.user_id),
@@ -113,8 +119,14 @@ pub async fn link(
         mode: user.mode.to_string(),
     };
 
+    let notification_item = NewOsuNotification {
+        id: i64::from(user.user_id),
+        last_pp: Utc::now(),
+        last_event: Utc::now(),
+    };
+    osu_notifications::create(connection, &notification_item)?;
+
     linked_osu_profiles::create(connection, &query_item)?;
-    wipe_profile_data(connection, query_item.osu_id)?;
 
     ctx.say(format!(
         "Set your osu! profile to `{}`.",
@@ -230,18 +242,20 @@ pub async fn score(
             match score {
                 Ok(score) => {
                     let beatmap = crate::utils::osu::caching::get_beatmap(
-                        ctx,
+                        connection,
+                        ctx.data().osu_client.clone(),
                         score.score.map.as_ref().unwrap().map_id,
                     )
                     .await?;
 
                     let beatmapset = crate::utils::osu::caching::get_beatmapset(
-                        ctx,
+                        connection,
+                        ctx.data().osu_client.clone(),
                         beatmap.beatmapset_id as u32,
                     )
                     .await?;
 
-                    send_score_embed(ctx, &score.score, beatmap, beatmapset, osu_user).await?;
+                    send_score_embed(ctx, &score.score, &beatmap, &beatmapset, osu_user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get beatmap score. {}", why))
@@ -304,18 +318,20 @@ pub async fn recent(
                         let score = &scores[0];
 
                         let beatmap = crate::utils::osu::caching::get_beatmap(
-                            ctx,
+                            connection,
+                            ctx.data().osu_client.clone(),
                             score.map.as_ref().unwrap().map_id,
                         )
                         .await?;
 
                         let beatmapset = crate::utils::osu::caching::get_beatmapset(
-                            ctx,
+                            connection,
+                            ctx.data().osu_client.clone(),
                             beatmap.beatmapset_id as u32,
                         )
                         .await?;
 
-                        send_score_embed(ctx, score, beatmap, beatmapset, osu_user).await?;
+                        send_score_embed(ctx, score, &beatmap, &beatmapset, osu_user).await?;
                     }
                 }
                 Err(why) => {
@@ -377,7 +393,7 @@ pub async fn top(
                         "score" => best_scores.sort_by(|a, b| b.score.cmp(&a.score)),
                         _ => {}
                     }
-                    send_top_scores_embed(ctx, &best_scores, osu_user).await?;
+                    send_top_scores_embed(ctx, connection, &best_scores, osu_user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get best scores. {}", why))

@@ -8,17 +8,19 @@ use crate::utils::osu::misc_format::{
 };
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
+use diesel::PgConnection;
 use humantime::format_duration;
-use poise::{CreateReply, ReplyHandle};
+use poise::ReplyHandle;
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::Score;
+use serenity::builder::CreateEmbed;
 use serenity::utils::colours::roles::BLUE;
 use serenity::utils::Color;
 use std::time::Duration;
 use time::OffsetDateTime;
 
-pub fn create_embed<'a, 'b>(
-    f: &'a mut CreateReply<'b>,
+pub fn create_embed<'a>(
+    f: &'a mut CreateEmbed,
     color: Color,
     thumbnail: &str,
     description: &str,
@@ -26,27 +28,25 @@ pub fn create_embed<'a, 'b>(
     author_icon: &str,
     author_name: &str,
     author_url: &str,
-) -> &'a mut CreateReply<'b> {
-    f.embed(|e| {
-        e.thumbnail(thumbnail)
-            .color(color)
-            .description(description)
-            .footer(|f| f.text(footer))
-            .author(|a| a.icon_url(author_icon).name(author_name).url(author_url))
-    })
+) -> &'a mut CreateEmbed {
+    f.thumbnail(thumbnail)
+        .color(color)
+        .description(description)
+        .footer(|f| f.text(footer))
+        .author(|a| a.icon_url(author_icon).name(author_name).url(author_url))
 }
 
 pub async fn send_score_embed(
     ctx: Context<'_>,
     score: &Score,
-    beatmap: Beatmap,
-    beatmapset: Beatmapset,
+    beatmap: &Beatmap,
+    beatmapset: &Beatmapset,
     user: OsuUser,
 ) -> Result<(), Error> {
     let color: Color;
 
     let pp =
-        crate::utils::osu::calculate::calculate(&score, &beatmap, calculate_potential_acc(&score))
+        crate::utils::osu::calculate::calculate(score, beatmap, calculate_potential_acc(score))
             .await;
 
     let time_since = format!(
@@ -62,7 +62,7 @@ pub async fn send_score_embed(
     let pp = if let Ok(pp) = pp {
         potential_string = format_potential_string(&pp);
         if score.grade == Grade::F && score.mode != GameMode::Catch {
-            completion_rate = format!("\n{}", format_completion_rate(&score, &beatmap, &pp));
+            completion_rate = format!("\n{}", format_completion_rate(score, beatmap, &pp));
         } else {
             completion_rate = String::new();
         }
@@ -76,7 +76,7 @@ pub async fn send_score_embed(
     let footer = format!("{}{}{}", potential_string, time_since, completion_rate);
 
     let formatted_score =
-        crate::utils::osu::score_format::format_new_score(&score, &beatmap, &beatmapset, &pp);
+        crate::utils::osu::score_format::format_new_score(score, beatmap, beatmapset, &pp);
 
     if let Some(guild) = ctx.guild() {
         if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
@@ -89,16 +89,18 @@ pub async fn send_score_embed(
     };
 
     ctx.send(|m| {
-        create_embed(
-            m,
-            color,
-            &beatmapset.list_cover,
-            &formatted_score,
-            &footer,
-            &user.avatar_url,
-            &user.username,
-            &format_user_link(user.id),
-        )
+        m.embed(|e| {
+            create_embed(
+                e,
+                color,
+                &beatmapset.list_cover,
+                &formatted_score,
+                &footer,
+                &user.avatar_url,
+                &user.username,
+                &format_user_link(user.id),
+            )
+        })
     })
     .await?;
 
@@ -107,6 +109,7 @@ pub async fn send_score_embed(
 
 pub async fn send_top_scores_embed(
     ctx: Context<'_>,
+    connection: &mut PgConnection,
     best_scores: &[Score],
     user: OsuUser,
 ) -> Result<(), Error> {
@@ -121,20 +124,29 @@ pub async fn send_top_scores_embed(
         color = BLUE;
     };
 
-    let formatted_scores = format_score_list(ctx, best_scores, None, None).await?;
+    let formatted_scores = format_score_list(
+        connection,
+        ctx.data().osu_client.clone(),
+        best_scores,
+        None,
+        None,
+    )
+    .await?;
 
     let reply = ctx
         .send(|m| {
-            create_embed(
-                m,
-                color,
-                &user.avatar_url,
-                &formatted_scores,
-                &format!("Page {} of {}", 1, count_score_pages(best_scores, 5)),
-                &user.avatar_url,
-                user.username.as_str(),
-                &format_user_link(user.id),
-            )
+            m.embed(|e| {
+                create_embed(
+                    e,
+                    color,
+                    &user.avatar_url,
+                    &formatted_scores,
+                    &format!("Page {} of {}", 1, count_score_pages(best_scores, 5)),
+                    &user.avatar_url,
+                    user.username.as_str(),
+                    &format_user_link(user.id),
+                )
+            })
             .components(|c| {
                 c.create_action_row(|r| {
                     r.create_button(|b| {
@@ -157,13 +169,14 @@ pub async fn send_top_scores_embed(
         })
         .await?;
 
-    handle_top_score_interactions(ctx, reply, best_scores, color, &user).await?;
+    handle_top_score_interactions(ctx, connection, reply, best_scores, color, &user).await?;
 
     Ok(())
 }
 
 async fn handle_top_score_interactions(
     ctx: Context<'_>,
+    connection: &mut PgConnection,
     reply: ReplyHandle<'_>,
     best_scores: &[Score],
     color: Color,
@@ -200,6 +213,7 @@ async fn handle_top_score_interactions(
                 }
                 change_top_scores_page(
                     ctx,
+                    connection,
                     &reply,
                     best_scores,
                     offset,
@@ -221,6 +235,7 @@ async fn handle_top_score_interactions(
                 }
                 change_top_scores_page(
                     ctx,
+                    connection,
                     &reply,
                     best_scores,
                     offset,
@@ -237,6 +252,7 @@ async fn handle_top_score_interactions(
                 offset = 0;
                 change_top_scores_page(
                     ctx,
+                    connection,
                     &reply,
                     best_scores,
                     offset,
@@ -253,6 +269,7 @@ async fn handle_top_score_interactions(
 
     remove_top_score_paginators(
         ctx,
+        connection,
         reply,
         best_scores,
         offset,
@@ -268,6 +285,7 @@ async fn handle_top_score_interactions(
 
 async fn remove_top_score_paginators(
     ctx: Context<'_>,
+    connection: &mut PgConnection,
     reply: ReplyHandle<'_>,
     best_scores: &[Score],
     offset: usize,
@@ -276,19 +294,28 @@ async fn remove_top_score_paginators(
     color: Color,
     user: &OsuUser,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(ctx, best_scores, None, Some(offset)).await?;
+    let formatted_scores = format_score_list(
+        connection,
+        ctx.data().osu_client.clone(),
+        best_scores,
+        None,
+        Some(offset),
+    )
+    .await?;
     reply
         .edit(ctx, |b| {
-            create_embed(
-                b,
-                color,
-                &user.avatar_url,
-                &formatted_scores,
-                &format!("Page {} of {}", page, max_pages),
-                &user.avatar_url,
-                user.username.as_str(),
-                &format_user_link(user.id),
-            )
+            b.embed(|e| {
+                create_embed(
+                    e,
+                    color,
+                    &user.avatar_url,
+                    &formatted_scores,
+                    &format!("Page {} of {}", page, max_pages),
+                    &user.avatar_url,
+                    user.username.as_str(),
+                    &format_user_link(user.id),
+                )
+            })
             .components(|b| b)
         })
         .await?;
@@ -298,6 +325,7 @@ async fn remove_top_score_paginators(
 
 async fn change_top_scores_page(
     ctx: Context<'_>,
+    connection: &mut PgConnection,
     reply: &ReplyHandle<'_>,
     best_scores: &[Score],
     offset: usize,
@@ -306,20 +334,29 @@ async fn change_top_scores_page(
     color: Color,
     user: &OsuUser,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(ctx, best_scores, None, Some(offset)).await?;
+    let formatted_scores = format_score_list(
+        connection,
+        ctx.data().osu_client.clone(),
+        best_scores,
+        None,
+        Some(offset),
+    )
+    .await?;
 
     reply
         .edit(ctx, |b| {
-            create_embed(
-                b,
-                color,
-                &user.avatar_url,
-                &formatted_scores,
-                &format!("Page {} of {}", page, max_pages),
-                &user.avatar_url,
-                user.username.as_str(),
-                &format_user_link(user.id),
-            )
+            b.embed(|e| {
+                create_embed(
+                    e,
+                    color,
+                    &user.avatar_url,
+                    &formatted_scores,
+                    &format!("Page {} of {}", page, max_pages),
+                    &user.avatar_url,
+                    user.username.as_str(),
+                    &format_user_link(user.id),
+                )
+            })
         })
         .await?;
 

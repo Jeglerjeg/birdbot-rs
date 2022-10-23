@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS osu_notifications (
+    id BIGINT NOT NULL PRIMARY KEY,
+    last_pp TIMESTAMPTZ DEFAULT now() NOT NULL,
+    last_event TIMESTAMPTZ DEFAULT now() NOT NULL
+)

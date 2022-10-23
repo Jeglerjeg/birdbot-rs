@@ -4,10 +4,13 @@ use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::calculate_potential_acc;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_potential_string};
 use crate::utils::osu::pp::CalculateResults;
-use crate::{Context, Error};
+use crate::Error;
+use diesel::PgConnection;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
+use rosu_v2::Osu;
+use std::sync::Arc;
 
 pub fn format_score_statistic(
     score: &Score,
@@ -130,7 +133,8 @@ pub fn format_new_score(
 }
 
 pub async fn format_score_list(
-    ctx: Context<'_>,
+    connection: &mut PgConnection,
+    osu_client: Arc<Osu>,
     scores: &[Score],
     limit: Option<usize>,
     offset: Option<usize>,
@@ -147,12 +151,19 @@ pub async fn format_score_list(
             break;
         }
 
-        let beatmap =
-            crate::utils::osu::caching::get_beatmap(ctx, score.map.as_ref().unwrap().map_id)
-                .await?;
+        let beatmap = crate::utils::osu::caching::get_beatmap(
+            connection,
+            osu_client.clone(),
+            score.map.as_ref().unwrap().map_id,
+        )
+        .await?;
 
-        let beatmapset =
-            crate::utils::osu::caching::get_beatmapset(ctx, beatmap.beatmapset_id as u32).await?;
+        let beatmapset = crate::utils::osu::caching::get_beatmapset(
+            connection,
+            osu_client.clone(),
+            beatmap.beatmapset_id as u32,
+        )
+        .await?;
 
         let pp = crate::utils::osu::calculate::calculate(
             score,
