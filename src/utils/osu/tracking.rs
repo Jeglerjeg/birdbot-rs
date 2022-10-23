@@ -186,7 +186,10 @@ impl OsuTracker {
                 )
                 .await;
 
-                author_text = format!("{} set a new best score (#{}/{})", &new.username, score.1, 100);
+                author_text = format!(
+                    "{} set a new best score (#{}/{})",
+                    &new.username, score.1, 100
+                );
 
                 let potential_string: String;
                 let pp = if let Ok(pp) = pp {
@@ -212,7 +215,7 @@ impl OsuTracker {
                 footer = potential_string;
             } else {
                 author_text = format!("{} set a new best scores", &new.username);
-                
+
                 thumbnail = new.avatar_url.clone();
 
                 footer = String::new();
@@ -292,7 +295,7 @@ impl OsuTracker {
 
         for (pos, score) in best_scores.iter().enumerate() {
             if score.ended_at.unix_timestamp() > last_notifications.last_pp.timestamp() {
-                new_scores.push((score.clone(), pos+1));
+                new_scores.push((score.clone(), pos + 1));
             }
         }
 

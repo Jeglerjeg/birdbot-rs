@@ -1,24 +1,24 @@
 use crate::models::questions::Question;
 use crate::serenity_prelude as serenity;
 use crate::{Context, Error};
+use dashmap::DashMap;
 use diesel::PgConnection;
 use lazy_static::lazy_static;
 use poise::futures_util::StreamExt;
 use poise::{serenity_prelude, ReplyHandle};
 use rand::seq::SliceRandom;
 use serenity_prelude::Mentionable;
-use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::{Mutex, MutexGuard};
 
 pub struct PreviousServerQuestions {
-    pub previous_questions: Mutex<HashMap<serenity::GuildId, Mutex<Vec<i32>>>>,
+    pub previous_questions: DashMap<serenity::GuildId, Mutex<Vec<i32>>>,
 }
 
 lazy_static! {
     static ref PREVIOUS_SERVER_QUESTIONS: Mutex<PreviousServerQuestions> =
         Mutex::from(PreviousServerQuestions {
-            previous_questions: Mutex::from(HashMap::new()),
+            previous_questions: DashMap::new(),
         });
 }
 
@@ -239,26 +239,18 @@ pub async fn wyr(
         };
 
         let previous_questions_lock = PREVIOUS_SERVER_QUESTIONS.lock().await;
-        let mut previous_hash_lock = previous_questions_lock.previous_questions.lock().await;
 
-        if let std::collections::hash_map::Entry::Vacant(e) =
-            previous_hash_lock.entry(ctx.guild_id().unwrap())
-        {
-            e.insert(Mutex::from(vec![db_question.id]));
-        } else {
-            let mut previous_vec = previous_hash_lock
-                .get(&ctx.guild_id().unwrap())
-                .unwrap()
-                .lock()
-                .await;
-
-            while previous_vec.contains(&db_question.id) {
-                db_question = crate::utils::db::questions::get_random_question(connection)?;
-            }
-            add_recent_question(connection, &mut previous_vec, db_question.id)?;
-            drop(previous_vec);
+        let previous_vec = previous_questions_lock
+            .previous_questions
+            .entry(ctx.guild_id().unwrap())
+            .or_insert(Mutex::from(vec![db_question.id]));
+        let mut previous_vec_lock = previous_vec.lock().await;
+        while previous_vec_lock.contains(&db_question.id) {
+            db_question = crate::utils::db::questions::get_random_question(connection)?;
         }
-        drop(previous_hash_lock);
+        add_recent_question(connection, &mut previous_vec_lock, db_question.id)?;
+        drop(previous_vec_lock);
+        drop(previous_vec);
         drop(previous_questions_lock);
 
         create_wyr_message(ctx, db_question, connection).await?;

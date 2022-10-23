@@ -192,10 +192,7 @@ pub async fn format_score_list(
 
         formatted_list.push(format!(
             "{}.\n{}{}{}\n",
-            score.1,
-            formatted_score,
-            time_since,
-            potential_string
+            score.1, formatted_score, time_since, potential_string
         ));
     }
 

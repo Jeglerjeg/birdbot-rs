@@ -384,7 +384,7 @@ pub async fn top(
                 Ok(api_scores) => {
                     let mut best_scores: Vec<(Score, usize)> = Vec::new();
                     for (pos, score) in api_scores.iter().enumerate() {
-                        best_scores.push((score.clone(), pos+1));
+                        best_scores.push((score.clone(), pos + 1));
                     }
 
                     match sort_type.as_str() {
