@@ -15,13 +15,13 @@ chrono = { version = "0.4", features = ["rkyv"] }
 lazy_static = "1.4"
 diesel_migrations = "2.0"
 serde = "1.0"
-rosu-v2 = "0.5"
+rosu-v2 = "0.6"
 num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
 humantime = "2.1"
 dashmap = "5.4"
-rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", branch = "next", features = ["async_tokio"] }
+rosu-pp = { version="0.9", features = ["async_tokio"] }
 
 [dependencies.tokio]
 version = "1.21"
