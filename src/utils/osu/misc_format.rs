@@ -68,7 +68,7 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
     let formatted_pp_diff = if pp_diff == 0.0 {
         String::new()
     } else {
-        format!(" {:+}", remove_trailing_zeros(pp_diff, 2))
+        format!(" {:+}pp", remove_trailing_zeros(pp_diff, 2))
     };
 
     let formatted_global_diff = if global_diff == 0.0 {
@@ -90,7 +90,7 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
     let formatted_acc_diff = if acc_diff == 0.0 {
         String::new()
     } else {
-        format!(" {:+}", remove_trailing_zeros(acc_diff, 2))
+        format!(" {:+}%", remove_trailing_zeros(acc_diff, 2))
     };
 
     let formatted_score_diff = if score_diff == 0.0 {
@@ -108,7 +108,7 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
     };
 
     format!(
-        "\u{2139}`{} {}{}` \u{1F30D}`{}{}` :flag_{}:`{}{}`\n{}`{}{}` \u{1f522}`{}{}`",
+        "\u{2139}`{} {}pp{}` \u{1F30D}`#{}{}` :flag_{}:`#{}{}`\n{}`{}%{}` \u{1f522}`{}{}`",
         format_mode_abbreviation(mode),
         remove_trailing_zeros(new.pp, 2),
         formatted_pp_diff,
