@@ -126,9 +126,10 @@ pub fn format_new_score(
     pp: &Option<CalculateResults>,
 ) -> String {
     format!(
-        "{}```ansi\n{}```",
+        "{}```ansi\n{}```<t:{}:R>",
         format_score_info(score, beatmap, beatmapset, pp),
-        format_score_statistic(score, beatmap, pp)
+        format_score_statistic(score, beatmap, pp),
+        score.ended_at.unix_timestamp()
     )
 }
 
@@ -186,13 +187,11 @@ pub async fn format_score_list(
             None
         };
 
-        let time_since = format!("<t:{}:R>", score.0.ended_at.unix_timestamp());
-
         let formatted_score = format_new_score(&score.0, &beatmap, &beatmapset, &pp);
 
         formatted_list.push(format!(
-            "{}.\n{}{}{}\n",
-            score.1, formatted_score, time_since, potential_string
+            "{}.\n{}{}\n",
+            score.1, formatted_score, potential_string
         ));
     }
 

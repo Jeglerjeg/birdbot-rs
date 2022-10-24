@@ -8,7 +8,6 @@ use crate::utils::osu::misc_format::{
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use diesel::PgConnection;
-use humantime::format_duration;
 use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::Score;
@@ -17,7 +16,6 @@ use serenity_prelude::{
     Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
 };
 use std::time::Duration;
-use time::OffsetDateTime;
 
 pub fn create_embed(
     color: Colour,
@@ -57,14 +55,6 @@ pub async fn send_score_embed(
         crate::utils::osu::calculate::calculate(score, beatmap, calculate_potential_acc(score))
             .await;
 
-    let time_since = format!(
-        "\n{} ago",
-        format_duration(Duration::new(
-            (OffsetDateTime::now_utc() - score.ended_at).as_seconds_f64() as u64,
-            0,
-        ))
-    );
-
     let potential_string: String;
     let completion_rate: String;
     let pp = if let Ok(pp) = pp {
@@ -81,7 +71,7 @@ pub async fn send_score_embed(
         None
     };
 
-    let footer = format!("{}{}{}", potential_string, time_since, completion_rate);
+    let footer = format!("{}{}", potential_string, completion_rate);
 
     let formatted_score =
         crate::utils::osu::score_format::format_new_score(score, beatmap, beatmapset, &pp);
