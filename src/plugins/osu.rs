@@ -3,11 +3,10 @@ use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notification
 use crate::utils::osu::misc::{gamemode_from_string, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
+use poise::{serenity_prelude, CreateReply};
 use rosu_v2::prelude::Score;
-use serenity::model::channel::GuildChannel;
-use serenity::model::prelude::User;
-use serenity::utils::colours::roles::BLUE;
-use serenity::utils::Color;
+use serenity_prelude::model::colour::colours::roles::BLUE;
+use serenity_prelude::{Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel, User};
 
 use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::models::osu_notifications::NewOsuNotification;
@@ -40,12 +39,12 @@ pub async fn osu(
 ) -> Result<(), Error> {
     let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0.get() as i64);
     match profile {
         Ok(profile) => {
-            let color: Color;
+            let color: Colour;
             if let Some(guild) = ctx.guild() {
-                if let Ok(member) = guild.member(ctx.discord(), user.id).await {
+                if let Some(member) = ctx.cache_and_http().cache.member(guild.id, user.id) {
                     color = member.colour(ctx.discord()).unwrap_or(BLUE);
                 } else {
                     color = BLUE;
@@ -75,13 +74,15 @@ pub async fn osu(
                 _ => 10,
             };
 
-            ctx.send(|m|
-                m.embed(|e|
-                    e.image(format!("https://lemmmy.pw/osusig//sig.php?colour={}&uname={}&countryrank=&xpbar=&mode={}&date={}{}",
-                                    colour_formatted, profile.osu_id, mode, Utc::now().timestamp(), darkheader))
-                        .author(|a| a.icon_url(user.face()).name(&user.name))
-                        .color(color)))
-                .await?;
+            let author = CreateEmbedAuthor::new(&user.name).icon_url(user.face());
+
+            let embed = CreateEmbed::new()
+                .image(format!("https://lemmmy.pw/osusig//sig.php?colour={}&uname={}&countryrank=&xpbar=&mode={}&date={}{}",
+                               colour_formatted, profile.osu_id, mode, Utc::now().timestamp(), darkheader)).color(color).author(author);
+
+            let builder = CreateReply::default().embed(embed);
+
+            ctx.send(builder).await?;
         }
         Err(_) => {
             ctx.say(format_missing_user_string(ctx, user).await).await?;
@@ -108,15 +109,15 @@ pub async fn link(
     let user = ctx.data().osu_client.user(username).await?;
     let connection = &mut ctx.data().db_pool.get()?;
 
-    if let Ok(profile) = linked_osu_profiles::read(connection, ctx.author().id.0 as i64) {
+    if let Ok(profile) = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64) {
         linked_osu_profiles::delete(connection, profile.id)?;
         wipe_profile_data(connection, profile.osu_id)?;
     }
 
     let query_item = NewLinkedOsuProfile {
-        id: ctx.author().id.0 as i64,
+        id: ctx.author().id.0.get() as i64,
         osu_id: i64::from(user.user_id),
-        home_guild: ctx.guild_id().unwrap().0 as i64,
+        home_guild: ctx.guild_id().unwrap().0.get() as i64,
         mode: user.mode.to_string(),
     };
 
@@ -148,7 +149,7 @@ pub async fn link(
 )]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
 
     match profile {
         Ok(profile) => {
@@ -177,7 +178,7 @@ pub async fn mode(
     #[description = "Gamemode to switch to."] mode: String,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
     match profile {
         Ok(profile) => {
             let parsed_mode = if let Some(mode) = gamemode_from_string(&mode) {
@@ -220,7 +221,7 @@ pub async fn score(
 ) -> Result<(), Error> {
     let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0.get() as i64);
     match profile {
         Ok(profile) => {
             let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
@@ -287,7 +288,7 @@ pub async fn recent(
 ) -> Result<(), Error> {
     let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0.get() as i64);
     match profile {
         Ok(profile) => {
             let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
@@ -358,7 +359,7 @@ pub async fn top(
 ) -> Result<(), Error> {
     let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, user.id.0 as i64);
+    let profile = linked_osu_profiles::read(connection, user.id.0.get() as i64);
     let sort_type = sort_type.unwrap_or_default();
     match profile {
         Ok(profile) => {
@@ -420,17 +421,17 @@ pub async fn score_notifications(
     ctx: Context<'_>,
     #[description = "Channel to notify scores in"] scores_channel: GuildChannel,
 ) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let connection = &mut ctx.data().db_pool.get()?;
-    let new_item = match osu_guild_channels::read(connection, guild.id.0 as i64) {
+    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
         Ok(guild_config) => NewOsuGuildChannel {
             guild_id: guild_config.guild_id,
-            score_channel: Some(scores_channel.id.0 as i64),
+            score_channel: Some(scores_channel.id.0.get() as i64),
             map_channel: guild_config.map_channel,
         },
         Err(_) => NewOsuGuildChannel {
-            guild_id: guild.id.0 as i64,
-            score_channel: Some(scores_channel.id.0 as i64),
+            guild_id: guild.id.0.get() as i64,
+            score_channel: Some(scores_channel.id.0.get() as i64),
             map_channel: None,
         },
     };
@@ -448,18 +449,18 @@ pub async fn map_notifications(
     ctx: Context<'_>,
     #[description = "Channel to notify scores in"] map_channel: GuildChannel,
 ) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let connection = &mut ctx.data().db_pool.get()?;
-    let new_item = match osu_guild_channels::read(connection, guild.id.0 as i64) {
+    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
         Ok(guild_config) => NewOsuGuildChannel {
             guild_id: guild_config.guild_id,
             score_channel: guild_config.score_channel,
-            map_channel: Some(map_channel.id.0 as i64),
+            map_channel: Some(map_channel.id.0.get() as i64),
         },
         Err(_) => NewOsuGuildChannel {
-            guild_id: guild.id.0 as i64,
+            guild_id: guild.id.0.get() as i64,
             score_channel: None,
-            map_channel: Some(map_channel.id.0 as i64),
+            map_channel: Some(map_channel.id.0.get() as i64),
         },
     };
 
@@ -473,9 +474,9 @@ pub async fn map_notifications(
 
 #[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
 pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let connection = &mut ctx.data().db_pool.get()?;
-    match osu_guild_channels::read(connection, guild.id.0 as i64) {
+    match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
         Ok(guild_config) => {
             osu_guild_channels::delete(connection, guild_config.guild_id)?;
             ctx.say("Your guild's config has been deleted.").await?;

@@ -1,7 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_users::OsuUser;
-use crate::serenity_prelude;
 use crate::utils::osu::misc::{calculate_potential_acc, count_score_pages};
 use crate::utils::osu::misc_format::{
     format_completion_rate, format_potential_string, format_user_link,
@@ -10,30 +9,39 @@ use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use diesel::PgConnection;
 use humantime::format_duration;
-use poise::ReplyHandle;
+use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::Score;
-use serenity::builder::CreateEmbed;
-use serenity::utils::colours::roles::BLUE;
-use serenity::utils::Color;
+use serenity_prelude::model::colour::colours::roles::BLUE;
+use serenity_prelude::{
+    Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
+};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-pub fn create_embed<'a>(
-    f: &'a mut CreateEmbed,
-    color: Color,
+pub fn create_embed(
+    color: Colour,
     thumbnail: &str,
     description: &str,
     footer: &str,
     author_icon: &str,
     author_name: &str,
     author_url: &str,
-) -> &'a mut CreateEmbed {
-    f.thumbnail(thumbnail)
+) -> CreateEmbed {
+    let embed = CreateEmbed::new();
+
+    let created_footer = CreateEmbedFooter::new(footer);
+
+    let created_author = CreateEmbedAuthor::new(author_name)
+        .icon_url(author_icon)
+        .url(author_url);
+
+    embed
+        .thumbnail(thumbnail)
         .color(color)
         .description(description)
-        .footer(|f| f.text(footer))
-        .author(|a| a.icon_url(author_icon).name(author_name).url(author_url))
+        .footer(created_footer)
+        .author(created_author)
 }
 
 pub async fn send_score_embed(
@@ -43,7 +51,7 @@ pub async fn send_score_embed(
     beatmapset: &Beatmapset,
     user: OsuUser,
 ) -> Result<(), Error> {
-    let color: Color;
+    let color: Colour;
 
     let pp =
         crate::utils::osu::calculate::calculate(score, beatmap, calculate_potential_acc(score))
@@ -78,8 +86,9 @@ pub async fn send_score_embed(
     let formatted_score =
         crate::utils::osu::score_format::format_new_score(score, beatmap, beatmapset, &pp);
 
-    if let Some(guild) = ctx.guild() {
-        if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
+    if let Some(guild_ref) = ctx.guild() {
+        let guild = guild_ref.clone();
+        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, ctx.author().id) {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;
@@ -88,21 +97,19 @@ pub async fn send_score_embed(
         color = BLUE;
     };
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            create_embed(
-                e,
-                color,
-                &beatmapset.list_cover,
-                &formatted_score,
-                &footer,
-                &user.avatar_url,
-                &user.username,
-                &format_user_link(user.id),
-            )
-        })
-    })
-    .await?;
+    let embed = create_embed(
+        color,
+        &beatmapset.list_cover,
+        &formatted_score,
+        &footer,
+        &user.avatar_url,
+        &user.username,
+        &format_user_link(user.id),
+    );
+
+    let builder = CreateReply::default().embed(embed);
+
+    ctx.send(builder).await?;
 
     Ok(())
 }
@@ -113,9 +120,9 @@ pub async fn send_top_scores_embed(
     best_scores: &[(Score, usize)],
     user: OsuUser,
 ) -> Result<(), Error> {
-    let color: Color;
+    let color: Colour;
     if let Some(guild) = ctx.guild() {
-        if let Ok(member) = guild.member(ctx.discord(), ctx.author().id).await {
+        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, ctx.author().id) {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;
@@ -133,41 +140,25 @@ pub async fn send_top_scores_embed(
     )
     .await?;
 
-    let reply = ctx
-        .send(|m| {
-            m.embed(|e| {
-                create_embed(
-                    e,
-                    color,
-                    &user.avatar_url,
-                    &formatted_scores,
-                    &format!("Page {} of {}", 1, count_score_pages(best_scores, 5)),
-                    &user.avatar_url,
-                    user.username.as_str(),
-                    &format_user_link(user.id),
-                )
-            })
-            .components(|c| {
-                c.create_action_row(|r| {
-                    r.create_button(|b| {
-                        b.custom_id("last_page")
-                            .label("<")
-                            .style(serenity_prelude::ButtonStyle::Primary)
-                    })
-                    .create_button(|b| {
-                        b.custom_id("next_page")
-                            .label(">")
-                            .style(serenity_prelude::ButtonStyle::Primary)
-                    })
-                    .create_button(|b| {
-                        b.custom_id("reset")
-                            .label("⭯")
-                            .style(serenity_prelude::ButtonStyle::Primary)
-                    })
-                })
-            })
-        })
-        .await?;
+    let embed = create_embed(
+        color,
+        &user.avatar_url,
+        &formatted_scores,
+        &format!("Page {} of {}", 1, count_score_pages(best_scores, 5)),
+        &user.avatar_url,
+        user.username.as_str(),
+        &format_user_link(user.id),
+    );
+
+    let components = vec![CreateActionRow::Buttons(vec![
+        CreateButton::new("<", serenity_prelude::ButtonStyle::Primary, "last_page"),
+        CreateButton::new(">", serenity_prelude::ButtonStyle::Primary, "next_page"),
+        CreateButton::new("⭯", serenity_prelude::ButtonStyle::Primary, "reset"),
+    ])];
+
+    let builder = CreateReply::default().embed(embed).components(components);
+
+    let reply = ctx.send(builder).await?;
 
     handle_top_score_interactions(ctx, connection, reply, best_scores, color, &user).await?;
 
@@ -179,7 +170,7 @@ async fn handle_top_score_interactions(
     connection: &mut PgConnection,
     reply: ReplyHandle<'_>,
     best_scores: &[(Score, usize)],
-    color: Color,
+    color: Colour,
     user: &OsuUser,
 ) -> Result<(), Error> {
     let mut offset: usize = 0;
@@ -190,8 +181,9 @@ async fn handle_top_score_interactions(
         let interaction = match reply
             .message()
             .await?
-            .await_component_interaction(ctx.discord())
+            .component_interaction_collector(&ctx.discord().shard)
             .timeout(Duration::from_secs(15))
+            .collect_single()
             .await
         {
             Some(x) => x,
@@ -291,7 +283,7 @@ async fn remove_top_score_paginators(
     offset: usize,
     page: &usize,
     max_pages: &usize,
-    color: Color,
+    color: Colour,
     user: &OsuUser,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(
@@ -302,23 +294,20 @@ async fn remove_top_score_paginators(
         Some(offset),
     )
     .await?;
-    reply
-        .edit(ctx, |b| {
-            b.embed(|e| {
-                create_embed(
-                    e,
-                    color,
-                    &user.avatar_url,
-                    &formatted_scores,
-                    &format!("Page {} of {}", page, max_pages),
-                    &user.avatar_url,
-                    user.username.as_str(),
-                    &format_user_link(user.id),
-                )
-            })
-            .components(|b| b)
-        })
-        .await?;
+
+    let embed = create_embed(
+        color,
+        &user.avatar_url,
+        &formatted_scores,
+        &format!("Page {} of {}", page, max_pages),
+        &user.avatar_url,
+        user.username.as_str(),
+        &format_user_link(user.id),
+    );
+
+    let builder = CreateReply::default().embed(embed).components(vec![]);
+
+    reply.edit(ctx, builder).await?;
 
     Ok(())
 }
@@ -331,7 +320,7 @@ async fn change_top_scores_page(
     offset: usize,
     page: &usize,
     max_pages: &usize,
-    color: Color,
+    color: Colour,
     user: &OsuUser,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(
@@ -343,22 +332,19 @@ async fn change_top_scores_page(
     )
     .await?;
 
-    reply
-        .edit(ctx, |b| {
-            b.embed(|e| {
-                create_embed(
-                    e,
-                    color,
-                    &user.avatar_url,
-                    &formatted_scores,
-                    &format!("Page {} of {}", page, max_pages),
-                    &user.avatar_url,
-                    user.username.as_str(),
-                    &format_user_link(user.id),
-                )
-            })
-        })
-        .await?;
+    let embed = create_embed(
+        color,
+        &user.avatar_url,
+        &formatted_scores,
+        &format!("Page {} of {}", page, max_pages),
+        &user.avatar_url,
+        user.username.as_str(),
+        &format_user_link(user.id),
+    );
+
+    let builder = CreateReply::default().embed(embed);
+
+    reply.edit(ctx, builder).await?;
 
     Ok(())
 }

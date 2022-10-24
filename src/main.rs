@@ -21,6 +21,7 @@ pub struct Data {
     time_started: DateTime<Utc>,
     osu_client: Arc<Osu>,
     db_pool: Pool<ConnectionManager<PgConnection>>,
+    http_client: reqwest::Client,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -31,7 +32,7 @@ type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
 async fn event_listener(
     ctx: &serenity_prelude::Context,
-    event: &poise::Event<'_>,
+    event: &poise::Event,
     _framework: poise::FrameworkContext<'_, Data, Error>,
     user_data: &Data,
 ) -> Result<(), Error> {
@@ -46,9 +47,9 @@ async fn event_listener(
                 shut_down: false,
             };
 
-            drop(Box::pin(tokio::spawn(async move {
+            tokio::spawn(async move {
                 osu_tracker.tracking_loop().await;
-            })));
+            });
         }
         poise::Event::VoiceStateUpdate { old, new: _new } => {
             let voice = match old {
@@ -69,12 +70,9 @@ async fn pre_command(ctx: Context<'_>) {
         ctx.author().name,
         ctx.author().discriminator,
         match ctx.guild() {
-            Some(guild) => guild.name,
+            Some(guild) => guild.name.clone(),
             _ => {
-                match ctx.channel_id().name(ctx.discord()).await {
-                    Some(channel_name) => channel_name,
-                    _ => "Direct Message".into(),
-                }
+                "Direct Message".into()
             }
         },
         ctx.command().name
@@ -210,6 +208,7 @@ async fn main() {
                     time_started: Utc::now(),
                     osu_client,
                     db_pool: connection,
+                    http_client: reqwest::Client::new(),
                 })
             })
         })

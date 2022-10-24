@@ -1,12 +1,10 @@
 use crate::{Context, Error};
 use poise::builtins::HelpConfiguration;
 
-use poise::{serenity_prelude, Command, ContextMenuCommandAction, PartialContext};
+use poise::{serenity_prelude, Command, ContextMenuCommandAction, CreateReply, PartialContext};
 use rand::Rng;
-use serenity::utils::colours::roles::BLUE;
-use serenity_prelude::User;
-
-use serenity::utils::Color;
+use serenity_prelude::model::colour::colours::roles::BLUE;
+use serenity_prelude::{Colour, CreateEmbed, User};
 use std::fmt::Write;
 use std::time::Instant;
 use std::writeln;
@@ -47,7 +45,6 @@ impl<K, V> IntoIterator for OrderedMap<K, V> {
 async fn help_single_command<U, E>(
     ctx: poise::Context<'_, U, E>,
     command_name: &str,
-    config: HelpConfiguration<'_>,
 ) -> Result<(), Error> {
     let command = ctx.framework().options().commands.iter().find(|command| {
         if command.name.eq_ignore_ascii_case(command_name) {
@@ -75,8 +72,7 @@ async fn help_single_command<U, E>(
         format!("No such command `{}`", command_name)
     };
 
-    ctx.send(|b| b.content(reply).ephemeral(config.ephemeral))
-        .await?;
+    ctx.say(reply).await?;
     Ok(())
 }
 
@@ -132,7 +128,7 @@ async fn format_command<U, E>(
 async fn help_all_commands<U, E>(
     ctx: poise::Context<'_, U, E>,
     config: HelpConfiguration<'_>,
-) -> Result<(), serenity::Error> {
+) -> Result<(), Error> {
     let mut categories = OrderedMap::<Option<&str>, Vec<&Command<U, E>>>::new();
     for cmd in &ctx.framework().options().commands {
         categories
@@ -186,8 +182,14 @@ async fn help_all_commands<U, E>(
         _ => BLUE,
     };
 
-    ctx.send(|b| b.embed(|e| e.title("Commands:").description(menu).colour(color)))
-        .await?;
+    let embed = CreateEmbed::new()
+        .title("Commands")
+        .description(menu)
+        .colour(color);
+
+    let builder = CreateReply::default().embed(embed);
+
+    ctx.send(builder).await?;
     Ok(())
 }
 
@@ -224,15 +226,25 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     );
 
     let color = match ctx.guild() {
-        Some(guild) => match guild.member(ctx.discord(), ctx.framework().bot_id).await {
-            Ok(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
-            Err(_error) => BLUE,
+        Some(guild) => match ctx
+            .cache_and_http()
+            .cache
+            .member(guild.id, ctx.framework().bot_id)
+        {
+            Some(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
+            _ => BLUE,
         },
         _ => BLUE,
     };
 
-    ctx.send(|b| b.embed(|e| e.title(information.name).description(content).colour(color)))
-        .await?;
+    let embed = CreateEmbed::new()
+        .title(information.name)
+        .description(content)
+        .colour(color);
+
+    let builder = CreateReply::default().embed(embed);
+
+    ctx.send(builder).await?;
 
     Ok(())
 }
@@ -252,7 +264,7 @@ pub async fn help(
         ..Default::default()
     };
     match command.as_deref() {
-        Some(command) => help_single_command(ctx, command, config).await?,
+        Some(command) => help_single_command(ctx, command).await?,
         None => help_all_commands(ctx, config).await?,
     }
     Ok(())
@@ -267,7 +279,7 @@ pub async fn prefix(
     let connection = &mut ctx.data().db_pool.get()?;
     crate::utils::db::prefix::add_guild_prefix(
         connection,
-        ctx.guild_id().unwrap().0 as i64,
+        ctx.guild_id().unwrap().0.get() as i64,
         &*new_prefix,
     )?;
 
@@ -311,10 +323,12 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     let message = ctx.say("Pong!").await?;
     let duration = start.elapsed();
     message
-        .edit(ctx, |f| {
-            f.content(format!("Pong! `{}ms`", duration.as_millis()))
-        })
+        .edit(
+            ctx,
+            CreateReply::default().content(format!("Pong! `{}ms`", duration.as_millis())),
+        )
         .await?;
+
     Ok(())
 }
 
@@ -326,17 +340,15 @@ pub async fn avatar(
     #[description = "User to get avatar for"]
     user: Option<User>,
 ) -> Result<(), Error> {
-    let color: Color;
+    let color: Colour;
     let name: String;
     let avatar: String;
 
     if let Some(guild) = ctx.guild() {
-        if let Ok(member) = guild
-            .member(
-                ctx.discord(),
-                user.as_ref().unwrap_or_else(|| ctx.author()).id,
-            )
-            .await
+        if let Some(member) = ctx
+            .cache_and_http()
+            .cache
+            .member(guild.id, user.as_ref().unwrap_or_else(|| ctx.author()).id)
         {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
             name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
@@ -362,8 +374,11 @@ pub async fn avatar(
         }
     };
 
-    ctx.send(|m| m.embed(|e| e.title(name).image(avatar).color(color)))
-        .await?;
+    let embed = CreateEmbed::new().title(name).image(avatar).color(color);
+
+    let builder = CreateReply::default().embed(embed);
+
+    ctx.send(builder).await?;
 
     Ok(())
 }

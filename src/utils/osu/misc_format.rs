@@ -5,10 +5,10 @@ use crate::utils::osu::misc::{get_stat_diff, DiffTypes};
 use crate::utils::osu::pp::CalculateResults;
 use crate::Context;
 use num_format::{Locale, ToFormattedString};
+use poise::serenity_prelude::User;
 use rosu_v2::model::beatmap::RankStatus;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
-use serenity::model::user::User;
 
 pub fn format_rank_status(status: RankStatus) -> String {
     match status {

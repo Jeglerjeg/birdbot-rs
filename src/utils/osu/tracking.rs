@@ -8,9 +8,10 @@ use lazy_static::lazy_static;
 use poise::serenity_prelude;
 use rosu_v2::prelude::Score;
 use rosu_v2::Osu;
-use serenity::model::id::ChannelId;
-use serenity::utils::colours::roles::BLUE;
+use serenity_prelude::model::colour::colours::roles::BLUE;
+use serenity_prelude::{ChannelId, CreateMessage};
 use std::env;
+use std::num::NonZeroU64;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -86,13 +87,13 @@ impl OsuTracker {
         connection: &mut PgConnection,
     ) -> Result<(), Error> {
         let user = match self.ctx.cache.user(linked_profile.id as u64) {
-            Some(user) => user,
+            Some(user) => user.clone(),
             _ => return Ok(()),
         };
 
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id) {
             profile.ticks += 1;
-            if is_playing(&self.ctx, &user, linked_profile.home_guild).await
+            if is_playing(&self.ctx, user, linked_profile.home_guild).await?
                 || (profile.ticks % *NOT_PLAYING_SKIP) == 0
             {
                 let osu_profile = match self
@@ -236,26 +237,27 @@ impl OsuTracker {
         }
 
         for guild_id in self.ctx.cache.guilds() {
-            if let Ok(guild_channels) = osu_guild_channels::read(connection, guild_id.0 as i64) {
+            if let Ok(guild_channels) =
+                osu_guild_channels::read(connection, guild_id.0.get() as i64)
+            {
                 if let Some(score_channel) = guild_channels.score_channel {
                     if let Ok(member) = guild_id.member(&self.ctx, linked_profile.id as u64).await {
                         let color = member.colour(&self.ctx).unwrap_or(BLUE);
 
-                        ChannelId(score_channel as u64)
-                            .send_message(&self.ctx, |m| {
-                                m.embed(|e| {
-                                    create_embed(
-                                        e,
-                                        color,
-                                        &thumbnail,
-                                        &formatted_score,
-                                        &footer,
-                                        &new.avatar_url,
-                                        &author_text,
-                                        &format_user_link(new.id),
-                                    )
-                                })
-                            })
+                        let embed = create_embed(
+                            color,
+                            &thumbnail,
+                            &formatted_score,
+                            &footer,
+                            &new.avatar_url,
+                            &author_text,
+                            &format_user_link(new.id),
+                        );
+
+                        let builder = CreateMessage::new().embed(embed);
+
+                        ChannelId(NonZeroU64::try_from(score_channel as u64).unwrap())
+                            .send_message(&self.ctx, builder)
                             .await?;
                     }
                 }

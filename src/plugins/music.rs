@@ -1,21 +1,26 @@
+use crate::serenity_prelude::TypeMapKey;
 use crate::{Context, Error};
 use lazy_static::lazy_static;
-use poise::serenity_prelude;
-use serenity::model::id::{ChannelId, GuildId};
-use serenity::model::prelude::User;
-use serenity::utils::colours::roles::BLUE;
-use songbird::input::Input;
-use songbird::tracks::PlayMode;
+use poise::{serenity_prelude, CreateReply};
+use serenity_prelude::model::colour::colours::roles::BLUE;
+use serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
+use songbird::input::{AuxMetadata, Compose, YoutubeDl};
+use songbird::tracks::{PlayMode, Track};
 use songbird::{
-    input::Restartable, tracks::TrackHandle, Call, Event, EventContext,
-    EventHandler as VoiceEventHandler, TrackEvent,
+    tracks::TrackHandle, Call, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent,
 };
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::error;
+use tracing::{error, info};
+
+struct HttpKey;
+
+impl TypeMapKey for HttpKey {
+    type Value = reqwest::Client;
+}
 
 pub struct PlayingGuilds {
     pub guilds: HashMap<GuildId, Arc<Mutex<Guild>>>,
@@ -34,6 +39,7 @@ pub struct QueuedTrack {
     pub track: TrackHandle,
     pub requested: User,
     pub skipped: Vec<u64>,
+    pub metadata: AuxMetadata,
 }
 
 lazy_static! {
@@ -57,6 +63,10 @@ lazy_static! {
             .expect("Failed to parse max music duration.")
             * 60
     );
+}
+
+async fn get_http_client(ctx: Context<'_>) -> reqwest::Client {
+    ctx.data().http_client.clone()
 }
 
 fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
@@ -115,20 +125,20 @@ fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
     }
 }
 
-fn format_track(track: &TrackHandle, play_time: Option<Duration>) -> String {
-    let title = match &track.metadata().title {
+fn format_track(metadata: &AuxMetadata, play_time: Option<Duration>) -> String {
+    let title = match &metadata.title {
         Some(title) => format!("**{}**\n", title),
         _ => String::from(""),
     };
 
     let duration: String;
-    if let Some(length) = track.metadata().duration {
+    if let Some(length) = metadata.duration {
         duration = format!("Duration: {}", format_duration(length, play_time));
     } else {
         duration = "".into();
     }
 
-    let url = match &track.metadata().source_url {
+    let url = match &metadata.source_url {
         Some(url) => format!("**URL**: <{}>", url),
         _ => String::from(""),
     };
@@ -138,7 +148,7 @@ fn format_track(track: &TrackHandle, play_time: Option<Duration>) -> String {
 
 async fn send_track_embed(
     ctx: Context<'_>,
-    track: &TrackHandle,
+    metadata: &AuxMetadata,
     action: &str,
     play_time: Option<Duration>,
 ) -> Result<(), Error> {
@@ -149,19 +159,20 @@ async fn send_track_embed(
         .colour(ctx.discord())
         .unwrap_or(BLUE);
 
-    let thumbnail_url = match &track.metadata().thumbnail {
+    let thumbnail_url = match &metadata.thumbnail {
         Some(thumbnail) => thumbnail,
         _ => "",
     };
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.description(format!("{}\n{}", action, format_track(track, play_time)))
-                .color(color)
-                .thumbnail(thumbnail_url)
-        })
-    })
-    .await?;
+    let embed = CreateEmbed::new()
+        .description(format!("{}\n{}", action, format_track(metadata, play_time)))
+        .color(color)
+        .thumbnail(thumbnail_url);
+
+    let builder = CreateReply::default().embed(embed);
+
+    ctx.send(builder).await?;
+
     Ok(())
 }
 
@@ -191,10 +202,10 @@ pub async fn check_for_empty_channel(
             return Ok(());
         }
         let channel_id = ChannelId::from(channel.unwrap().0);
-        let guild = ctx.http.get_guild(guild_id.0).await.unwrap();
+        let guild = ctx.http.get_guild(guild_id).await.unwrap();
         let guild_channels = guild.channels(&ctx).await.unwrap();
         let channel = guild_channels.get(&channel_id).unwrap();
-        if channel.members(&ctx).await.unwrap().len() <= 1 {
+        if channel.members(&ctx).unwrap().len() <= 1 {
             leave(ctx, Some(guild_id)).await?;
         }
     };
@@ -232,6 +243,25 @@ pub async fn leave(ctx: &serenity_prelude::Context, guild: Option<GuildId>) -> R
     drop(guild_lock);
 
     Ok(())
+}
+
+struct TrackErrorNotifier;
+
+#[async_trait]
+impl VoiceEventHandler for TrackErrorNotifier {
+    async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
+        if let EventContext::Track(track_list) = ctx {
+            for (state, handle) in *track_list {
+                info!(
+                    "Track {:?} encountered an error: {:?}",
+                    handle.uuid(),
+                    state.playing
+                );
+            }
+        }
+
+        None
+    }
 }
 
 struct TrackEndNotifier {
@@ -279,7 +309,7 @@ impl VoiceEventHandler for TrackEndNotifier {
 }
 
 async fn join(ctx: Context<'_>) -> Result<bool, Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let channel_id = guild
@@ -322,6 +352,8 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         },
     );
 
+    handle.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
+
     Ok(true)
 }
 
@@ -344,34 +376,20 @@ async fn queue(
     ctx: Context<'_>,
     handler_lock: Arc<Mutex<Call>>,
     mut playing_guild: MutexGuard<'_, Guild>,
-    url: String,
+    mut url: String,
 ) -> Result<(), Error> {
     // Here, we use lazy restartable sources to make sure that we don't pay
     // for decoding, playback on tracks which aren't actually live yet.
-    let source = if url.starts_with("http") {
-        match Restartable::ytdl(url, true).await {
-            Ok(source) => source,
-            Err(why) => {
-                error!("Err starting source: {:?}", why);
 
-                ctx.say("Error queueing this song.").await?;
-                return Ok(());
-            }
-        }
-    } else {
-        match Restartable::ytdl_search(url, true).await {
-            Ok(source) => source,
-            Err(why) => {
-                error!("Err starting source: {:?}", why);
+    let http_client = get_http_client(ctx).await;
 
-                ctx.say("Error queueing this song.").await?;
+    if !url.starts_with("http") {
+        url = format!("ytsearch1:{}", url)
+    }
 
-                return Ok(());
-            }
-        }
-    };
+    let mut source = YoutubeDl::new(http_client, url);
 
-    let input = Input::from(source);
+    let metadata = source.aux_metadata().await?;
 
     let mut handler = handler_lock.lock().await;
 
@@ -393,7 +411,7 @@ async fn queue(
         }
     }
 
-    if let Some(duration) = input.metadata.duration {
+    if let Some(duration) = metadata.duration {
         if duration > *MAX_MUSIC_DURATION {
             ctx.say(format!(
                 "Song is longer than the max allowed duration of {}",
@@ -408,14 +426,17 @@ async fn queue(
         }
     }
 
-    let track = handler.enqueue_source(input);
+    let mut track = Track::from(source);
+
+    track = track.volume(playing_guild.volume);
+
+    let track = handler.enqueue(track).await;
 
     drop(handler);
 
-    track.set_volume(playing_guild.volume)?;
-
     let queued_track = QueuedTrack {
         track: track.clone(),
+        metadata: metadata.clone(),
         requested: ctx.author().clone(),
         skipped: Vec::new(),
     };
@@ -425,7 +446,7 @@ async fn queue(
         .queue
         .insert(track.uuid().as_u128(), Mutex::from(queued_track));
 
-    send_track_embed(ctx, &track, "Queued:", None).await?;
+    send_track_embed(ctx, &metadata, "Queued:", None).await?;
 
     Ok(())
 }
@@ -445,7 +466,7 @@ pub async fn play(
     url_or_name: String,
 ) -> Result<(), Error> {
     ctx.defer().await?;
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let manager = songbird::get(ctx.discord())
@@ -492,7 +513,7 @@ pub async fn play(
     guild_only = true
 )]
 pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let channel_id = guild
@@ -542,13 +563,14 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 
         if track_lock.requested.id == ctx.author().id {
             let _ = queue.skip();
+            let metadata = track_lock.metadata.clone();
             drop(handler);
             drop(track_lock);
             drop(current_guild_lock);
             drop(playing_guilds_lock);
-            send_track_embed(ctx, &track, "Skipped:", None).await?;
+            send_track_embed(ctx, &metadata, "Skipped:", None).await?;
         } else {
-            if track_lock.skipped.contains(&ctx.author().id.0) {
+            if track_lock.skipped.contains(&ctx.author().id.0.get()) {
                 drop(handler);
                 drop(track_lock);
                 drop(current_guild_lock);
@@ -559,17 +581,18 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 
             let guild_channels = guild.channels(ctx.discord()).await.unwrap();
             let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
-            let needed_to_skip = channel.members(ctx.discord()).await.unwrap().len() - 2;
+            let needed_to_skip = channel.members(ctx.discord()).unwrap().len() - 2;
 
-            track_lock.skipped.push(ctx.author().id.0);
+            track_lock.skipped.push(ctx.author().id.0.get());
 
             if track_lock.skipped.len() >= needed_to_skip {
                 let _ = queue.skip();
+                let metadata = track_lock.metadata.clone();
                 drop(handler);
                 drop(track_lock);
                 drop(current_guild_lock);
                 drop(playing_guilds_lock);
-                send_track_embed(ctx, &track, "Skipped:", None).await?;
+                send_track_embed(ctx, &metadata, "Skipped:", None).await?;
             } else {
                 let skipped = track_lock.skipped.len();
                 drop(handler);
@@ -593,7 +616,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 ///Undo your previously queued song. This will not *skip* the song if it's playing.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let manager = songbird::get(ctx.discord())
@@ -604,13 +627,32 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
         let queue = handler.queue();
+
         if queue.is_empty() {
             drop(handler);
             ctx.say("No items queued").await?;
         } else {
             let removed_item = queue.dequeue(queue.len() - 1).unwrap();
+            let playing_guilds_lock = PLAYING_GUILDS.lock().await;
+            let current_guild_lock = playing_guilds_lock
+                .guilds
+                .get(&guild_id)
+                .unwrap()
+                .lock()
+                .await;
+
+            let track_lock = current_guild_lock
+                .queued_tracks
+                .queue
+                .get(&removed_item.uuid().as_u128())
+                .unwrap()
+                .lock()
+                .await;
+
+            let metadata = track_lock.metadata.clone();
+
             drop(handler);
-            send_track_embed(ctx, &removed_item.handle(), "Undid:", None).await?;
+            send_track_embed(ctx, &metadata, "Undid:", None).await?;
         }
     } else {
         ctx.say("Not in a voice channel to play in").await?;
@@ -634,7 +676,7 @@ pub async fn volume(
     #[description = "Volume to change the track to, accepts 1-200"]
     new_volume: Option<u8>,
 ) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let manager = songbird::get(ctx.discord())
@@ -693,7 +735,7 @@ pub async fn volume(
 ///Pause the currently playing song.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let manager = songbird::get(ctx.discord())
@@ -729,7 +771,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
 ///Resume the currently paused song.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let manager = songbird::get(ctx.discord())
@@ -771,7 +813,7 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
     aliases("np", "playing")
 )]
 pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap();
+    let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
     let manager = songbird::get(ctx.discord())
@@ -784,9 +826,31 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
         let queue = handler.queue();
         if let Some(track) = queue.current() {
             drop(handler);
+            let playing_guilds_lock = PLAYING_GUILDS.lock().await;
+            let current_guild_lock = playing_guilds_lock
+                .guilds
+                .get(&guild_id)
+                .unwrap()
+                .lock()
+                .await;
+
+            let track_lock = current_guild_lock
+                .queued_tracks
+                .queue
+                .get(&track.uuid().as_u128())
+                .unwrap()
+                .lock()
+                .await;
+
+            let metadata = track_lock.metadata.clone();
+
+            drop(track_lock);
+            drop(current_guild_lock);
+            drop(playing_guilds_lock);
+
             send_track_embed(
                 ctx,
-                &track,
+                &metadata,
                 "Now playing:",
                 Some(track.get_info().await.unwrap().play_time),
             )

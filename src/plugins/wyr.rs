@@ -5,9 +5,12 @@ use dashmap::DashMap;
 use diesel::PgConnection;
 use lazy_static::lazy_static;
 use poise::futures_util::StreamExt;
-use poise::{serenity_prelude, ReplyHandle};
+use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rand::seq::SliceRandom;
-use serenity_prelude::Mentionable;
+use serenity_prelude::{
+    CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
+    CreateInteractionResponseMessage, Mentionable,
+};
 use std::time::Duration;
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -47,25 +50,16 @@ async fn create_wyr_message(
     question: Question,
     connection: &mut PgConnection,
 ) -> Result<(), Error> {
-    let reply = ctx
-        .send(|m| {
-            m.embed(|e| e.description(format_question(&question, &[])))
-                .components(|c| {
-                    c.create_action_row(|r| {
-                        r.create_button(|b| {
-                            b.custom_id("choice_1")
-                                .label("1")
-                                .style(serenity::ButtonStyle::Success)
-                        })
-                        .create_button(|b| {
-                            b.custom_id("choice_2")
-                                .label("2")
-                                .style(serenity::ButtonStyle::Danger)
-                        })
-                    })
-                })
-        })
-        .await?;
+    let embed = CreateEmbed::new().description(format_question(&question, &[]));
+
+    let components = vec![CreateActionRow::Buttons(vec![
+        CreateButton::new("1", serenity_prelude::ButtonStyle::Success, "choice_1"),
+        CreateButton::new("2", serenity_prelude::ButtonStyle::Danger, "choice_2"),
+    ])];
+
+    let builder = CreateReply::default().embed(embed).components(components);
+
+    let reply = ctx.send(builder).await?;
 
     handle_interaction_responses(ctx, reply, question, connection).await?;
 
@@ -85,23 +79,22 @@ async fn handle_interaction_responses(
     let mut interaction_stream = reply
         .message()
         .await?
-        .await_component_interactions(ctx.discord())
+        .component_interaction_collector(&ctx.discord().shard)
         .timeout(Duration::from_secs(30))
         .build();
 
     while let Some(interaction) = interaction_stream.next().await {
-        if replies.contains(&interaction.user.id.0) {
+        if replies.contains(&interaction.user.id.0.get()) {
             interaction
-                .create_interaction_response(ctx.discord(), |r| {
-                    // This time we dont edit the message but reply to it
-                    r.kind(serenity::InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|d| {
-                            // Make the message hidden for other users by setting `ephemeral(true)`.
-                            d.ephemeral(true).content("You have already answered.")
-                        })
-                })
-                .await
-                .unwrap();
+                .create_interaction_response(
+                    ctx.discord(),
+                    CreateInteractionResponse::Message(
+                        CreateInteractionResponseMessage::default()
+                            .ephemeral(true)
+                            .content("You have already answered."),
+                    ),
+                )
+                .await?;
             continue;
         };
 
@@ -109,58 +102,54 @@ async fn handle_interaction_responses(
         match &**choice {
             "choice_1" => {
                 interaction.defer(ctx.discord()).await?;
-                replies.push(interaction.user.id.0);
+                replies.push(interaction.user.id.0.get());
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
                 crate::utils::db::questions::update_choice(connection, question.id, 1)?;
 
-                reply
-                    .edit(ctx, |b| {
-                        b.embed(|e| e.description(format_question(&question, &responses)))
-                    })
-                    .await?;
+                let embed = CreateEmbed::new().description(format_question(&question, &responses));
+
+                let builder = CreateReply::default().embed(embed);
+
+                reply.edit(ctx, builder).await?;
             }
             "choice_2" => {
                 interaction.defer(ctx.discord()).await?;
-                replies.push(interaction.user.id.0);
+                replies.push(interaction.user.id.0.get());
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
                 crate::utils::db::questions::update_choice(connection, question.id, 2)?;
 
-                reply
-                    .edit(ctx, |b| {
-                        b.embed(|e| e.description(format_question(&question, &responses)))
-                    })
-                    .await?;
+                let embed = CreateEmbed::new().description(format_question(&question, &responses));
+
+                let builder = CreateReply::default().embed(embed);
+
+                reply.edit(ctx, builder).await?;
             }
             _ => {
                 interaction
-                    .create_interaction_response(ctx.discord(), |r| {
-                        // This time we dont edit the message but reply to it
-                        r.kind(serenity::InteractionResponseType::ChannelMessageWithSource)
-                            .interaction_response_data(|d| {
-                                // Make the message hidden for other users by setting `ephemeral(true)`.
-                                d.ephemeral(true).content("Something went wrong.")
-                            })
-                    })
-                    .await
-                    .unwrap();
+                    .create_interaction_response(
+                        ctx.discord(),
+                        CreateInteractionResponse::Message(
+                            CreateInteractionResponseMessage::default()
+                                .ephemeral(true)
+                                .content("Something went wrong."),
+                        ),
+                    )
+                    .await?;
             }
         }
     }
 
-    reply
-        .edit(ctx, |b| {
-            b.components(|b| b);
-            b.embed(|e| {
-                e.description(format!(
-                    "{}\n\n{}",
-                    format_question(&question, &responses),
-                    format_results(&question)
-                ))
-            })
-        })
-        .await?;
+    let embed = CreateEmbed::new().description(format!(
+        "{}\n\n{}",
+        format_question(&question, &responses),
+        format_results(&question)
+    ));
+
+    let builder = CreateReply::default().embed(embed).components(vec![]);
+
+    reply.edit(ctx, builder).await?;
 
     Ok(())
 }

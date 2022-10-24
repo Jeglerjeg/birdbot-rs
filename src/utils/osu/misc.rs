@@ -2,11 +2,11 @@ use crate::models::osu_users::OsuUser;
 use crate::utils::db::{osu_notifications, osu_users};
 use crate::Error;
 use diesel::PgConnection;
+use poise::serenity_prelude;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
-use serenity::client::Context;
-use serenity::model::gateway::Presence;
-use serenity::model::prelude::User;
+use serenity_prelude::{Context, Presence, User};
+use std::sync::Arc;
 
 pub enum DiffTypes {
     Pp,
@@ -84,49 +84,36 @@ pub fn wipe_profile_data(db: &mut PgConnection, user_id: i64) -> Result<(), Erro
     Ok(())
 }
 
-pub async fn is_playing(ctx: &Context, user: &User, home_guild: i64) -> bool {
+pub async fn is_playing(ctx: &Context, user: User, home_guild: i64) -> Result<bool, Error> {
     let mut presence: Option<Presence> = None;
-    if let Some(guild) = ctx.cache.guild(home_guild as u64) {
+    let fetched_guild = ctx.cache.guild(home_guild as u64);
+    if let Some(guild_ref) = fetched_guild {
+        let guild = Arc::from(guild_ref.clone());
         if guild.members.contains_key(&user.id) {
-            presence = match guild.presences.get(&user.id) {
-                Some(user_presence) => Some(user_presence.clone()),
-                _ => {
-                    return false;
-                }
-            }
+            let presences = &guild.clone().presences;
+            presence = presences.get(&user.id).cloned();
         } else {
             for guild in ctx.cache.guilds() {
-                if let Ok(_member) = guild.member(ctx, user.id).await {
-                    presence = match guild
-                        .to_guild_cached(&ctx.cache)
-                        .unwrap()
+                let cached_guild = Arc::from(guild.to_guild_cached(ctx).unwrap());
+                if let Some(_member) = ctx.cache.member(guild, user.id) {
+                    presence = cached_guild
+                        .clone()
                         .presences
+                        .clone()
                         .get(&user.id)
-                    {
-                        Some(user_presence) => Some(user_presence.clone()),
-                        _ => {
-                            return false;
-                        }
-                    };
-                    break;
+                        .cloned();
                 }
             }
         }
     } else {
         for guild in ctx.cache.guilds() {
-            if let Ok(_member) = guild.member(ctx, user.id).await {
-                presence = match guild
+            if let Some(_member) = ctx.cache.member(guild, user.id) {
+                presence = guild
                     .to_guild_cached(&ctx.cache)
                     .unwrap()
                     .presences
                     .get(&user.id)
-                {
-                    Some(user_presence) => Some(user_presence.clone()),
-                    _ => {
-                        return false;
-                    }
-                };
-                break;
+                    .cloned();
             }
         }
     }
@@ -134,10 +121,10 @@ pub async fn is_playing(ctx: &Context, user: &User, home_guild: i64) -> bool {
     if let Some(presence) = presence {
         for activity in presence.activities {
             if activity.name.to_lowercase().contains("osu!") {
-                return true;
+                return Ok(true);
             }
         }
     }
 
-    false
+    Ok(false)
 }

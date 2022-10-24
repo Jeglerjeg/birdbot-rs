@@ -27,7 +27,7 @@ pub fn add_guild_prefix(db: &mut PgConnection, guild_id: i64, prefix: &str) -> R
 
 pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>, Error> {
     let guild_id = match ctx.guild_id {
-        Some(guild) => guild.0 as i64,
+        Some(guild) => guild.0.get() as i64,
         _ => return Ok(Some(DEFAULT_PREFIX.clone())),
     };
 
