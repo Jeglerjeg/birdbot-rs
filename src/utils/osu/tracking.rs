@@ -93,7 +93,7 @@ impl OsuTracker {
 
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id) {
             profile.ticks += 1;
-            if is_playing(&self.ctx, user, linked_profile.home_guild).await?
+            if is_playing(&self.ctx, user.id, linked_profile.home_guild)
                 || (profile.ticks % *NOT_PLAYING_SKIP) == 0
             {
                 let osu_profile = match self

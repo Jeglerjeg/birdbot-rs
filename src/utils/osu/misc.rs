@@ -5,7 +5,7 @@ use diesel::PgConnection;
 use poise::serenity_prelude;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
-use serenity_prelude::{Context, Presence, User};
+use serenity_prelude::{Context, Presence, UserId};
 use std::sync::Arc;
 
 pub enum DiffTypes {
@@ -84,35 +84,35 @@ pub fn wipe_profile_data(db: &mut PgConnection, user_id: i64) -> Result<(), Erro
     Ok(())
 }
 
-pub async fn is_playing(ctx: &Context, user: User, home_guild: i64) -> Result<bool, Error> {
+pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> bool {
     let mut presence: Option<Presence> = None;
     let fetched_guild = ctx.cache.guild(home_guild as u64);
     if let Some(guild_ref) = fetched_guild {
         let guild = Arc::from(guild_ref.clone());
-        if guild.members.contains_key(&user.id) {
-            let presences = &guild.clone().presences;
-            presence = presences.get(&user.id).cloned();
+        if guild.members.contains_key(&user_id) {
+            let presences = &guild.presences;
+            presence = presences.get(&user_id).cloned();
         } else {
             for guild in ctx.cache.guilds() {
                 let cached_guild = Arc::from(guild.to_guild_cached(ctx).unwrap());
-                if let Some(_member) = ctx.cache.member(guild, user.id) {
+                if let Some(_member) = ctx.cache.member(guild, user_id) {
                     presence = cached_guild
                         .clone()
                         .presences
                         .clone()
-                        .get(&user.id)
+                        .get(&user_id)
                         .cloned();
                 }
             }
         }
     } else {
         for guild in ctx.cache.guilds() {
-            if let Some(_member) = ctx.cache.member(guild, user.id) {
+            if let Some(_member) = ctx.cache.member(guild, user_id) {
                 presence = guild
                     .to_guild_cached(&ctx.cache)
                     .unwrap()
                     .presences
-                    .get(&user.id)
+                    .get(&user_id)
                     .cloned();
             }
         }
@@ -121,10 +121,10 @@ pub async fn is_playing(ctx: &Context, user: User, home_guild: i64) -> Result<bo
     if let Some(presence) = presence {
         for activity in presence.activities {
             if activity.name.to_lowercase().contains("osu!") {
-                return Ok(true);
+                return true;
             }
         }
     }
 
-    Ok(false)
+    false
 }

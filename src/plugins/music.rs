@@ -65,7 +65,7 @@ lazy_static! {
     );
 }
 
-async fn get_http_client(ctx: Context<'_>) -> reqwest::Client {
+fn get_http_client(ctx: Context<'_>) -> reqwest::Client {
     ctx.data().http_client.clone()
 }
 
@@ -269,7 +269,7 @@ struct TrackEndNotifier {
     ctx: serenity_prelude::Context,
 }
 
-#[poise::async_trait]
+#[async_trait]
 impl VoiceEventHandler for TrackEndNotifier {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         if let EventContext::Track(_track_list) = ctx {
@@ -381,10 +381,10 @@ async fn queue(
     // Here, we use lazy restartable sources to make sure that we don't pay
     // for decoding, playback on tracks which aren't actually live yet.
 
-    let http_client = get_http_client(ctx).await;
+    let http_client = get_http_client(ctx);
 
     if !url.starts_with("http") {
-        url = format!("ytsearch1:{}", url)
+        url = format!("ytsearch1:{}", url);
     }
 
     let mut source = YoutubeDl::new(http_client, url);
@@ -562,7 +562,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             .await;
 
         if track_lock.requested.id == ctx.author().id {
-            let _ = queue.skip();
+            drop(queue.skip());
             let metadata = track_lock.metadata.clone();
             drop(handler);
             drop(track_lock);
@@ -586,7 +586,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             track_lock.skipped.push(ctx.author().id.0.get());
 
             if track_lock.skipped.len() >= needed_to_skip {
-                let _ = queue.skip();
+                drop(queue.skip());
                 let metadata = track_lock.metadata.clone();
                 drop(handler);
                 drop(track_lock);
