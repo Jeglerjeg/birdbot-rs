@@ -96,7 +96,10 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
     let formatted_score_diff = if score_diff == 0.0 {
         String::new()
     } else {
-        format!(" {:+}", remove_trailing_zeros(score_diff, 2))
+        format!(
+            " {:+}",
+            (score_diff as i64).to_formatted_string(&Locale::en)
+        )
     };
 
     let acc_emoji = if acc_diff > 0.0 {

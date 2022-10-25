@@ -204,7 +204,7 @@ impl OsuTracker {
                 thumbnail = beatmapset.list_cover.clone();
 
                 formatted_score = format!(
-                    "{}{}",
+                    "{}\n{}",
                     format_new_score(&score.0, &beatmap, &beatmapset, &pp,),
                     format_diff(
                         &new,
@@ -222,7 +222,7 @@ impl OsuTracker {
                 footer = String::new();
 
                 formatted_score = format!(
-                    "{}{}",
+                    "{}\n{}",
                     format_score_list(connection, self.osu_client.clone(), &new_scores, None, None)
                         .await?,
                     format_diff(
