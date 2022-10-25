@@ -28,7 +28,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/kangalioo/poise"
-rev = "01288e7387b394ba1aad55bf3aefa4505b680728"
+rev = "a950026587b4c3cfcbb9e72cf92350f43440c577"
 
 [dependencies.diesel]
 version = "2.0"
@@ -47,7 +47,7 @@ features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
-rev = "cf38735d1b92363e6b391e21bed6855da06df9bf"
+rev = "1d0fa5980616d8282dcf8e8b7d38d937a6b26d3e"
 default-features = false
 features = ["builder", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 
