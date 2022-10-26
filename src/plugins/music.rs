@@ -696,21 +696,22 @@ pub async fn volume(
         if volume > 200 {
             volume = 200;
         }
+
+        let adjusted_volume = f32::from(volume) / 100.0;
+        let guild_lock = PLAYING_GUILDS.lock().await;
+        let mut playing_guild_lock = guild_lock.guilds.get(&guild_id).unwrap().lock().await;
+        playing_guild_lock.volume = adjusted_volume;
+        drop(playing_guild_lock);
+        drop(guild_lock);
+
         let queue = handler_lock.queue();
-        match queue.current() {
-            Some(track) => {
-                let adjusted_volume = f32::from(volume) / 100.0;
+        if queue.is_empty() {
+            ctx.say("No items queued").await?;
+        } else {
+            for track in &queue.current_queue() {
                 track.set_volume(adjusted_volume)?;
-                let guild_lock = PLAYING_GUILDS.lock().await;
-                let mut playing_guild_lock = guild_lock.guilds.get(&guild_id).unwrap().lock().await;
-                playing_guild_lock.volume = adjusted_volume;
-                drop(playing_guild_lock);
-                drop(guild_lock);
-                ctx.say(format!("Changed volume to {}%.", volume)).await?;
             }
-            _ => {
-                ctx.say("No items queued").await?;
-            }
+            ctx.say(format!("Changed volume to {}%.", volume)).await?;
         }
     } else {
         let queue = handler_lock.queue();
