@@ -27,8 +27,8 @@ version = "1.21"
 features = ["full"]
 
 [dependencies.poise]
-git = "https://github.com/kangalioo/poise"
-rev = "01288e7387b394ba1aad55bf3aefa4505b680728"
+git = "https://github.com/Jeglerjeg/poise"
+rev = "5121572eb071754a770fb3f2e7d849c74c39a42a"
 
 [dependencies.diesel]
 version = "2.0"
@@ -41,13 +41,13 @@ git = "https://github.com/FelixMcFelix/Symphonia"
 branch = "songbird-fixes"
 
 [dependencies.songbird]
-git = "https://github.com/serenity-rs/songbird"
-rev = "f8949e592a5365fe8b5c15a2f195bb0d2f54cf27"
+git = "https://github.com/Jeglerjeg/songbird"
+rev = "0f88b0ac8899ee237cfbc44718599722c6a7194f"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
-rev = "cf38735d1b92363e6b391e21bed6855da06df9bf"
+rev = "c9d8bc2395e42992bcfc207414325c2a26360412"
 default-features = false
 features = ["builder", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 
