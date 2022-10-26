@@ -90,7 +90,11 @@ pub async fn send_score_embed(
     let embed = create_embed(
         color,
         &beatmapset.list_cover,
-        &formatted_score,
+        &format!(
+            "{}<t:{}:R>",
+            formatted_score,
+            score.ended_at.unix_timestamp()
+        ),
         &footer,
         &user.avatar_url,
         &user.username,

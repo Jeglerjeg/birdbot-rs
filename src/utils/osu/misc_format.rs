@@ -60,8 +60,8 @@ pub fn format_completion_rate(score: &Score, beatmap: &Beatmap, pp: &CalculateRe
 
 pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
     let pp_diff = get_stat_diff(old, new, &DiffTypes::Pp);
-    let country_diff = get_stat_diff(old, new, &DiffTypes::CountryRank);
-    let global_diff = get_stat_diff(old, new, &DiffTypes::GlobalRank);
+    let country_diff = -get_stat_diff(old, new, &DiffTypes::CountryRank);
+    let global_diff = -get_stat_diff(old, new, &DiffTypes::GlobalRank);
     let acc_diff = get_stat_diff(old, new, &DiffTypes::Acc);
     let score_diff = get_stat_diff(old, new, &DiffTypes::Score);
 
@@ -73,18 +73,24 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
 
     let formatted_global_diff = if global_diff == 0.0 {
         String::new()
-    } else if global_diff < 0.0 {
-        format!(" +{}", remove_trailing_zeros(global_diff, 2))
+    } else if global_diff > 0.0 {
+        format!(
+            " +{}",
+            (global_diff as i64).to_formatted_string(&Locale::en)
+        )
     } else {
-        format!(" -{}", remove_trailing_zeros(global_diff, 2))
+        format!(" {}", (global_diff as i64).to_formatted_string(&Locale::en))
     };
 
     let formatted_country_diff = if country_diff == 0.0 {
         String::new()
-    } else if country_diff < 0.0 {
-        format!(" +{}", remove_trailing_zeros(country_diff, 2))
+    } else if country_diff > 0.0 {
+        format!(
+            " +{}",
+            (global_diff as i64).to_formatted_string(&Locale::en)
+        )
     } else {
-        format!(" -{}", remove_trailing_zeros(country_diff, 2))
+        format!(" {}", (global_diff as i64).to_formatted_string(&Locale::en))
     };
 
     let formatted_acc_diff = if acc_diff == 0.0 {
@@ -95,11 +101,10 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
 
     let formatted_score_diff = if score_diff == 0.0 {
         String::new()
+    } else if score_diff > 0.0 {
+        format!(" +{}", (score_diff as i64).to_formatted_string(&Locale::en))
     } else {
-        format!(
-            " {:+}",
-            (score_diff as i64).to_formatted_string(&Locale::en)
-        )
+        format!(" {}", (score_diff as i64).to_formatted_string(&Locale::en))
     };
 
     let acc_emoji = if acc_diff > 0.0 {

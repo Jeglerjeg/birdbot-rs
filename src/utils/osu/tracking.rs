@@ -204,13 +204,14 @@ impl OsuTracker {
                 thumbnail = beatmapset.list_cover.clone();
 
                 formatted_score = format!(
-                    "{}\n{}",
+                    "{}{}\n<t:{}:R>",
                     format_new_score(&score.0, &beatmap, &beatmapset, &pp,),
                     format_diff(
                         &new,
                         &old,
                         gamemode_from_string(&linked_profile.mode).unwrap()
-                    )
+                    ),
+                    score.0.ended_at.unix_timestamp()
                 );
 
                 footer = potential_string;
