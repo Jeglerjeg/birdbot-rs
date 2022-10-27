@@ -145,12 +145,12 @@ pub async fn send_top_scores_embed(
     );
 
     let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new("<", serenity_prelude::ButtonStyle::Primary, "last_page"),
-        CreateButton::new(">", serenity_prelude::ButtonStyle::Primary, "next_page"),
-        CreateButton::new("⭯", serenity_prelude::ButtonStyle::Primary, "reset"),
+        CreateButton::new("<", "last_page"),
+        CreateButton::new(">", "next_page"),
+        CreateButton::new("⭯", "reset"),
     ])];
 
-    let builder = CreateReply::default().embed(embed).components(components);
+    let builder = CreateReply::new().embed(embed).components(components);
 
     let reply = ctx.send(builder).await?;
 

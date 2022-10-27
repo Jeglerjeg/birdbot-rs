@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use poise::{serenity_prelude, CreateReply};
 use serenity_prelude::model::colour::colours::roles::BLUE;
 use serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
-use songbird::input::{AudioStreamError, AuxMetadata, Compose, YoutubeDl};
+use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{
     tracks::TrackHandle, Call, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent,

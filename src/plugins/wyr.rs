@@ -53,8 +53,8 @@ async fn create_wyr_message(
     let embed = CreateEmbed::new().description(format_question(&question, &[]));
 
     let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new("1", serenity_prelude::ButtonStyle::Success, "choice_1"),
-        CreateButton::new("2", serenity_prelude::ButtonStyle::Danger, "choice_2"),
+        CreateButton::new("1", "choice_1").style(serenity_prelude::ButtonStyle::Success),
+        CreateButton::new("2", "choice_2").style(serenity_prelude::ButtonStyle::Danger),
     ])];
 
     let builder = CreateReply::default().embed(embed).components(components);
@@ -86,7 +86,7 @@ async fn handle_interaction_responses(
     while let Some(interaction) = interaction_stream.next().await {
         if replies.contains(&interaction.user.id.0.get()) {
             interaction
-                .create_interaction_response(
+                .create_response(
                     ctx.discord(),
                     CreateInteractionResponse::Message(
                         CreateInteractionResponseMessage::default()
@@ -128,7 +128,7 @@ async fn handle_interaction_responses(
             }
             _ => {
                 interaction
-                    .create_interaction_response(
+                    .create_response(
                         ctx.discord(),
                         CreateInteractionResponse::Message(
                             CreateInteractionResponseMessage::default()
