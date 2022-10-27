@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use poise::{serenity_prelude, CreateReply};
 use serenity_prelude::model::colour::colours::roles::BLUE;
 use serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
-use songbird::input::{AuxMetadata, Compose, YoutubeDl};
+use songbird::input::{AudioStreamError, AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{
     tracks::TrackHandle, Call, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent,
@@ -389,7 +389,13 @@ async fn queue(
 
     let mut source = YoutubeDl::new(http_client, url);
 
-    let metadata = source.aux_metadata().await?;
+    let metadata = match source.aux_metadata().await {
+        Ok(metadata) => metadata,
+        Err(why) => {
+            error!("{}", why);
+            return Ok(());
+        }
+    };
 
     let mut handler = handler_lock.lock().await;
 
@@ -401,25 +407,26 @@ async fn queue(
             }
         }
         if requested >= *MAX_SONGS_QUEUED {
+            drop(handler);
             ctx.say(format!(
                 "You have queued more than the maximum of {} songs.",
                 *MAX_SONGS_QUEUED
             ))
             .await?;
-            drop(handler);
             return Ok(());
         }
     }
 
     if let Some(duration) = metadata.duration {
         if duration > *MAX_MUSIC_DURATION {
+            let empty = handler.queue().is_empty();
+            drop(handler);
             ctx.say(format!(
                 "Song is longer than the max allowed duration of {}",
                 format_duration(*MAX_MUSIC_DURATION, None)
             ))
             .await?;
-            if handler.queue().is_empty() {
-                drop(handler);
+            if empty {
                 leave(ctx.discord(), ctx.guild_id()).await?;
             }
             return Ok(());
