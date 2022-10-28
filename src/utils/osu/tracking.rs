@@ -392,8 +392,6 @@ impl OsuTracker {
                     continue;
                 }
 
-                notified = true;
-
                 let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url));
 
                 let score = self
@@ -480,6 +478,7 @@ impl OsuTracker {
                         }
                     }
                 }
+                notified = true;
             };
         }
 
