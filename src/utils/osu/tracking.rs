@@ -373,6 +373,8 @@ impl OsuTracker {
             .entry(linked_profile.osu_id)
             .or_insert(vec![]);
 
+        let mut notified = false;
+
         for event in &recent_events {
             if let EventType::Rank {
                 grade: _grade,
@@ -389,6 +391,8 @@ impl OsuTracker {
                 if rank > &50 {
                     continue;
                 }
+
+                notified = true;
 
                 let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url));
 
@@ -479,15 +483,17 @@ impl OsuTracker {
             };
         }
 
-        let item = NewOsuNotification {
-            id: linked_profile.osu_id,
-            last_pp: last_notifications.last_pp,
-            last_event: Utc::now(),
-        };
+        if notified {
+            let item = NewOsuNotification {
+                id: linked_profile.osu_id,
+                last_pp: last_notifications.last_pp,
+                last_event: Utc::now(),
+            };
 
-        if let Err(why) = osu_notifications::update(connection, linked_profile.osu_id, &item) {
-            error!("Error occured while running tracking loop: {}", why);
-        };
+            if let Err(why) = osu_notifications::update(connection, linked_profile.osu_id, &item) {
+                error!("Error occured while running tracking loop: {}", why);
+            };
+        }
 
         Ok(())
     }
