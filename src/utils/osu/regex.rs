@@ -1,6 +1,7 @@
 use crate::utils::osu::misc::gamemode_from_string;
 use lazy_static::lazy_static;
 use regex::Regex;
+use rosu_v2::prelude::GameMode;
 
 lazy_static! {
     static ref BEATMAP_URL_PATTERN_V1: Regex =
@@ -21,7 +22,7 @@ lazy_static! {
 pub struct BeatmapInfo {
     pub beatmapset_id: Option<i64>,
     pub beatmap_id: Option<i64>,
-    pub mode: Option<String>,
+    pub mode: Option<GameMode>,
 }
 
 pub fn get_beatmap_info(url: &str) -> BeatmapInfo {
@@ -32,7 +33,9 @@ pub fn get_beatmap_info(url: &str) -> BeatmapInfo {
             beatmap_id: info
                 .name("beatmap_id")
                 .map(|id| id.as_str().parse::<i64>().unwrap()),
-            mode: info.name("mode").map(|mode| mode.as_str().to_string()),
+            mode: info
+                .name("mode")
+                .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
         }
     } else if BEATMAPSET_URL_PATTERN_V2.is_match(url) {
         let info = BEATMAPSET_URL_PATTERN_V2.captures(url).unwrap();
@@ -43,7 +46,9 @@ pub fn get_beatmap_info(url: &str) -> BeatmapInfo {
             beatmap_id: info
                 .name("beatmap_id")
                 .map(|id| id.as_str().parse::<i64>().unwrap()),
-            mode: info.name("mode").map(|mode| mode.as_str().to_string()),
+            mode: info
+                .name("mode")
+                .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
         }
     } else if BEATMAP_URL_PATTERN_V1.is_match(url) {
         let info = BEATMAP_URL_PATTERN_V1.captures(url).unwrap();
@@ -60,7 +65,7 @@ pub fn get_beatmap_info(url: &str) -> BeatmapInfo {
                     .map(|id| id.as_str().parse::<i64>().unwrap()),
                 mode: info
                     .name("mode")
-                    .map(|mode| gamemode_from_string(mode.as_str()).unwrap().to_string()),
+                    .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
             }
         } else {
             BeatmapInfo {
@@ -70,7 +75,7 @@ pub fn get_beatmap_info(url: &str) -> BeatmapInfo {
                 beatmap_id: None,
                 mode: info
                     .name("mode")
-                    .map(|mode| gamemode_from_string(mode.as_str()).unwrap().to_string()),
+                    .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
             }
         }
     } else {

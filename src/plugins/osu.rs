@@ -235,7 +235,7 @@ pub async fn score(
             };
 
             let mode = if let Some(mode) = beatmap_info.mode {
-                gamemode_from_string(&mode).unwrap()
+                mode
             } else {
                 gamemode_from_string(&profile.mode).unwrap()
             };
