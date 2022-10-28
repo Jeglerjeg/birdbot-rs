@@ -47,10 +47,10 @@ pub fn get_stat_diff(old: &OsuUser, new: &OsuUser, diff_type: &DiffTypes) -> f64
 
 pub fn gamemode_from_string(mode: &str) -> Option<GameMode> {
     match mode.to_lowercase().as_str() {
-        "osu" | "standard" | "std" | "osu!" => Some(GameMode::Osu),
-        "taiko" | "osu!taiko" => Some(GameMode::Taiko),
-        "mania" | "keys" | "osu!mania" => Some(GameMode::Mania),
-        "catch" | "ctb" | "fruits" | "osu!catch" => Some(GameMode::Catch),
+        "osu" | "standard" | "std" | "osu!" | "0" => Some(GameMode::Osu),
+        "taiko" | "osu!taiko" | "1" => Some(GameMode::Taiko),
+        "mania" | "keys" | "osu!mania" | "3" => Some(GameMode::Mania),
+        "catch" | "ctb" | "fruits" | "osu!catch" | "2" => Some(GameMode::Catch),
         _ => None,
     }
 }

@@ -1,12 +1,25 @@
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
+use crate::models::osu_notifications::NewOsuNotification;
 use crate::models::osu_users::{NewOsuUser, OsuUser};
+use crate::utils::db::osu_users::rosu_user_to_db;
+use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
+use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
+use crate::utils::osu::calculate::calculate;
+use crate::utils::osu::embeds::create_embed;
+use crate::utils::osu::misc::{
+    calculate_potential_acc, gamemode_from_string, get_stat_diff, is_playing, DiffTypes,
+};
+use crate::utils::osu::misc_format::{format_diff, format_potential_string, format_user_link};
+use crate::utils::osu::regex::get_beatmap_info;
+use crate::utils::osu::score_format::{format_new_score, format_score_list};
 use crate::{Error, Pool};
 use chrono::Utc;
+use dashmap::DashMap;
 use diesel::r2d2::ConnectionManager;
 use diesel::{PgConnection, QueryResult};
 use lazy_static::lazy_static;
 use poise::serenity_prelude;
-use rosu_v2::prelude::Score;
+use rosu_v2::prelude::{EventType, Score};
 use rosu_v2::Osu;
 use serenity_prelude::model::colour::colours::roles::BLUE;
 use serenity_prelude::{ChannelId, CreateMessage};
@@ -16,16 +29,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::error;
-
-use crate::models::osu_notifications::NewOsuNotification;
-use crate::utils::db::osu_users::rosu_user_to_db;
-use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
-use crate::utils::osu::embeds::create_embed;
-use crate::utils::osu::misc::{
-    calculate_potential_acc, gamemode_from_string, get_stat_diff, is_playing, DiffTypes,
-};
-use crate::utils::osu::misc_format::{format_diff, format_potential_string, format_user_link};
-use crate::utils::osu::score_format::{format_new_score, format_score_list};
 
 lazy_static! {
     static ref PP_THRESHOLD: f64 = env::var("PP_THRESHOLD")
@@ -46,6 +49,10 @@ lazy_static! {
         .unwrap_or_else(|_| String::from("10"))
         .parse::<i32>()
         .expect("Failed to parse tracking not playing skip.");
+}
+
+lazy_static! {
+    static ref SCORE_NOTIFICATIONS: DashMap<i64, Vec<u64>> = DashMap::new();
 }
 
 pub struct OsuTracker {
@@ -72,8 +79,14 @@ impl OsuTracker {
                     error!("Error occured while running tracking loop: {}", why);
                     continue;
                 }
+
                 let new = osu_users::read(connection, profile.osu_id).unwrap();
-                if let Err(why) = self.notify_pp(old, new, connection, &profile).await {
+                if let Err(why) = self.notify_pp(&old, &new, connection, &profile).await {
+                    error!("Error occured while running tracking loop: {}", why);
+                    continue;
+                }
+
+                if let Err(why) = self.notify_recent(&new, connection, &profile).await {
                     error!("Error occured while running tracking loop: {}", why);
                     continue;
                 }
@@ -147,8 +160,8 @@ impl OsuTracker {
 
     async fn notify_pp(
         &mut self,
-        old: QueryResult<OsuUser>,
-        new: OsuUser,
+        old: &QueryResult<OsuUser>,
+        new: &OsuUser,
         connection: &mut PgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
@@ -157,7 +170,7 @@ impl OsuTracker {
         let footer: String;
         let thumbnail: String;
         if let Ok(old) = old {
-            if get_stat_diff(&old, &new, &DiffTypes::Pp) < *PP_THRESHOLD {
+            if get_stat_diff(old, new, &DiffTypes::Pp) < *PP_THRESHOLD {
                 return Ok(());
             }
             let new_scores = self.get_new_score(new.id, linked_profile, connection).await;
@@ -166,32 +179,36 @@ impl OsuTracker {
             } else if new_scores.len() == 1 {
                 let score = &new_scores[0];
 
-                let beatmap = crate::utils::osu::caching::get_beatmap(
+                if let Some(mut recent_scores) = SCORE_NOTIFICATIONS.get_mut(&linked_profile.osu_id)
+                {
+                    if recent_scores.value().contains(&score.0.score_id.unwrap()) {
+                        return Ok(());
+                    }
+                    recent_scores.push(score.0.score_id.unwrap());
+                } else {
+                    SCORE_NOTIFICATIONS
+                        .insert(linked_profile.osu_id, vec![score.0.score_id.unwrap()]);
+                };
+
+                let beatmap = get_beatmap(
                     connection,
                     self.osu_client.clone(),
                     score.0.map.as_ref().unwrap().map_id,
                 )
                 .await?;
 
-                let beatmapset = crate::utils::osu::caching::get_beatmapset(
+                let beatmapset = get_beatmapset(
                     connection,
                     self.osu_client.clone(),
                     beatmap.beatmapset_id as u32,
                 )
                 .await?;
 
-                let pp = crate::utils::osu::calculate::calculate(
-                    &score.0,
-                    &beatmap,
-                    calculate_potential_acc(&score.0),
-                )
-                .await;
-
+                let pp = calculate(&score.0, &beatmap, calculate_potential_acc(&score.0)).await;
                 author_text = format!(
                     "{} set a new best score (#{}/{})",
                     &new.username, score.1, 100
                 );
-
                 let potential_string: String;
                 let pp = if let Ok(pp) = pp {
                     potential_string = format_potential_string(&pp);
@@ -202,13 +219,12 @@ impl OsuTracker {
                 };
 
                 thumbnail = beatmapset.list_cover.clone();
-
                 formatted_score = format!(
                     "{}{}\n<t:{}:R>",
-                    format_new_score(&score.0, &beatmap, &beatmapset, &pp,),
+                    format_new_score(&score.0, &beatmap, &beatmapset, &pp, None),
                     format_diff(
-                        &new,
-                        &old,
+                        new,
+                        old,
                         gamemode_from_string(&linked_profile.mode).unwrap()
                     ),
                     score.0.ended_at.unix_timestamp()
@@ -216,6 +232,25 @@ impl OsuTracker {
 
                 footer = potential_string;
             } else {
+                let mut recent_scores = SCORE_NOTIFICATIONS
+                    .entry(linked_profile.osu_id)
+                    .or_insert(vec![]);
+
+                let mut to_notify: Vec<(Score, usize)> = Vec::new();
+
+                for score in &new_scores {
+                    if recent_scores.value().contains(&score.0.score_id.unwrap()) {
+                        continue;
+                    } else {
+                        recent_scores.push(score.0.score_id.unwrap());
+                        to_notify.push(score.clone());
+                    };
+                }
+
+                if to_notify.is_empty() {
+                    return Ok(());
+                }
+
                 author_text = format!("{} set a new best scores", &new.username);
 
                 thumbnail = new.avatar_url.clone();
@@ -224,11 +259,11 @@ impl OsuTracker {
 
                 formatted_score = format!(
                     "{}\n{}",
-                    format_score_list(connection, self.osu_client.clone(), &new_scores, None, None)
+                    format_score_list(connection, self.osu_client.clone(), &to_notify, None, None)
                         .await?,
                     format_diff(
-                        &new,
-                        &old,
+                        new,
+                        old,
                         gamemode_from_string(&linked_profile.mode).unwrap()
                     )
                 );
@@ -315,5 +350,139 @@ impl OsuTracker {
         }
 
         new_scores
+    }
+
+    async fn notify_recent(
+        &mut self,
+        new: &OsuUser,
+        connection: &mut PgConnection,
+        linked_profile: &LinkedOsuProfile,
+    ) -> Result<(), Error> {
+        let last_notifications =
+            if let Ok(updates) = osu_notifications::read(connection, linked_profile.osu_id) {
+                updates
+            } else {
+                let item = NewOsuNotification {
+                    id: linked_profile.osu_id,
+                    last_pp: Utc::now(),
+                    last_event: Utc::now(),
+                };
+                osu_notifications::create(connection, &item).unwrap()
+            };
+
+        let mut recent_events = self.osu_client.recent_events(new.id as u32).await?;
+        recent_events.reverse();
+
+        for event in &recent_events {
+            if let EventType::Rank {
+                grade: _grade,
+                rank,
+                mode,
+                beatmap,
+                user: _user,
+            } = &event.event_type
+            {
+                if last_notifications.last_event.timestamp() > event.created_at.unix_timestamp() {
+                    continue;
+                }
+
+                if rank > &50 {
+                    continue;
+                }
+
+                let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url));
+
+                let score = self
+                    .osu_client
+                    .beatmap_user_score(beatmap_info.beatmap_id.unwrap() as u32, new.id as u32)
+                    .mode(*mode)
+                    .await
+                    .unwrap();
+
+                let beatmap = get_beatmap(
+                    connection,
+                    self.osu_client.clone(),
+                    beatmap_info.beatmap_id.unwrap() as u32,
+                )
+                .await?;
+
+                let beatmapset = get_beatmapset(
+                    connection,
+                    self.osu_client.clone(),
+                    beatmap.beatmapset_id as u32,
+                )
+                .await?;
+
+                let pp = calculate(
+                    &score.score,
+                    &beatmap,
+                    calculate_potential_acc(&score.score),
+                )
+                .await;
+
+                let potential_string: String;
+                let pp = if let Ok(pp) = pp {
+                    potential_string = format_potential_string(&pp);
+                    Some(pp)
+                } else {
+                    potential_string = String::new();
+                    None
+                };
+
+                let author_text = &format!("{} set a new leaderboard score!", new.username);
+
+                let thumbnail = &beatmapset.list_cover;
+
+                let footer = &potential_string;
+
+                let formatted_score = &format!(
+                    "{}<t:{}:R>",
+                    format_new_score(&score.score, &beatmap, &beatmapset, &pp, Some(&score.pos)),
+                    score.score.ended_at.unix_timestamp()
+                );
+
+                for guild_id in self.ctx.cache.guilds() {
+                    if let Ok(guild_channels) =
+                        osu_guild_channels::read(connection, guild_id.0.get() as i64)
+                    {
+                        if let Some(score_channel) = guild_channels.score_channel {
+                            if let Ok(member) =
+                                guild_id.member(&self.ctx, linked_profile.id as u64).await
+                            {
+                                let color = member.colour(&self.ctx).unwrap_or(BLUE);
+
+                                let embed = create_embed(
+                                    color,
+                                    thumbnail,
+                                    formatted_score,
+                                    footer,
+                                    &new.avatar_url,
+                                    author_text,
+                                    &format_user_link(new.id),
+                                );
+
+                                let builder = CreateMessage::new().embed(embed);
+
+                                ChannelId(NonZeroU64::try_from(score_channel as u64).unwrap())
+                                    .send_message(&self.ctx, builder)
+                                    .await?;
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        let item = NewOsuNotification {
+            id: linked_profile.osu_id,
+            last_pp: last_notifications.last_pp,
+            last_event: Utc::now(),
+        };
+
+        if let Err(why) = osu_notifications::update(connection, linked_profile.osu_id, &item) {
+            error!("Error occured while running tracking loop: {}", why);
+        };
+
+        Ok(())
     }
 }

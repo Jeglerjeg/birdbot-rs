@@ -4,5 +4,6 @@ pub mod embeds;
 pub mod misc;
 pub mod misc_format;
 pub mod pp;
+pub mod regex;
 pub mod score_format;
 pub mod tracking;

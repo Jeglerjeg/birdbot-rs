@@ -84,6 +84,7 @@ pub fn format_score_info(
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
     pp: &Option<CalculateResults>,
+    scoreboard_rank: Option<&usize>,
 ) -> String {
     let italic = if beatmapset.artist.contains('*') {
         ""
@@ -104,9 +105,14 @@ pub fn format_score_info(
         score_pp = f64::from(score.pp.unwrap_or(0.0));
     }
 
+    let scoreboard_rank = match scoreboard_rank {
+        Some(rank) => format!("#{} ", rank),
+        _ => String::new(),
+    };
+
     format!(
         "[{italic}{} - {} [{}]{italic}]({})\n\
-        **{}pp {}★, {} +{} {}**",
+        **{}pp {}★, {} {}+{} {}**",
         beatmapset.artist,
         beatmapset.title,
         beatmap.version,
@@ -114,6 +120,7 @@ pub fn format_score_info(
         remove_trailing_zeros(score_pp, 2),
         remove_trailing_zeros(stars, 2),
         score.grade,
+        scoreboard_rank,
         score.mods,
         score.score.to_formatted_string(&Locale::en)
     )
@@ -124,10 +131,11 @@ pub fn format_new_score(
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
     pp: &Option<CalculateResults>,
+    scoreboard_rank: Option<&usize>,
 ) -> String {
     format!(
         "{}```ansi\n{}```",
-        format_score_info(score, beatmap, beatmapset, pp),
+        format_score_info(score, beatmap, beatmapset, pp, scoreboard_rank),
         format_score_statistic(score, beatmap, pp)
     )
 }
@@ -186,7 +194,7 @@ pub async fn format_score_list(
             None
         };
 
-        let formatted_score = format_new_score(&score.0, &beatmap, &beatmapset, &pp);
+        let formatted_score = format_new_score(&score.0, &beatmap, &beatmapset, &pp, None);
 
         formatted_list.push(format!(
             "{}.\n{}<t:{}:R>{}\n",

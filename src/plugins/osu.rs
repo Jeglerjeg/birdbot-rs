@@ -13,6 +13,7 @@ use crate::models::osu_notifications::NewOsuNotification;
 use crate::{Context, Error};
 
 use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
+use crate::utils::osu::regex::get_beatmap_info;
 
 /// Display information about your osu! user.
 #[poise::command(
@@ -214,7 +215,7 @@ pub async fn mode(
 #[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
 pub async fn score(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for a score."] beatmap_id: u32,
+    #[description = "Beatmap ID to check for a score."] beatmap_url: String,
     #[rest]
     #[description = "User to see score for."]
     user: Option<User>,
@@ -224,6 +225,21 @@ pub async fn score(
     let profile = linked_osu_profiles::read(connection, user.id.0.get() as i64);
     match profile {
         Ok(profile) => {
+            let beatmap_info = get_beatmap_info(&beatmap_url);
+            let beatmap_id = if let Some(id) = beatmap_info.beatmap_id {
+                id
+            } else {
+                ctx.say("Please link to a specific beatmap difficulty.")
+                    .await?;
+                return Ok(());
+            };
+
+            let mode = if let Some(mode) = beatmap_info.mode {
+                gamemode_from_string(&mode).unwrap()
+            } else {
+                gamemode_from_string(&profile.mode).unwrap()
+            };
+
             let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
                 user
             } else {
@@ -237,8 +253,8 @@ pub async fn score(
             let score = ctx
                 .data()
                 .osu_client
-                .beatmap_user_score(beatmap_id, profile.osu_id as u32)
-                .mode(gamemode_from_string(&profile.mode).unwrap())
+                .beatmap_user_score(beatmap_id as u32, profile.osu_id as u32)
+                .mode(mode)
                 .await;
 
             match score {
@@ -257,7 +273,15 @@ pub async fn score(
                     )
                     .await?;
 
-                    send_score_embed(ctx, &score.score, &beatmap, &beatmapset, osu_user).await?;
+                    send_score_embed(
+                        ctx,
+                        &score.score,
+                        &beatmap,
+                        &beatmapset,
+                        osu_user,
+                        Some(&score.pos),
+                    )
+                    .await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get beatmap score. {}", why))
@@ -333,7 +357,7 @@ pub async fn recent(
                         )
                         .await?;
 
-                        send_score_embed(ctx, score, &beatmap, &beatmapset, osu_user).await?;
+                        send_score_embed(ctx, score, &beatmap, &beatmapset, osu_user, None).await?;
                     }
                 }
                 Err(why) => {

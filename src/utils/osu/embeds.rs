@@ -48,6 +48,7 @@ pub async fn send_score_embed(
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
     user: OsuUser,
+    scoreboard_rank: Option<&usize>,
 ) -> Result<(), Error> {
     let color: Colour;
 
@@ -73,8 +74,13 @@ pub async fn send_score_embed(
 
     let footer = format!("{}{}", potential_string, completion_rate);
 
-    let formatted_score =
-        crate::utils::osu::score_format::format_new_score(score, beatmap, beatmapset, &pp);
+    let formatted_score = crate::utils::osu::score_format::format_new_score(
+        score,
+        beatmap,
+        beatmapset,
+        &pp,
+        scoreboard_rank,
+    );
 
     if let Some(guild_ref) = ctx.guild() {
         let guild = guild_ref.clone();
