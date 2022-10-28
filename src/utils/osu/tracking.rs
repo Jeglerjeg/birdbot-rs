@@ -373,6 +373,10 @@ impl OsuTracker {
         let mut recent_events = self.osu_client.recent_events(new.id as u32).await?;
         recent_events.reverse();
 
+        let mut recent_scores = SCORE_NOTIFICATIONS
+            .entry(linked_profile.osu_id)
+            .or_insert(vec![]);
+
         for event in &recent_events {
             if let EventType::Rank {
                 grade: _grade,
@@ -398,6 +402,12 @@ impl OsuTracker {
                     .mode(*mode)
                     .await
                     .unwrap();
+
+                if recent_scores.contains(&score.score.score_id.unwrap()) {
+                    continue;
+                } else {
+                    recent_scores.push(score.score.score_id.unwrap());
+                }
 
                 let beatmap = get_beatmap(
                     connection,
