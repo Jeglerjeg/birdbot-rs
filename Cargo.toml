@@ -55,3 +55,4 @@ features = ["builder", "cache", "client",  "gateway", "http", "model", "utils", 
 [profile.release]
 lto = "fat"
 codegen-units = 1
+strip = "debuginfo"
