@@ -23,17 +23,17 @@ pub fn rosu_user_to_db(user: rosu_v2::prelude::User, ticks: Option<i32>) -> NewO
     }
 }
 
-pub fn create(db: &mut PgConnection, item: &NewOsuUser) -> Result<(), Error> {
+pub fn create(db: &mut PgConnection, item: &NewOsuUser) -> Result<OsuUser, Error> {
     use crate::schema::osu_users::dsl::{id, osu_users};
 
-    insert_into(osu_users)
+    let user = insert_into(osu_users)
         .values(item)
         .on_conflict(id)
         .do_update()
         .set(item)
-        .execute(db)?;
+        .get_result(db)?;
 
-    Ok(())
+    Ok(user)
 }
 
 pub fn read(db: &mut PgConnection, param_id: i64) -> QueryResult<OsuUser> {
