@@ -275,6 +275,7 @@ pub async fn score(
 
                     send_score_embed(
                         ctx,
+                        user,
                         &score.score,
                         &beatmap,
                         &beatmapset,
@@ -357,7 +358,8 @@ pub async fn recent(
                         )
                         .await?;
 
-                        send_score_embed(ctx, score, &beatmap, &beatmapset, osu_user, None).await?;
+                        send_score_embed(ctx, user, score, &beatmap, &beatmapset, osu_user, None)
+                            .await?;
                     }
                 }
                 Err(why) => {
@@ -424,7 +426,7 @@ pub async fn top(
                         "score" => best_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
                         _ => {}
                     }
-                    send_top_scores_embed(ctx, connection, &best_scores, osu_user).await?;
+                    send_top_scores_embed(ctx, user, connection, &best_scores, osu_user).await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get best scores. {}", why))

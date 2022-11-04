@@ -44,6 +44,7 @@ pub fn create_embed(
 
 pub async fn send_score_embed(
     ctx: Context<'_>,
+    discord_user: &serenity_prelude::User,
     score: &Score,
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
@@ -84,7 +85,7 @@ pub async fn send_score_embed(
 
     if let Some(guild_ref) = ctx.guild() {
         let guild = guild_ref.clone();
-        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, ctx.author().id) {
+        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, discord_user.id) {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;
@@ -116,13 +117,14 @@ pub async fn send_score_embed(
 
 pub async fn send_top_scores_embed(
     ctx: Context<'_>,
+    discord_user: &serenity_prelude::User,
     connection: &mut PgConnection,
     best_scores: &[(Score, usize)],
     user: OsuUser,
 ) -> Result<(), Error> {
     let color: Colour;
     if let Some(guild) = ctx.guild() {
-        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, ctx.author().id) {
+        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, discord_user.id) {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;
