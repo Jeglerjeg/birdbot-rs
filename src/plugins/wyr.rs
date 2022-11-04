@@ -53,8 +53,12 @@ async fn create_wyr_message(
     let embed = CreateEmbed::new().description(format_question(&question, &[]));
 
     let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new("1", "choice_1").style(serenity_prelude::ButtonStyle::Success),
-        CreateButton::new("2", "choice_2").style(serenity_prelude::ButtonStyle::Danger),
+        CreateButton::new("choice_1")
+            .style(serenity_prelude::ButtonStyle::Success)
+            .label("1"),
+        CreateButton::new("choice_2")
+            .style(serenity_prelude::ButtonStyle::Danger)
+            .label("2"),
     ])];
 
     let builder = CreateReply::default().embed(embed).components(components);

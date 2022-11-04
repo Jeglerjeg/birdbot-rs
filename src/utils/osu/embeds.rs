@@ -151,9 +151,9 @@ pub async fn send_top_scores_embed(
     );
 
     let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new("<", "last_page"),
-        CreateButton::new(">", "next_page"),
-        CreateButton::new("⭯", "reset"),
+        CreateButton::new("last_page").label("<"),
+        CreateButton::new("next_page").label(">"),
+        CreateButton::new("reset").label("⭯"),
     ])];
 
     let builder = CreateReply::new().embed(embed).components(components);
