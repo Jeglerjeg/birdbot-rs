@@ -179,7 +179,12 @@ async fn main() {
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
 
-    let intents = serenity_prelude::GatewayIntents::all();
+    let intents = serenity_prelude::GatewayIntents::GUILD_MEMBERS
+        | serenity_prelude::GatewayIntents::GUILD_VOICE_STATES
+        | serenity_prelude::GatewayIntents::GUILD_PRESENCES
+        | serenity_prelude::GatewayIntents::MESSAGE_CONTENT
+        | serenity_prelude::GatewayIntents::GUILD_MESSAGES
+        | serenity_prelude::GatewayIntents::GUILDS;
 
     let client_id = env::var("OSU_CLIENT_ID")
         .expect("Expected an osu client id in the environment")
