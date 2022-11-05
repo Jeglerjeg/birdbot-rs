@@ -184,7 +184,8 @@ async fn main() {
         | serenity_prelude::GatewayIntents::GUILD_PRESENCES
         | serenity_prelude::GatewayIntents::MESSAGE_CONTENT
         | serenity_prelude::GatewayIntents::GUILD_MESSAGES
-        | serenity_prelude::GatewayIntents::GUILDS;
+        | serenity_prelude::GatewayIntents::GUILDS
+        | serenity_prelude::GatewayIntents::DIRECT_MESSAGES;
 
     let client_id = env::var("OSU_CLIENT_ID")
         .expect("Expected an osu client id in the environment")
