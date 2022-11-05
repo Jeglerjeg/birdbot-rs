@@ -376,17 +376,33 @@ pub async fn recent(
     Ok(())
 }
 
+#[derive(poise::ChoiceParameter)]
+pub enum SortChoices {
+    #[name = "Recent"]
+    #[name = "Newest"]
+    Recent,
+    Oldest,
+    #[name = "Accuracy"]
+    #[name = "Acc"]
+    Accuracy,
+    Combo,
+    Score,
+    PP,
+}
+
 /// Display a list of your top scores.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn top(
     ctx: Context<'_>,
     #[description = "User to see profile for."] user: Option<User>,
-    #[description = "Sort your top scores by something other than pp."] sort_type: Option<String>,
+    #[description = "Sort your top scores by something other than pp."] sort_type: Option<
+        SortChoices,
+    >,
 ) -> Result<(), Error> {
     let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let connection = &mut ctx.data().db_pool.get()?;
     let profile = linked_osu_profiles::read(connection, user.id.0.get() as i64);
-    let sort_type = sort_type.unwrap_or_default();
+    let sort_type = sort_type.unwrap_or(SortChoices::PP);
     match profile {
         Ok(profile) => {
             let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
@@ -414,16 +430,20 @@ pub async fn top(
                         best_scores.push((score.clone(), pos + 1));
                     }
 
-                    match sort_type.as_str() {
-                        "newest" | "recent" => {
+                    match sort_type {
+                        SortChoices::Recent => {
                             best_scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
                         }
-                        "oldest" => best_scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at)),
-                        "acc" | "accuracy" => {
+                        SortChoices::Oldest => {
+                            best_scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at))
+                        }
+                        SortChoices::Accuracy => {
                             best_scores.sort_by(|a, b| b.0.accuracy.total_cmp(&a.0.accuracy));
                         }
-                        "combo" => best_scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo)),
-                        "score" => best_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
+                        SortChoices::Combo => {
+                            best_scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo))
+                        }
+                        SortChoices::Score => best_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
                         _ => {}
                     }
                     send_top_scores_embed(ctx, user, connection, &best_scores, osu_user).await?;
