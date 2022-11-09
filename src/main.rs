@@ -118,10 +118,16 @@ async fn main() {
 
     let connection = utils::db::establish_connection::establish_connection();
 
-    let migration_connection = &mut connection.get().unwrap();
-    migration_connection
-        .run_pending_migrations(MIGRATIONS)
-        .unwrap();
+    let mut migration_connection = match connection.get() {
+        Ok(connection) => connection,
+        Err(why) => {
+            panic!("Couldn't get db connection: {:?}", why);
+        }
+    };
+
+    if let Err(why) = migration_connection.run_pending_migrations(MIGRATIONS) {
+        panic!("Couldn't run migrations: {:?}", why);
+    }
 
     let options = poise::FrameworkOptions {
         commands: vec![
