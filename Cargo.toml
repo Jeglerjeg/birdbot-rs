@@ -20,7 +20,7 @@ num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
 dashmap = "5.4"
-rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", branch="next", features = ["async_tokio"] }
+rosu-pp = { version = "0.9", features = ["async_tokio"] }
 regex = "1.6"
 
 [dependencies.tokio]
