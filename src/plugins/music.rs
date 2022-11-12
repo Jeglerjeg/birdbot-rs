@@ -725,8 +725,8 @@ pub async fn volume(
         match queue.current() {
             Some(track) => {
                 ctx.say(format!(
-                    "Curent volume is {}%.",
-                    track.get_info().await.unwrap().volume
+                    "Current volume is {}%.",
+                    (track.get_info().await.unwrap().volume * 100.0) as u32
                 ))
                 .await?;
             }
