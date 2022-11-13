@@ -1,6 +1,7 @@
 use crate::models::questions::Question;
 use crate::serenity_prelude as serenity;
 use crate::{Context, Error};
+use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use diesel::PgConnection;
 use lazy_static::lazy_static;
@@ -9,20 +10,18 @@ use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rand::seq::SliceRandom;
 use serenity_prelude::{
     CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage, Mentionable,
+    CreateInteractionResponseMessage, GuildId, Mentionable,
 };
 use std::time::Duration;
-use tokio::sync::{Mutex, MutexGuard};
 
 pub struct PreviousServerQuestions {
-    pub previous_questions: DashMap<serenity::GuildId, Mutex<Vec<i32>>>,
+    pub previous_questions: DashMap<GuildId, Vec<i32>>,
 }
 
 lazy_static! {
-    static ref PREVIOUS_SERVER_QUESTIONS: Mutex<PreviousServerQuestions> =
-        Mutex::from(PreviousServerQuestions {
-            previous_questions: DashMap::new(),
-        });
+    static ref PREVIOUS_SERVER_QUESTIONS: PreviousServerQuestions = PreviousServerQuestions {
+        previous_questions: DashMap::new(),
+    };
 }
 
 fn format_results(question: &Question) -> String {
@@ -160,14 +159,14 @@ async fn handle_interaction_responses(
 
 fn add_recent_question(
     connection: &mut PgConnection,
-    lock: &mut MutexGuard<'_, Vec<i32>>,
+    mut previous_questions: RefMut<GuildId, Vec<i32>>,
     id: i32,
 ) -> Result<(), Error> {
-    lock.push(id);
+    previous_questions.push(id);
 
     let previous_len = crate::utils::db::questions::count_entries(connection)?;
-    if lock.len() as i64 > (previous_len / 2) {
-        lock.remove(0);
+    if previous_questions.len() as i64 > (previous_len / 2) {
+        previous_questions.remove(0);
     };
 
     Ok(())
@@ -231,20 +230,14 @@ pub async fn wyr(
             return Ok(());
         };
 
-        let previous_questions_lock = PREVIOUS_SERVER_QUESTIONS.lock().await;
-
-        let previous_vec = previous_questions_lock
+        let previous_vec = PREVIOUS_SERVER_QUESTIONS
             .previous_questions
             .entry(ctx.guild_id().unwrap())
-            .or_insert(Mutex::from(vec![db_question.id]));
-        let mut previous_vec_lock = previous_vec.lock().await;
-        while previous_vec_lock.contains(&db_question.id) {
+            .or_insert(vec![]);
+        while previous_vec.contains(&db_question.id) {
             db_question = crate::utils::db::questions::get_random_question(connection)?;
         }
-        add_recent_question(connection, &mut previous_vec_lock, db_question.id)?;
-        drop(previous_vec_lock);
-        drop(previous_vec);
-        drop(previous_questions_lock);
+        add_recent_question(connection, previous_vec, db_question.id)?;
 
         create_wyr_message(ctx, db_question, connection).await?;
     }
