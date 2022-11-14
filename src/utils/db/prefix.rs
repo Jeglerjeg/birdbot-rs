@@ -43,21 +43,19 @@ pub fn add_guild_prefix(db: &mut PgConnection, guild_id: i64, prefix: &str) -> R
 
 pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>, Error> {
     let guild_id = match ctx.guild_id {
-        Some(guild) => guild.0.get() as i64,
+        Some(guild) => guild,
         _ => return Ok(Some(DEFAULT_PREFIX.clone())),
     };
-
-    let connection = &mut ctx.data.db_pool.get().unwrap();
 
     Ok(Some(
         GUILD_PREFIX
             .guild_prefix
-            .entry(ctx.guild_id.unwrap())
+            .entry(guild_id)
             .or_insert(
                 match prefix::table
-                    .find(guild_id)
+                    .find(guild_id.get() as i64)
                     .limit(1)
-                    .load::<Prefix>(connection)?
+                    .load::<Prefix>(&mut ctx.data.db_pool.get()?)?
                     .get(0)
                 {
                     Some(prefix) => prefix.guild_prefix.clone(),
