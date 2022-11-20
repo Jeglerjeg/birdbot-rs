@@ -84,7 +84,7 @@ async fn handle_interaction_responses(
         .await?
         .component_interaction_collector(&ctx.discord().shard)
         .timeout(Duration::from_secs(30))
-        .build();
+        .collect_stream();
 
     while let Some(interaction) = interaction_stream.next().await {
         if replies.contains(&interaction.user.id.0.get()) {

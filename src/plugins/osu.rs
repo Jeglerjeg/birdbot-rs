@@ -78,7 +78,7 @@ pub async fn osu(
             let author = CreateEmbedAuthor::new(&user.name).icon_url(user.face());
 
             let embed = CreateEmbed::new()
-                .image(format!("https://lemmmy.pw/osusig//sig.php?colour={}&uname={}&pp=0&countryrank=&xpbar=&mode={}&date={}{}",
+                .image(format!("https://osusig.lolicon.app/sig.php?colour={}&uname={}&pp=0&countryrank=&xpbar=&mode={}&date={}{}",
                                colour_formatted, profile.osu_id, mode, Utc::now().timestamp(), darkheader)).color(color).author(author);
 
             let builder = CreateReply::default().embed(embed);
