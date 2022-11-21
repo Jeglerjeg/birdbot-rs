@@ -10,23 +10,18 @@ pub fn count_entries(db: &mut PgConnection) -> Result<i64, Error> {
         .get_result(db)?)
 }
 
-pub fn update_choice(db: &mut PgConnection, id: i32, choice: i8) -> Result<(), Error> {
-    let question: Question = questions::table.find(id).first(db)?;
-    match choice {
-        1 => {
-            let new_count = &question.choice1_answers + 1;
-            diesel::update(questions::table.find(id))
-                .set(questions::choice1_answers.eq(new_count))
-                .execute(db)?;
-        }
-        2 => {
-            let new_count = &question.choice2_answers + 1;
-            diesel::update(questions::table.find(id))
-                .set(questions::choice2_answers.eq(new_count))
-                .execute(db)?;
-        }
-        _ => {}
-    };
+pub fn update_question_answers(
+    db: &mut PgConnection,
+    id: i32,
+    choice_1_answers: i32,
+    choice_2_answers: i32,
+) -> Result<(), Error> {
+    diesel::update(questions::table.find(id))
+        .set((
+            questions::choice2_answers.eq(choice_1_answers),
+            questions::choice2_answers.eq(choice_2_answers),
+        ))
+        .execute(db)?;
 
     Ok(())
 }

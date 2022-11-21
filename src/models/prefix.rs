@@ -1,15 +1,16 @@
 use crate::schema::prefix;
-use diesel::prelude::*;
+use diesel::{AsChangeset, Insertable, Queryable};
+use serde::{Deserialize, Serialize};
 
-#[derive(Queryable)]
+#[derive(Debug, Serialize, Deserialize, Clone, Queryable)]
 pub struct Prefix {
     pub guild_id: i64,
     pub guild_prefix: String,
 }
 
-#[derive(Insertable, AsChangeset)]
+#[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
 #[diesel(table_name = prefix)]
-pub struct NewPrefix<'a> {
-    pub guild_id: &'a i64,
-    pub guild_prefix: &'a str,
+pub struct NewPrefix {
+    pub guild_id: i64,
+    pub guild_prefix: String,
 }

@@ -280,7 +280,7 @@ pub async fn prefix(
     crate::utils::db::prefix::add_guild_prefix(
         connection,
         ctx.guild_id().unwrap().0.get() as i64,
-        &*new_prefix,
+        new_prefix.clone(),
     )?;
 
     ctx.say(format!("Set guild prefix to {}", new_prefix))

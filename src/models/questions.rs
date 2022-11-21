@@ -1,7 +1,8 @@
 use crate::schema::questions;
-use diesel::prelude::*;
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use serde::{Deserialize, Serialize};
 
-#[derive(Queryable)]
+#[derive(Debug, Serialize, Deserialize, Clone, Queryable, Identifiable)]
 #[diesel(table_name = questions)]
 pub struct Question {
     pub id: i32,
@@ -11,7 +12,7 @@ pub struct Question {
     pub choice2_answers: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
 #[diesel(table_name = questions)]
 pub struct NewQuestion<'a> {
     pub choice1: &'a str,

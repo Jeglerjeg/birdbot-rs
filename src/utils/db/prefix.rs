@@ -21,15 +21,19 @@ lazy_static! {
     };
 }
 
-pub fn add_guild_prefix(db: &mut PgConnection, guild_id: i64, prefix: &str) -> Result<(), Error> {
+pub fn add_guild_prefix(
+    db: &mut PgConnection,
+    guild_id: i64,
+    guild_prefix: String,
+) -> Result<(), Error> {
     let new_prefix = NewPrefix {
-        guild_id: &guild_id,
-        guild_prefix: prefix,
+        guild_id,
+        guild_prefix: guild_prefix.clone(),
     };
 
     GUILD_PREFIX
         .guild_prefix
-        .insert(GuildId::from(guild_id as u64), prefix.into());
+        .insert(GuildId::from(guild_id as u64), guild_prefix);
 
     diesel::insert_into(prefix::table)
         .values(&new_prefix)

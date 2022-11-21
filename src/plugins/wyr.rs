@@ -108,7 +108,6 @@ async fn handle_interaction_responses(
                 replies.push(interaction.user.id.0.get());
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
-                crate::utils::db::questions::update_choice(connection, question.id, 1)?;
 
                 let embed = CreateEmbed::new().description(format_question(&question, &responses));
 
@@ -121,7 +120,6 @@ async fn handle_interaction_responses(
                 replies.push(interaction.user.id.0.get());
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
-                crate::utils::db::questions::update_choice(connection, question.id, 2)?;
 
                 let embed = CreateEmbed::new().description(format_question(&question, &responses));
 
@@ -143,6 +141,13 @@ async fn handle_interaction_responses(
             }
         }
     }
+
+    crate::utils::db::questions::update_question_answers(
+        connection,
+        question.id,
+        question.choice1_answers,
+        question.choice2_answers,
+    )?;
 
     let embed = CreateEmbed::new().description(format!(
         "{}\n\n{}",
