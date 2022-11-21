@@ -12,7 +12,7 @@ use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::{Context, Error};
 
-use crate::utils::osu::embeds::{send_score_embed, send_top_scores_embed};
+use crate::utils::osu::embeds::{send_score_embed, send_scores_embed};
 use crate::utils::osu::regex::get_beatmap_info;
 
 /// Display information about your osu! user.
@@ -23,6 +23,7 @@ use crate::utils::osu::regex::get_beatmap_info;
     subcommands(
         "link",
         "score",
+        "scores",
         "unlink",
         "mode",
         "recent",
@@ -298,6 +299,114 @@ pub async fn score(
     Ok(())
 }
 
+/// Display a list of your scores on a beatmap.
+#[poise::command(prefix_command, slash_command, category = "osu!")]
+pub async fn scores(
+    ctx: Context<'_>,
+    #[description = "Beatmap ID to check for scores."] beatmap_url: String,
+    #[description = "Sort your scores by something other than pp."] sort_type: Option<SortChoices>,
+    #[rest]
+    #[description = "User to see scores for."]
+    user: Option<User>,
+) -> Result<(), Error> {
+    let user = user.as_ref().unwrap_or_else(|| ctx.author());
+    let connection = &mut ctx.data().db_pool.get()?;
+    let profile = linked_osu_profiles::read(connection, user.id.0.get() as i64);
+    let sort_type = sort_type.unwrap_or(SortChoices::PP);
+    match profile {
+        Ok(profile) => {
+            let osu_user = if let Ok(user) = osu_users::read(connection, profile.osu_id) {
+                user
+            } else {
+                ctx.say(
+                    "User data hasn't been retrieved for you yet. Please wait a bit and try again",
+                )
+                .await?;
+                return Ok(());
+            };
+
+            let beatmap_info = get_beatmap_info(&beatmap_url);
+            let beatmap_id = if let Some(id) = beatmap_info.beatmap_id {
+                id
+            } else {
+                ctx.say("Please link to a specific beatmap difficulty.")
+                    .await?;
+                return Ok(());
+            };
+
+            let api_scores = ctx
+                .data()
+                .osu_client
+                .beatmap_user_scores(beatmap_id as u32, profile.osu_id as u32)
+                .mode(gamemode_from_string(&profile.mode).unwrap())
+                .await;
+            match api_scores {
+                Ok(api_scores) => {
+                    let mut beatmap_scores: Vec<(Score, usize)> = Vec::new();
+
+                    for (pos, score) in api_scores.iter().enumerate() {
+                        beatmap_scores.push((score.clone(), pos + 1));
+                    }
+
+                    match sort_type {
+                        SortChoices::Recent => {
+                            beatmap_scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
+                        }
+                        SortChoices::Oldest => {
+                            beatmap_scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at))
+                        }
+                        SortChoices::Accuracy => {
+                            beatmap_scores.sort_by(|a, b| b.0.accuracy.total_cmp(&a.0.accuracy));
+                        }
+                        SortChoices::Combo => {
+                            beatmap_scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo))
+                        }
+                        SortChoices::Score => {
+                            beatmap_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score))
+                        }
+                        _ => {}
+                    }
+
+                    let beatmap = crate::utils::osu::caching::get_beatmap(
+                        connection,
+                        ctx.data().osu_client.clone(),
+                        beatmap_id as u32,
+                    )
+                    .await?;
+
+                    let beatmapset = crate::utils::osu::caching::get_beatmapset(
+                        connection,
+                        ctx.data().osu_client.clone(),
+                        beatmap.beatmapset_id as u32,
+                    )
+                    .await?;
+
+                    send_scores_embed(
+                        ctx,
+                        user,
+                        connection,
+                        &beatmap_scores,
+                        osu_user,
+                        beatmap_scores.len() > 5,
+                        Some(&beatmap),
+                        Some(&beatmapset),
+                    )
+                    .await?;
+                }
+                Err(why) => {
+                    ctx.say(format!("Failed to get beatmap scores. {}", why))
+                        .await?;
+                }
+            }
+        }
+        Err(_) => {
+            ctx.say(format_missing_user_string(ctx, user).await).await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Display your most recent osu score.
 #[poise::command(
     prefix_command,
@@ -446,7 +555,17 @@ pub async fn top(
                         SortChoices::Score => best_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
                         _ => {}
                     }
-                    send_top_scores_embed(ctx, user, connection, &best_scores, osu_user).await?;
+                    send_scores_embed(
+                        ctx,
+                        user,
+                        connection,
+                        &best_scores,
+                        osu_user,
+                        best_scores.len() > 5,
+                        None,
+                        None,
+                    )
+                    .await?;
                 }
                 Err(why) => {
                     ctx.say(format!("Failed to get best scores. {}", why))

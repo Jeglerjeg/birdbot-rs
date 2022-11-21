@@ -115,12 +115,15 @@ pub async fn send_score_embed(
     Ok(())
 }
 
-pub async fn send_top_scores_embed(
+pub async fn send_scores_embed(
     ctx: Context<'_>,
     discord_user: &serenity_prelude::User,
     connection: &mut PgConnection,
     best_scores: &[(Score, usize)],
     user: OsuUser,
+    paginate: bool,
+    beatmap: Option<&Beatmap>,
+    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
     let color: Colour;
     if let Some(guild) = ctx.guild() {
@@ -139,6 +142,8 @@ pub async fn send_top_scores_embed(
         best_scores,
         None,
         None,
+        beatmap,
+        beatmapset,
     )
     .await?;
 
@@ -146,23 +151,39 @@ pub async fn send_top_scores_embed(
         color,
         &user.avatar_url,
         &formatted_scores,
-        &format!("Page {} of {}", 1, count_score_pages(best_scores, 5)),
+        &format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5)),
         &user.avatar_url,
         user.username.as_str(),
         &format_user_link(user.id),
     );
 
-    let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new("last_page").label("<"),
-        CreateButton::new("next_page").label(">"),
-        CreateButton::new("reset").label("⭯"),
-    ])];
+    if paginate {
+        let components = vec![CreateActionRow::Buttons(vec![
+            CreateButton::new("last_page").label("<"),
+            CreateButton::new("next_page").label(">"),
+            CreateButton::new("reset").label("⭯"),
+        ])];
 
-    let builder = CreateReply::new().embed(embed).components(components);
+        let builder = CreateReply::new().embed(embed).components(components);
 
-    let reply = ctx.send(builder).await?;
+        let reply = ctx.send(builder).await?;
 
-    handle_top_score_interactions(ctx, connection, reply, best_scores, color, &user).await?;
+        handle_top_score_interactions(
+            ctx,
+            connection,
+            reply,
+            best_scores,
+            color,
+            &user,
+            beatmap,
+            beatmapset,
+        )
+        .await?;
+    } else {
+        let builder = CreateReply::new().embed(embed);
+
+        ctx.send(builder).await?;
+    }
 
     Ok(())
 }
@@ -174,10 +195,12 @@ async fn handle_top_score_interactions(
     best_scores: &[(Score, usize)],
     color: Colour,
     user: &OsuUser,
+    beatmap: Option<&Beatmap>,
+    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
     let mut offset: usize = 0;
     let mut page = 1;
-    let max_pages = count_score_pages(best_scores, 5);
+    let max_pages = count_score_pages(best_scores.len(), 5);
 
     loop {
         let interaction = match reply
@@ -215,6 +238,8 @@ async fn handle_top_score_interactions(
                     &max_pages,
                     color,
                     user,
+                    beatmap,
+                    beatmapset,
                 )
                 .await?;
             }
@@ -237,6 +262,8 @@ async fn handle_top_score_interactions(
                     &max_pages,
                     color,
                     user,
+                    beatmap,
+                    beatmapset,
                 )
                 .await?;
             }
@@ -254,6 +281,8 @@ async fn handle_top_score_interactions(
                     &max_pages,
                     color,
                     user,
+                    beatmap,
+                    beatmapset,
                 )
                 .await?;
             }
@@ -271,6 +300,8 @@ async fn handle_top_score_interactions(
         &max_pages,
         color,
         user,
+        beatmap,
+        beatmapset,
     )
     .await?;
 
@@ -287,6 +318,8 @@ async fn remove_top_score_paginators(
     max_pages: &usize,
     color: Colour,
     user: &OsuUser,
+    beatmap: Option<&Beatmap>,
+    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(
         connection,
@@ -294,6 +327,8 @@ async fn remove_top_score_paginators(
         best_scores,
         None,
         Some(offset),
+        beatmap,
+        beatmapset,
     )
     .await?;
 
@@ -324,6 +359,8 @@ async fn change_top_scores_page(
     max_pages: &usize,
     color: Colour,
     user: &OsuUser,
+    beatmap: Option<&Beatmap>,
+    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(
         connection,
@@ -331,6 +368,8 @@ async fn change_top_scores_page(
         best_scores,
         None,
         Some(offset),
+        beatmap,
+        beatmapset,
     )
     .await?;
 

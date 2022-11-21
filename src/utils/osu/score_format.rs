@@ -146,6 +146,8 @@ pub async fn format_score_list(
     scores: &[(Score, usize)],
     limit: Option<usize>,
     offset: Option<usize>,
+    beatmap: Option<&Beatmap>,
+    beatmapset: Option<&Beatmapset>,
 ) -> Result<String, Error> {
     let offset = offset.unwrap_or(0);
     let limit = limit.unwrap_or(5);
@@ -159,19 +161,29 @@ pub async fn format_score_list(
             break;
         }
 
-        let beatmap = crate::utils::osu::caching::get_beatmap(
-            connection,
-            osu_client.clone(),
-            score.0.map.as_ref().unwrap().map_id,
-        )
-        .await?;
+        let beatmap = match beatmap {
+            Some(beatmap) => beatmap.clone(),
+            _ => {
+                crate::utils::osu::caching::get_beatmap(
+                    connection,
+                    osu_client.clone(),
+                    score.0.map.as_ref().unwrap().map_id,
+                )
+                .await?
+            }
+        };
 
-        let beatmapset = crate::utils::osu::caching::get_beatmapset(
-            connection,
-            osu_client.clone(),
-            beatmap.beatmapset_id as u32,
-        )
-        .await?;
+        let beatmapset = match beatmapset {
+            Some(beatmapset) => beatmapset.clone(),
+            _ => {
+                crate::utils::osu::caching::get_beatmapset(
+                    connection,
+                    osu_client.clone(),
+                    beatmap.beatmapset_id as u32,
+                )
+                .await?
+            }
+        };
 
         let pp = crate::utils::osu::calculate::calculate(
             &score.0,

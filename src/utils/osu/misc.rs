@@ -68,8 +68,8 @@ pub fn calculate_potential_acc(score: &Score) -> Option<f64> {
     }
 }
 
-pub fn count_score_pages(scores: &[(Score, usize)], scores_per_page: usize) -> usize {
-    (scores.len() + scores_per_page - 1) / scores_per_page
+pub fn count_score_pages(score_count: usize, scores_per_page: usize) -> usize {
+    (score_count + scores_per_page - 1) / scores_per_page
 }
 
 pub fn wipe_profile_data(db: &mut PgConnection, user_id: i64) -> Result<(), Error> {

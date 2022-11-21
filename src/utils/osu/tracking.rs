@@ -258,8 +258,16 @@ impl OsuTracker {
 
             formatted_score = format!(
                 "{}\n{}",
-                format_score_list(connection, self.osu_client.clone(), &to_notify, None, None)
-                    .await?,
+                format_score_list(
+                    connection,
+                    self.osu_client.clone(),
+                    &to_notify,
+                    None,
+                    None,
+                    None,
+                    None
+                )
+                .await?,
                 format_diff(
                     new,
                     old,
