@@ -18,7 +18,7 @@ pub fn update_question_answers(
 ) -> Result<(), Error> {
     diesel::update(questions::table.find(id))
         .set((
-            questions::choice2_answers.eq(choice_1_answers),
+            questions::choice1_answers.eq(choice_1_answers),
             questions::choice2_answers.eq(choice_2_answers),
         ))
         .execute(db)?;
