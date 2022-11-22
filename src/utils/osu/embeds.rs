@@ -122,6 +122,7 @@ pub async fn send_scores_embed(
     best_scores: &[(Score, usize)],
     user: OsuUser,
     paginate: bool,
+    thumbnail: &str,
     beatmap: Option<&Beatmap>,
     beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
@@ -149,7 +150,7 @@ pub async fn send_scores_embed(
 
     let embed = create_embed(
         color,
-        &user.avatar_url,
+        thumbnail,
         &formatted_scores,
         &format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5)),
         &user.avatar_url,

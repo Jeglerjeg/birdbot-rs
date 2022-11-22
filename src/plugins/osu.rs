@@ -388,6 +388,7 @@ pub async fn scores(
                         &beatmap_scores,
                         osu_user,
                         beatmap_scores.len() > 5,
+                        &beatmapset.list_cover,
                         Some(&beatmap),
                         Some(&beatmapset),
                     )
@@ -562,6 +563,7 @@ pub async fn top(
                         &best_scores,
                         osu_user,
                         best_scores.len() > 5,
+                        &osu_user.avatar_url,
                         None,
                         None,
                     )
