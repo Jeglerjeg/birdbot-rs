@@ -212,13 +212,13 @@ async fn handle_top_score_interactions(
             .await
         {
             Some(x) => x,
-            None => {
+            _ => {
                 break;
             }
         };
 
         let choice = &interaction.data.custom_id;
-        match &**choice {
+        match choice.as_str() {
             "last_page" => {
                 interaction.defer(ctx.discord()).await?;
                 if page == 1 {

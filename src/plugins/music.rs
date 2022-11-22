@@ -205,7 +205,7 @@ pub async fn check_for_empty_channel(
         let guild = ctx.http.get_guild(guild_id).await.unwrap();
         let guild_channels = guild.channels(&ctx).await.unwrap();
         let channel = guild_channels.get(&channel_id).unwrap();
-        if channel.members(&ctx).unwrap().len() <= 1 {
+        if channel.members(ctx).unwrap().len() <= 1 {
             leave(ctx, Some(guild_id)).await?;
         }
     };

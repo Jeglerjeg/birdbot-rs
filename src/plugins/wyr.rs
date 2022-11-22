@@ -102,7 +102,7 @@ async fn handle_interaction_responses(
         };
 
         let choice = &interaction.data.custom_id;
-        match &**choice {
+        match choice.as_str() {
             "choice_1" => {
                 interaction.defer(ctx.discord()).await?;
                 replies.push(interaction.user.id.0.get());
@@ -238,7 +238,7 @@ pub async fn wyr(
         let previous_vec = PREVIOUS_SERVER_QUESTIONS
             .previous_questions
             .entry(ctx.guild_id().unwrap())
-            .or_insert(vec![]);
+            .or_default();
         while previous_vec.contains(&db_question.id) {
             db_question = crate::utils::db::questions::get_random_question(connection)?;
         }

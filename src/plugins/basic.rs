@@ -257,7 +257,7 @@ pub async fn help(
     command: Option<String>,
 ) -> Result<(), Error> {
     let config = HelpConfiguration {
-        extra_text_at_bottom: &*format!(
+        extra_text_at_bottom: &format!(
             "Type {}help command for more info on a command. <> around arguments mean they are optional.",
             ctx.prefix()
         ),

@@ -233,7 +233,7 @@ impl OsuTracker {
         } else {
             let mut recent_scores = SCORE_NOTIFICATIONS
                 .entry(linked_profile.osu_id)
-                .or_insert(vec![]);
+                .or_default();
 
             let mut to_notify: Vec<(Score, usize)> = Vec::new();
 
@@ -379,7 +379,7 @@ impl OsuTracker {
 
         let mut recent_scores = SCORE_NOTIFICATIONS
             .entry(linked_profile.osu_id)
-            .or_insert(vec![]);
+            .or_default();
 
         let mut notified = false;
 
