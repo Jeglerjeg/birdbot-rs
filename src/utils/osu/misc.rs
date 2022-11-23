@@ -1,10 +1,12 @@
 use crate::models::osu_users::OsuUser;
-use crate::utils::db::{osu_notifications, osu_users};
+use crate::plugins::osu::SortChoices;
+use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
+use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::Error;
 use diesel::PgConnection;
 use poise::serenity_prelude;
 use rosu_v2::model::GameMode;
-use rosu_v2::prelude::Score;
+use rosu_v2::prelude::{Score, User};
 use serenity_prelude::{Context, Presence, UserId};
 use std::sync::Arc;
 
@@ -127,4 +129,64 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> bool {
     }
 
     false
+}
+
+pub fn sort_scores(mut scores: Vec<(Score, usize)>, sort_by: SortChoices) -> Vec<(Score, usize)> {
+    match sort_by {
+        SortChoices::Recent => {
+            scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
+        }
+        SortChoices::Oldest => scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at)),
+        SortChoices::Accuracy => {
+            scores.sort_by(|a, b| b.0.accuracy.total_cmp(&a.0.accuracy));
+        }
+        SortChoices::Combo => scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo)),
+        SortChoices::Score => scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
+        SortChoices::PP => {
+            scores.sort_by(|a, b| b.0.pp.unwrap_or(0.0).total_cmp(&a.0.pp.unwrap_or(0.0)))
+        }
+    }
+    scores
+}
+
+pub async fn get_user(
+    ctx: crate::Context<'_>,
+    user: Option<String>,
+    connection: &mut PgConnection,
+) -> Result<Option<User>, Error> {
+    return match user {
+        Some(user) => match ctx.data().osu_client.user(user).await {
+            Ok(user) => Ok(Some(user)),
+            _ => {
+                ctx.say("Could not find user.").await?;
+                Ok(None)
+            }
+        },
+        _ => {
+            let linked_profile =
+                linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
+            match linked_profile {
+                Ok(linked_profile) => {
+                    match ctx
+                        .data()
+                        .osu_client
+                        .user(linked_profile.osu_id as u32)
+                        .mode(gamemode_from_string(&linked_profile.mode).unwrap())
+                        .await
+                    {
+                        Ok(user) => Ok(Some(user)),
+                        _ => {
+                            ctx.say("Could not find user.").await?;
+                            Ok(None)
+                        }
+                    }
+                }
+                _ => {
+                    ctx.say(format_missing_user_string(ctx, ctx.author()).await)
+                        .await?;
+                    Ok(None)
+                }
+            }
+        }
+    };
 }

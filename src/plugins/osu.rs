@@ -1,6 +1,6 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications};
-use crate::utils::osu::misc::{gamemode_from_string, wipe_profile_data};
+use crate::utils::osu::misc::{gamemode_from_string, get_user, sort_scores, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
 use poise::{serenity_prelude, CreateReply};
@@ -27,6 +27,7 @@ use crate::utils::osu::regex::get_beatmap_info;
         "unlink",
         "mode",
         "recent",
+        "firsts",
         "top",
         "score_notifications",
         "map_notifications",
@@ -218,26 +219,9 @@ pub async fn score(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match user {
-        Some(user) => ctx.data().osu_client.user(user).await?,
-        _ => {
-            let linked_profile =
-                linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
-            match linked_profile {
-                Ok(linked_profile) => {
-                    ctx.data()
-                        .osu_client
-                        .user(linked_profile.osu_id as u32)
-                        .mode(gamemode_from_string(&linked_profile.mode).unwrap())
-                        .await?
-                }
-                _ => {
-                    ctx.say(format_missing_user_string(ctx, ctx.author()).await)
-                        .await?;
-                    return Ok(());
-                }
-            }
-        }
+    let osu_user = match get_user(ctx, user, connection).await? {
+        Some(user) => user,
+        _ => return Ok(()),
     };
 
     let beatmap_info = get_beatmap_info(&beatmap_url);
@@ -310,26 +294,9 @@ pub async fn scores(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match user {
-        Some(user) => ctx.data().osu_client.user(user).await?,
-        _ => {
-            let linked_profile =
-                linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
-            match linked_profile {
-                Ok(linked_profile) => {
-                    ctx.data()
-                        .osu_client
-                        .user(linked_profile.osu_id as u32)
-                        .mode(gamemode_from_string(&linked_profile.mode).unwrap())
-                        .await?
-                }
-                _ => {
-                    ctx.say(format_missing_user_string(ctx, ctx.author()).await)
-                        .await?;
-                    return Ok(());
-                }
-            }
-        }
+    let osu_user = match get_user(ctx, user, connection).await? {
+        Some(user) => user,
+        _ => return Ok(()),
     };
 
     let sort_type = sort_type.unwrap_or(SortChoices::PP);
@@ -351,28 +318,22 @@ pub async fn scores(
         .await;
     match api_scores {
         Ok(api_scores) => {
+            if api_scores.is_empty() {
+                ctx.say(format!(
+                    "No scores found for {} found on selected beatmap.",
+                    osu_user.username
+                ))
+                .await?;
+                return Ok(());
+            }
+
             let mut beatmap_scores: Vec<(Score, usize)> = Vec::new();
 
             for (pos, score) in api_scores.iter().enumerate() {
                 beatmap_scores.push((score.clone(), pos + 1));
             }
 
-            match sort_type {
-                SortChoices::Recent => {
-                    beatmap_scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
-                }
-                SortChoices::Oldest => {
-                    beatmap_scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at))
-                }
-                SortChoices::Accuracy => {
-                    beatmap_scores.sort_by(|a, b| b.0.accuracy.total_cmp(&a.0.accuracy));
-                }
-                SortChoices::Combo => {
-                    beatmap_scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo))
-                }
-                SortChoices::Score => beatmap_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
-                _ => {}
-            }
+            beatmap_scores = sort_scores(beatmap_scores, sort_type);
 
             let beatmap = crate::utils::osu::caching::get_beatmap(
                 connection,
@@ -425,26 +386,9 @@ pub async fn recent(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match user {
-        Some(user) => ctx.data().osu_client.user(user).await?,
-        _ => {
-            let linked_profile =
-                linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
-            match linked_profile {
-                Ok(linked_profile) => {
-                    ctx.data()
-                        .osu_client
-                        .user(linked_profile.osu_id as u32)
-                        .mode(gamemode_from_string(&linked_profile.mode).unwrap())
-                        .await?
-                }
-                _ => {
-                    ctx.say(format_missing_user_string(ctx, ctx.author()).await)
-                        .await?;
-                    return Ok(());
-                }
-            }
-        }
+    let osu_user = match get_user(ctx, user, connection).await? {
+        Some(user) => user,
+        _ => return Ok(()),
     };
 
     let recent_score = ctx
@@ -514,37 +458,88 @@ pub enum SortChoices {
     PP,
 }
 
+/// Display a list of your #1 scores.
+#[poise::command(prefix_command, slash_command, category = "osu!")]
+pub async fn firsts(
+    ctx: Context<'_>,
+    #[description = "Sort your #1 scores by something other than pp."] sort_type: Option<
+        SortChoices,
+    >,
+    #[rest]
+    #[description = "User to see firsts for."]
+    user: Option<String>,
+) -> Result<(), Error> {
+    let connection = &mut ctx.data().db_pool.get()?;
+
+    let osu_user = match get_user(ctx, user, connection).await? {
+        Some(user) => user,
+        _ => return Ok(()),
+    };
+
+    let sort_type = sort_type.unwrap_or(SortChoices::Recent);
+
+    let first_scores = ctx
+        .data()
+        .osu_client
+        .user_scores(osu_user.user_id)
+        .firsts()
+        .mode(osu_user.mode)
+        .limit(100)
+        .await;
+
+    match first_scores {
+        Ok(api_scores) => {
+            if api_scores.is_empty() {
+                ctx.say(format!("No first scores found for {}.", osu_user.username))
+                    .await?;
+                return Ok(());
+            }
+
+            let mut first_scores: Vec<(Score, usize)> = Vec::new();
+            for (pos, score) in api_scores.iter().enumerate() {
+                first_scores.push((score.clone(), pos + 1));
+            }
+
+            first_scores = sort_scores(first_scores, sort_type);
+
+            send_scores_embed(
+                ctx,
+                ctx.author(),
+                connection,
+                &first_scores,
+                &osu_user,
+                first_scores.len() > 5,
+                &osu_user.avatar_url,
+                None,
+                None,
+            )
+            .await?;
+        }
+        Err(why) => {
+            ctx.say(format!("Failed to get first scores. {}", why))
+                .await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Display a list of your top scores.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn top(
     ctx: Context<'_>,
-    #[description = "User to see profile for."] user: Option<String>,
     #[description = "Sort your top scores by something other than pp."] sort_type: Option<
         SortChoices,
     >,
+    #[rest]
+    #[description = "User to see profile for."]
+    user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match user {
-        Some(user) => ctx.data().osu_client.user(user).await?,
-        _ => {
-            let linked_profile =
-                linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
-            match linked_profile {
-                Ok(linked_profile) => {
-                    ctx.data()
-                        .osu_client
-                        .user(linked_profile.osu_id as u32)
-                        .mode(gamemode_from_string(&linked_profile.mode).unwrap())
-                        .await?
-                }
-                _ => {
-                    ctx.say(format_missing_user_string(ctx, ctx.author()).await)
-                        .await?;
-                    return Ok(());
-                }
-            }
-        }
+    let osu_user = match get_user(ctx, user, connection).await? {
+        Some(user) => user,
+        _ => return Ok(()),
     };
 
     let sort_type = sort_type.unwrap_or(SortChoices::PP);
@@ -559,23 +554,19 @@ pub async fn top(
         .await;
     match best_scores {
         Ok(api_scores) => {
+            if api_scores.is_empty() {
+                ctx.say(format!("No top scores found for {}.", osu_user.username))
+                    .await?;
+                return Ok(());
+            }
+
             let mut best_scores: Vec<(Score, usize)> = Vec::new();
             for (pos, score) in api_scores.iter().enumerate() {
                 best_scores.push((score.clone(), pos + 1));
             }
 
-            match sort_type {
-                SortChoices::Recent => {
-                    best_scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
-                }
-                SortChoices::Oldest => best_scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at)),
-                SortChoices::Accuracy => {
-                    best_scores.sort_by(|a, b| b.0.accuracy.total_cmp(&a.0.accuracy));
-                }
-                SortChoices::Combo => best_scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo)),
-                SortChoices::Score => best_scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
-                _ => {}
-            }
+            best_scores = sort_scores(best_scores, sort_type);
+
             send_scores_embed(
                 ctx,
                 ctx.author(),
