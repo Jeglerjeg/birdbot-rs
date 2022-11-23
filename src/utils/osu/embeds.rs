@@ -1,6 +1,5 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
-use crate::models::osu_users::OsuUser;
 use crate::utils::osu::misc::{calculate_potential_acc, count_score_pages};
 use crate::utils::osu::misc_format::{
     format_completion_rate, format_potential_string, format_user_link,
@@ -10,7 +9,7 @@ use crate::{Context, Error};
 use diesel::PgConnection;
 use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rosu_v2::model::{GameMode, Grade};
-use rosu_v2::prelude::Score;
+use rosu_v2::prelude::{Score, User};
 use serenity_prelude::model::colour::colours::roles::BLUE;
 use serenity_prelude::{
     Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
@@ -48,7 +47,7 @@ pub async fn send_score_embed(
     score: &Score,
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
-    user: OsuUser,
+    user: User,
     scoreboard_rank: Option<&usize>,
 ) -> Result<(), Error> {
     let color: Colour;
@@ -105,7 +104,7 @@ pub async fn send_score_embed(
         &footer,
         &user.avatar_url,
         &user.username,
-        &format_user_link(user.id),
+        &format_user_link(user.user_id as i64),
     );
 
     let builder = CreateReply::default().embed(embed);
@@ -120,7 +119,7 @@ pub async fn send_scores_embed(
     discord_user: &serenity_prelude::User,
     connection: &mut PgConnection,
     best_scores: &[(Score, usize)],
-    user: OsuUser,
+    user: &User,
     paginate: bool,
     thumbnail: &str,
     beatmap: Option<&Beatmap>,
@@ -155,7 +154,7 @@ pub async fn send_scores_embed(
         &format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5)),
         &user.avatar_url,
         user.username.as_str(),
-        &format_user_link(user.id),
+        &format_user_link(user.user_id as i64),
     );
 
     if paginate {
@@ -175,7 +174,7 @@ pub async fn send_scores_embed(
             reply,
             best_scores,
             color,
-            &user,
+            user,
             beatmap,
             beatmapset,
         )
@@ -195,7 +194,7 @@ async fn handle_top_score_interactions(
     reply: ReplyHandle<'_>,
     best_scores: &[(Score, usize)],
     color: Colour,
-    user: &OsuUser,
+    user: &User,
     beatmap: Option<&Beatmap>,
     beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
@@ -318,7 +317,7 @@ async fn remove_top_score_paginators(
     page: &usize,
     max_pages: &usize,
     color: Colour,
-    user: &OsuUser,
+    user: &User,
     beatmap: Option<&Beatmap>,
     beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
@@ -340,7 +339,7 @@ async fn remove_top_score_paginators(
         &format!("Page {} of {}", page, max_pages),
         &user.avatar_url,
         user.username.as_str(),
-        &format_user_link(user.id),
+        &format_user_link(user.user_id as i64),
     );
 
     let builder = CreateReply::default().embed(embed).components(vec![]);
@@ -359,7 +358,7 @@ async fn change_top_scores_page(
     page: &usize,
     max_pages: &usize,
     color: Colour,
-    user: &OsuUser,
+    user: &User,
     beatmap: Option<&Beatmap>,
     beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
@@ -381,7 +380,7 @@ async fn change_top_scores_page(
         &format!("Page {} of {}", page, max_pages),
         &user.avatar_url,
         user.username.as_str(),
-        &format_user_link(user.id),
+        &format_user_link(user.user_id as i64),
     );
 
     let builder = CreateReply::default().embed(embed);

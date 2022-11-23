@@ -144,6 +144,7 @@ async fn main() {
             plugins::osu::top(),
             plugins::osu::recent(),
             plugins::osu::score(),
+            plugins::osu::scores(),
             // This function registers slash commands on Discord. When you change something about a
             // command signature, for example by changing its name, adding or removing parameters, or
             // changing a parameter type, you should call this function.
