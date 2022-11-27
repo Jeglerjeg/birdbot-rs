@@ -333,7 +333,7 @@ pub async fn scores(
                 beatmap_scores.push((score.clone(), pos + 1));
             }
 
-            beatmap_scores = sort_scores(beatmap_scores, sort_type);
+            beatmap_scores = sort_scores(beatmap_scores, &sort_type);
 
             let beatmap = crate::utils::osu::caching::get_beatmap(
                 connection,
@@ -500,7 +500,7 @@ pub async fn firsts(
                 first_scores.push((score.clone(), pos + 1));
             }
 
-            first_scores = sort_scores(first_scores, sort_type);
+            first_scores = sort_scores(first_scores, &sort_type);
 
             send_scores_embed(
                 ctx,
@@ -565,7 +565,7 @@ pub async fn top(
                 best_scores.push((score.clone(), pos + 1));
             }
 
-            best_scores = sort_scores(best_scores, sort_type);
+            best_scores = sort_scores(best_scores, &sort_type);
 
             send_scores_embed(
                 ctx,

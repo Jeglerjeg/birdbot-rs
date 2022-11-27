@@ -95,7 +95,7 @@ impl OsuTracker {
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id) {
             profile.ticks += 1;
             if is_playing(&self.ctx, user.id, linked_profile.home_guild)
-                || (profile.ticks as f64 % *NOT_PLAYING_SKIP as f64) == 0.0
+                || (f64::from(profile.ticks) % f64::from(*NOT_PLAYING_SKIP)) == 0.0
             {
                 let osu_profile = match self
                     .osu_client
@@ -240,10 +240,9 @@ impl OsuTracker {
             for score in &new_scores {
                 if recent_scores.value().contains(&score.0.score_id.unwrap()) {
                     continue;
-                } else {
-                    recent_scores.push(score.0.score_id.unwrap());
-                    to_notify.push(score.clone());
-                };
+                }
+                recent_scores.push(score.0.score_id.unwrap());
+                to_notify.push(score.clone());
             }
 
             if to_notify.is_empty() {
@@ -411,9 +410,9 @@ impl OsuTracker {
 
                 if recent_scores.contains(&score.score.score_id.unwrap()) {
                     continue;
-                } else {
-                    recent_scores.push(score.score.score_id.unwrap());
                 }
+
+                recent_scores.push(score.score.score_id.unwrap());
 
                 let beatmap = get_beatmap(
                     connection,

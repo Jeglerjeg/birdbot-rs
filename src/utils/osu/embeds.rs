@@ -104,7 +104,7 @@ pub async fn send_score_embed(
         &footer,
         &user.avatar_url,
         &user.username,
-        &format_user_link(user.user_id as i64),
+        &format_user_link(i64::from(user.user_id)),
     );
 
     let builder = CreateReply::default().embed(embed);
@@ -154,7 +154,7 @@ pub async fn send_scores_embed(
         &format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5)),
         &user.avatar_url,
         user.username.as_str(),
-        &format_user_link(user.user_id as i64),
+        &format_user_link(i64::from(user.user_id)),
     );
 
     if paginate {
@@ -339,7 +339,7 @@ async fn remove_top_score_paginators(
         &format!("Page {} of {}", page, max_pages),
         &user.avatar_url,
         user.username.as_str(),
-        &format_user_link(user.user_id as i64),
+        &format_user_link(i64::from(user.user_id)),
     );
 
     let builder = CreateReply::default().embed(embed).components(vec![]);
@@ -380,7 +380,7 @@ async fn change_top_scores_page(
         &format!("Page {} of {}", page, max_pages),
         &user.avatar_url,
         user.username.as_str(),
-        &format_user_link(user.user_id as i64),
+        &format_user_link(i64::from(user.user_id)),
     );
 
     let builder = CreateReply::default().embed(embed);

@@ -100,10 +100,10 @@ async fn format_command<U, E>(
                 Some(dynamic_prefix_callback) => {
                     match dynamic_prefix_callback(PartialContext::from(ctx)).await {
                         Ok(Some(dynamic_prefix)) => dynamic_prefix,
-                        Err(_) | Ok(None) => String::from(""),
+                        Err(_) | Ok(None) => String::new(),
                     }
                 }
-                None => String::from(""),
+                None => String::new(),
             },
         }
     } else if command.slash_action.is_some() {
@@ -111,7 +111,7 @@ async fn format_command<U, E>(
     } else {
         // This is not a prefix or slash command, i.e. probably a context menu only command
         // which we will only show later
-        return String::from("");
+        return String::new();
     };
     format!(
         "  {}{} {}",

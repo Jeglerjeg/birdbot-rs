@@ -128,19 +128,19 @@ fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
 fn format_track(metadata: &AuxMetadata, play_time: Option<Duration>) -> String {
     let title = match &metadata.title {
         Some(title) => format!("**{}**\n", title),
-        _ => String::from(""),
+        _ => String::new(),
     };
 
     let duration: String;
     if let Some(length) = metadata.duration {
         duration = format!("Duration: {}", format_duration(length, play_time));
     } else {
-        duration = "".into();
+        duration = String::new();
     }
 
     let url = match &metadata.source_url {
         Some(url) => format!("**URL**: <{}>", url),
-        _ => String::from(""),
+        _ => String::new(),
     };
 
     format!("{}{}{}", title, duration, url)
