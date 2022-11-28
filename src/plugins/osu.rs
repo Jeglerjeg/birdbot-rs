@@ -27,6 +27,7 @@ use crate::utils::osu::regex::get_beatmap_info;
         "unlink",
         "mode",
         "recent",
+        "pins",
         "firsts",
         "top",
         "score_notifications",
@@ -299,8 +300,6 @@ pub async fn scores(
         _ => return Ok(()),
     };
 
-    let sort_type = sort_type.unwrap_or(SortChoices::PP);
-
     let beatmap_info = get_beatmap_info(&beatmap_url);
     let beatmap_id = if let Some(id) = beatmap_info.beatmap_id {
         id
@@ -333,7 +332,10 @@ pub async fn scores(
                 beatmap_scores.push((score.clone(), pos + 1));
             }
 
-            beatmap_scores = sort_scores(beatmap_scores, &sort_type);
+            beatmap_scores = match sort_type {
+                Some(sort_type) => sort_scores(beatmap_scores, &sort_type),
+                _ => beatmap_scores,
+            };
 
             let beatmap = crate::utils::osu::caching::get_beatmap(
                 connection,
@@ -458,13 +460,76 @@ pub enum SortChoices {
     PP,
 }
 
+/// Display a list of your pinned scores.
+#[poise::command(prefix_command, slash_command, category = "osu!")]
+pub async fn pins(
+    ctx: Context<'_>,
+    #[description = "Sort your pins by something else."] sort_type: Option<SortChoices>,
+    #[rest]
+    #[description = "User to see pins for."]
+    user: Option<String>,
+) -> Result<(), Error> {
+    let connection = &mut ctx.data().db_pool.get()?;
+
+    let osu_user = match get_user(ctx, user, connection).await? {
+        Some(user) => user,
+        _ => return Ok(()),
+    };
+
+    let pinned_scores = ctx
+        .data()
+        .osu_client
+        .user_scores(osu_user.user_id)
+        .pinned()
+        .mode(osu_user.mode)
+        .limit(100)
+        .await;
+
+    match pinned_scores {
+        Ok(api_scores) => {
+            if api_scores.is_empty() {
+                ctx.say(format!("No pinned scores found for {}.", osu_user.username))
+                    .await?;
+                return Ok(());
+            }
+
+            let mut pinned_scores: Vec<(Score, usize)> = Vec::new();
+            for (pos, score) in api_scores.iter().enumerate() {
+                pinned_scores.push((score.clone(), pos + 1));
+            }
+
+            pinned_scores = match sort_type {
+                Some(sort_type) => sort_scores(pinned_scores, &sort_type),
+                _ => pinned_scores,
+            };
+
+            send_scores_embed(
+                ctx,
+                ctx.author(),
+                connection,
+                &pinned_scores,
+                &osu_user,
+                pinned_scores.len() > 5,
+                &osu_user.avatar_url,
+                None,
+                None,
+            )
+            .await?;
+        }
+        Err(why) => {
+            ctx.say(format!("Failed to get pinned scores. {}", why))
+                .await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Display a list of your #1 scores.
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn firsts(
     ctx: Context<'_>,
-    #[description = "Sort your #1 scores by something other than pp."] sort_type: Option<
-        SortChoices,
-    >,
+    #[description = "Sort your #1 scores by something else."] sort_type: Option<SortChoices>,
     #[rest]
     #[description = "User to see firsts for."]
     user: Option<String>,
@@ -475,8 +540,6 @@ pub async fn firsts(
         Some(user) => user,
         _ => return Ok(()),
     };
-
-    let sort_type = sort_type.unwrap_or(SortChoices::Recent);
 
     let first_scores = ctx
         .data()
@@ -500,7 +563,10 @@ pub async fn firsts(
                 first_scores.push((score.clone(), pos + 1));
             }
 
-            first_scores = sort_scores(first_scores, &sort_type);
+            first_scores = match sort_type {
+                Some(sort_type) => sort_scores(first_scores, &sort_type),
+                _ => first_scores,
+            };
 
             send_scores_embed(
                 ctx,
@@ -528,9 +594,7 @@ pub async fn firsts(
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn top(
     ctx: Context<'_>,
-    #[description = "Sort your top scores by something other than pp."] sort_type: Option<
-        SortChoices,
-    >,
+    #[description = "Sort your top scores by something else."] sort_type: Option<SortChoices>,
     #[rest]
     #[description = "User to see profile for."]
     user: Option<String>,
@@ -541,8 +605,6 @@ pub async fn top(
         Some(user) => user,
         _ => return Ok(()),
     };
-
-    let sort_type = sort_type.unwrap_or(SortChoices::PP);
 
     let best_scores = ctx
         .data()
@@ -565,7 +627,10 @@ pub async fn top(
                 best_scores.push((score.clone(), pos + 1));
             }
 
-            best_scores = sort_scores(best_scores, &sort_type);
+            best_scores = match sort_type {
+                Some(sort_type) => sort_scores(best_scores, &sort_type),
+                _ => best_scores,
+            };
 
             send_scores_embed(
                 ctx,
