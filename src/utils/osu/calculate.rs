@@ -24,7 +24,7 @@ async fn download_beatmap(path: &PathBuf, map_id: i64) -> Result<(), Error> {
 
 async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
     let mut path = PathBuf::from(CACHE_PATH);
-    let mut loved_path = PathBuf::from(CACHE_PATH.to_string() + "/loved/");
+    let mut loved_path = PathBuf::from(CACHE_PATH.to_string() + "loved/");
     if !path.exists() | !loved_path.exists() {
         create_dir_all(&loved_path).await?;
     }
@@ -39,10 +39,8 @@ async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
             loved_path.push(format!("{}.osu", beatmap.id));
             if !loved_path.exists() {
                 download_beatmap(&loved_path, beatmap.id).await?;
-            } else if loved_path
-                .metadata()?
-                .modified()?
-                .duration_since(SystemTime::now())?
+            } else if SystemTime::now()
+                .duration_since(loved_path.metadata()?.modified()?)?
                 .as_secs()
                 > 604_800
             {
