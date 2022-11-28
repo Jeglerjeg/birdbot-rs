@@ -6,9 +6,10 @@ use crate::utils::osu::pp::taiko::calculate_taiko_pp;
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
 use rosu_v2::model::GameMode;
-use std::fs::create_dir;
 use std::io::Cursor;
 use std::path::PathBuf;
+use std::time::SystemTime;
+use tokio::fs::create_dir_all;
 
 const CACHE_PATH: &str = "osu_files/";
 
@@ -23,8 +24,9 @@ async fn download_beatmap(path: &PathBuf, map_id: i64) -> Result<(), Error> {
 
 async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
     let mut path = PathBuf::from(CACHE_PATH);
-    if !path.exists() {
-        create_dir(&path)?;
+    let mut loved_path = PathBuf::from(CACHE_PATH.to_string() + "/loved/");
+    if !path.exists() | !loved_path.exists() {
+        create_dir_all(&loved_path).await?;
     }
     match beatmap.status.as_str() {
         "Ranked" | "Approved" => {
@@ -32,6 +34,21 @@ async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
             if !path.exists() {
                 download_beatmap(&path, beatmap.id).await?;
             }
+        }
+        "Loved" => {
+            loved_path.push(format!("{}.osu", beatmap.id));
+            if !loved_path.exists() {
+                download_beatmap(&loved_path, beatmap.id).await?;
+            } else if loved_path
+                .metadata()?
+                .modified()?
+                .duration_since(SystemTime::now())?
+                .as_secs()
+                > 604_800
+            {
+                download_beatmap(&loved_path, beatmap.id).await?;
+            }
+            return Ok(loved_path);
         }
         _ => {
             path.push("temp.osu");
