@@ -332,10 +332,9 @@ pub async fn scores(
                 beatmap_scores.push((score.clone(), pos + 1));
             }
 
-            beatmap_scores = match sort_type {
-                Some(sort_type) => sort_scores(beatmap_scores, &sort_type),
-                _ => beatmap_scores,
-            };
+            if let Some(sort_type) = sort_type {
+                beatmap_scores = sort_scores(beatmap_scores, &sort_type);
+            }
 
             let beatmap = crate::utils::osu::caching::get_beatmap(
                 connection,
@@ -498,10 +497,9 @@ pub async fn pins(
                 pinned_scores.push((score.clone(), pos + 1));
             }
 
-            pinned_scores = match sort_type {
-                Some(sort_type) => sort_scores(pinned_scores, &sort_type),
-                _ => pinned_scores,
-            };
+            if let Some(sort_type) = sort_type {
+                pinned_scores = sort_scores(pinned_scores, &sort_type);
+            }
 
             send_scores_embed(
                 ctx,
@@ -563,10 +561,9 @@ pub async fn firsts(
                 first_scores.push((score.clone(), pos + 1));
             }
 
-            first_scores = match sort_type {
-                Some(sort_type) => sort_scores(first_scores, &sort_type),
-                _ => first_scores,
-            };
+            if let Some(sort_type) = sort_type {
+                first_scores = sort_scores(first_scores, &sort_type);
+            }
 
             send_scores_embed(
                 ctx,
@@ -627,10 +624,9 @@ pub async fn top(
                 best_scores.push((score.clone(), pos + 1));
             }
 
-            best_scores = match sort_type {
-                Some(sort_type) => sort_scores(best_scores, &sort_type),
-                _ => best_scores,
-            };
+            if let Some(sort_type) = sort_type {
+                best_scores = sort_scores(best_scores, &sort_type);
+            }
 
             send_scores_embed(
                 ctx,
