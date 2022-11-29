@@ -39,10 +39,13 @@ async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
             loved_path.push(format!("{}.osu", beatmap.id));
             if !loved_path.exists() {
                 download_beatmap(&loved_path, beatmap.id).await?;
-            } else if SystemTime::now()
+            } else if (SystemTime::now()
                 .duration_since(loved_path.metadata()?.modified()?)?
                 .as_secs()
-                > 604_800
+                / 60
+                / 60
+                / 24)
+                > 30
             {
                 download_beatmap(&loved_path, beatmap.id).await?;
             }
