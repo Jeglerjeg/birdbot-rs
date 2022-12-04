@@ -72,10 +72,10 @@ pub async fn get_beatmap(
             return Ok(beatmap);
         }
         update_cache(connection, osu_client, beatmap.beatmapset_id).await?;
-        return Ok(beatmaps::get_single(connection, i64::from(id)).unwrap());
+        return Ok(beatmaps::get_single(connection, i64::from(id))?);
     }
     cache_beatmapset_from_beatmap(connection, osu_client, i64::from(id)).await?;
-    Ok(beatmaps::get_single(connection, i64::from(id)).unwrap())
+    Ok(beatmaps::get_single(connection, i64::from(id))?)
 }
 
 pub async fn get_beatmapset(
@@ -89,10 +89,10 @@ pub async fn get_beatmapset(
             return Ok(beatmapset);
         }
         update_cache(connection, osu_client, beatmapset.id).await?;
-        return Ok(beatmapsets::read(connection, i64::from(id)).unwrap());
+        return Ok(beatmapsets::read(connection, i64::from(id))?);
     }
     cache_beatmapset(connection, osu_client, i64::from(id)).await?;
-    Ok(beatmapsets::read(connection, i64::from(id)).unwrap())
+    Ok(beatmapsets::read(connection, i64::from(id))?)
 }
 
 pub fn check_beatmapset_valid_result(beatmapset: &Beatmapset) -> bool {

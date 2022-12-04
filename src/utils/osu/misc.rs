@@ -177,7 +177,7 @@ pub async fn get_user(
                 Ok(None)
             }
         } else {
-            ctx.say(format_missing_user_string(ctx, ctx.author()).await)
+            ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
                 .await?;
             Ok(None)
         }

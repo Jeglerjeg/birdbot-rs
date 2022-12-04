@@ -83,7 +83,7 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
             ctx.send(builder).await?;
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx, ctx.author()).await)
+            ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
                 .await?;
         }
     }
@@ -157,7 +157,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx, ctx.author()).await)
+            ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
                 .await?;
         }
     };
@@ -201,7 +201,7 @@ pub async fn mode(
                 .await?;
         }
         Err(_) => {
-            ctx.say(format_missing_user_string(ctx, ctx.author()).await)
+            ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
                 .await?;
         }
     }

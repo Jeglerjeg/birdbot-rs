@@ -202,10 +202,10 @@ pub async fn check_for_empty_channel(
             return Ok(());
         }
         let channel_id = ChannelId::from(channel.unwrap().0);
-        let guild = ctx.http.get_guild(guild_id).await.unwrap();
-        let guild_channels = guild.channels(&ctx).await.unwrap();
+        let guild = ctx.http.get_guild(guild_id).await?;
+        let guild_channels = guild.channels(&ctx).await?;
         let channel = guild_channels.get(&channel_id).unwrap();
-        if channel.members(ctx).unwrap().len() <= 1 {
+        if channel.members(ctx)?.len() <= 1 {
             leave(ctx, Some(guild_id)).await?;
         }
     };
@@ -586,9 +586,9 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 return Ok(());
             }
 
-            let guild_channels = guild.channels(ctx.discord()).await.unwrap();
+            let guild_channels = guild.channels(ctx.discord()).await?;
             let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
-            let needed_to_skip = channel.members(ctx.discord()).unwrap().len() - 2;
+            let needed_to_skip = channel.members(ctx.discord())?.len() - 2;
 
             track_lock.skipped.push(ctx.author().id.0.get());
 
@@ -726,7 +726,7 @@ pub async fn volume(
             Some(track) => {
                 ctx.say(format!(
                     "Current volume is {}%.",
-                    (track.get_info().await.unwrap().volume * 100.0) as u32
+                    (track.get_info().await?.volume * 100.0) as u32
                 ))
                 .await?;
             }
@@ -756,7 +756,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
         let queue = handler.queue();
         if let Some(track) = queue.current() {
             drop(handler);
-            if track.get_info().await.unwrap().playing != PlayMode::Play {
+            if track.get_info().await?.playing != PlayMode::Play {
                 ctx.say("Current track isn't playing.").await?;
                 return Ok(());
             }
@@ -792,7 +792,7 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
         let queue = handler.queue();
         if let Some(track) = queue.current() {
             drop(handler);
-            if track.get_info().await.unwrap().playing != PlayMode::Pause {
+            if track.get_info().await?.playing != PlayMode::Pause {
                 ctx.say("Current track isn't paused.").await?;
                 return Ok(());
             }
@@ -860,7 +860,7 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
                 ctx,
                 &metadata,
                 "Now playing:",
-                Some(track.get_info().await.unwrap().play_time),
+                Some(track.get_info().await?.play_time),
             )
             .await?;
         } else {

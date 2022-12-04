@@ -59,9 +59,9 @@ pub async fn send_score_embed(
     let potential_string: String;
     let completion_rate: String;
     let pp = if let Ok(pp) = pp {
-        potential_string = format_potential_string(&pp);
+        potential_string = format_potential_string(&pp)?;
         if score.grade == Grade::F && score.mode != GameMode::Catch {
-            completion_rate = format!("\n{}", format_completion_rate(score, beatmap, &pp));
+            completion_rate = format!("\n{}", format_completion_rate(score, beatmap, &pp)?);
         } else {
             completion_rate = String::new();
         }
@@ -80,7 +80,7 @@ pub async fn send_score_embed(
         beatmapset,
         &pp,
         scoreboard_rank,
-    );
+    )?;
 
     if let Some(guild_ref) = ctx.guild() {
         let guild = guild_ref.clone();

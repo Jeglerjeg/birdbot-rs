@@ -16,7 +16,7 @@ pub fn format_score_statistic(
     score: &Score,
     beatmap: &Beatmap,
     pp: &Option<CalculateResults>,
-) -> String {
+) -> Result<String, Error> {
     let color = if score.perfect {
         "\u{001b}[0;32m"
     } else {
@@ -31,51 +31,49 @@ pub fn format_score_statistic(
     }
 
     match score.mode {
-        GameMode::Osu => {
-            format!(
-                "acc    300s  100s  50s  miss  combo\
+        GameMode::Osu => Ok(format!(
+            "acc    300s  100s  50s  miss  combo\
                 \n{color}{:<7}{:<6}{:<6}{:<5}{:<6}{}/{}",
-                format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
-                score.statistics.count_300,
-                score.statistics.count_100,
-                score.statistics.count_50,
-                score.statistics.count_miss,
-                score.max_combo,
-                max_combo
-            )
-        }
-        GameMode::Taiko => format!(
+            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
+            score.statistics.count_300,
+            score.statistics.count_100,
+            score.statistics.count_50,
+            score.statistics.count_miss,
+            score.max_combo,
+            max_combo
+        )),
+        GameMode::Taiko => Ok(format!(
             "acc    great  good  miss  combo\
             \n{color}{:<7}{:<7}{:<6}{:<6}{}/{}",
-            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
+            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
             score.statistics.count_300,
             score.statistics.count_100,
             score.statistics.count_miss,
             score.max_combo,
             max_combo
-        ),
-        GameMode::Mania => format!(
+        )),
+        GameMode::Mania => Ok(format!(
             "acc    max   300s  200s  100s  50s  miss\
         \n{color}{:<7}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
-            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
+            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
             score.statistics.count_geki,
             score.statistics.count_300,
             score.statistics.count_katu,
             score.statistics.count_100,
             score.statistics.count_50,
             score.statistics.count_miss
-        ),
-        GameMode::Catch => format!(
+        )),
+        GameMode::Catch => Ok(format!(
             "acc    fruits ticks drpm miss combo\
            \n{color}{:<7}{:<7}{:<6}{:<5}{:<5}{}/{}",
-            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)),
+            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
             score.statistics.count_300,
             score.statistics.count_100,
             score.statistics.count_katu,
             score.statistics.count_miss,
             score.max_combo,
             max_combo
-        ),
+        )),
     }
 }
 
@@ -85,7 +83,7 @@ pub fn format_score_info(
     beatmapset: &Beatmapset,
     pp: &Option<CalculateResults>,
     scoreboard_rank: Option<&usize>,
-) -> String {
+) -> Result<String, Error> {
     let italic = if beatmapset.artist.contains('*') {
         ""
     } else {
@@ -110,20 +108,20 @@ pub fn format_score_info(
         _ => String::new(),
     };
 
-    format!(
+    Ok(format!(
         "[{italic}{} - {} [{}]{italic}]({})\n\
         **{}pp {}★, {} {}+{} {}**",
         beatmapset.artist,
         beatmapset.title,
         beatmap.version,
         format_beatmap_link(beatmap.id, beatmapset.id, &score.mode.to_string()),
-        remove_trailing_zeros(score_pp, 2),
-        remove_trailing_zeros(stars, 2),
+        remove_trailing_zeros(score_pp, 2)?,
+        remove_trailing_zeros(stars, 2)?,
         score.grade,
         scoreboard_rank,
         score.mods,
         score.score.to_formatted_string(&Locale::en)
-    )
+    ))
 }
 
 pub fn format_new_score(
@@ -132,12 +130,12 @@ pub fn format_new_score(
     beatmapset: &Beatmapset,
     pp: &Option<CalculateResults>,
     scoreboard_rank: Option<&usize>,
-) -> String {
-    format!(
+) -> Result<String, Error> {
+    Ok(format!(
         "{}```ansi\n{}```",
-        format_score_info(score, beatmap, beatmapset, pp, scoreboard_rank),
-        format_score_statistic(score, beatmap, pp)
-    )
+        format_score_info(score, beatmap, beatmapset, pp, scoreboard_rank)?,
+        format_score_statistic(score, beatmap, pp)?
+    ))
 }
 
 pub async fn format_score_list(
@@ -194,7 +192,7 @@ pub async fn format_score_list(
 
         let potential_string: String;
         let pp = if let Ok(pp) = pp {
-            let formatted_potential = format_potential_string(&pp);
+            let formatted_potential = format_potential_string(&pp)?;
             if formatted_potential.is_empty() {
                 potential_string = String::new();
             } else {
@@ -206,7 +204,7 @@ pub async fn format_score_list(
             None
         };
 
-        let formatted_score = format_new_score(&score.0, &beatmap, &beatmapset, &pp, None);
+        let formatted_score = format_new_score(&score.0, &beatmap, &beatmapset, &pp, None)?;
 
         formatted_list.push(format!(
             "{}.\n{}<t:{}:R>{}\n",

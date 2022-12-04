@@ -204,12 +204,7 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
 /// Displays basic information about the bot
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
-    let information = ctx
-        .discord()
-        .http
-        .get_current_application_info()
-        .await
-        .unwrap();
+    let information = ctx.discord().http.get_current_application_info().await?;
     let content = format!(
         "```elm\n\
         Owner   : {}#{}\n\

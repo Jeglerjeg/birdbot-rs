@@ -48,7 +48,9 @@ async fn event_listener(
             };
 
             tokio::spawn(async move {
-                osu_tracker.tracking_loop().await;
+                osu_tracker.tracking_loop().await?;
+
+                Ok::<(), Error>(())
             });
         }
         poise::Event::VoiceStateUpdate { old, new: _new } => {

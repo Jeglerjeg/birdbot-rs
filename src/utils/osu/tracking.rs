@@ -62,10 +62,10 @@ pub struct OsuTracker {
     pub shut_down: bool,
 }
 impl OsuTracker {
-    pub async fn tracking_loop(&mut self) {
+    pub async fn tracking_loop(&mut self) -> Result<(), Error> {
         loop {
             sleep(Duration::from_secs(*UPDATE_INTERVAL)).await;
-            let connection = &mut self.pool.get().unwrap();
+            let connection = &mut self.pool.get()?;
             let profiles = match linked_osu_profiles::get_all(connection) {
                 Ok(profiles) => profiles,
                 Err(why) => {
@@ -75,7 +75,7 @@ impl OsuTracker {
             };
             for profile in profiles {
                 if let Err(why) = self.update_user_data(&profile, connection).await {
-                    error!("Error occured while running tracking loop: {}", why);
+                    error!("Error occurred while running tracking loop: {}", why);
                     continue;
                 }
             }
@@ -115,12 +115,12 @@ impl OsuTracker {
                     .notify_pp(&profile, &new, connection, linked_profile)
                     .await
                 {
-                    error!("Error occured while running tracking loop: {}", why);
+                    error!("Error occurred while running tracking loop: {}", why);
                     return Ok(());
                 }
 
                 if let Err(why) = self.notify_recent(&new, connection, linked_profile).await {
-                    error!("Error occured while running tracking loop: {}", why);
+                    error!("Error occurred while running tracking loop: {}", why);
                     return Ok(());
                 }
             } else {
@@ -149,7 +149,7 @@ impl OsuTracker {
                 .mode(gamemode_from_string(&linked_profile.mode).unwrap())
                 .await
             {
-                Ok(proile) => proile,
+                Ok(profile) => profile,
                 Err(_) => return Ok(()),
             };
 
@@ -174,7 +174,9 @@ impl OsuTracker {
         if get_stat_diff(old, new, &DiffTypes::Pp) < *PP_THRESHOLD {
             return Ok(());
         }
-        let new_scores = self.get_new_score(new.id, linked_profile, connection).await;
+        let new_scores = self
+            .get_new_score(new.id, linked_profile, connection)
+            .await?;
         if new_scores.is_empty() {
             return Ok(());
         } else if new_scores.len() == 1 {
@@ -210,7 +212,7 @@ impl OsuTracker {
             );
             let potential_string: String;
             let pp = if let Ok(pp) = pp {
-                potential_string = format_potential_string(&pp);
+                potential_string = format_potential_string(&pp)?;
                 Some(pp)
             } else {
                 potential_string = String::new();
@@ -220,12 +222,12 @@ impl OsuTracker {
             thumbnail = beatmapset.list_cover.clone();
             formatted_score = format!(
                 "{}{}\n<t:{}:R>",
-                format_new_score(&score.0, &beatmap, &beatmapset, &pp, None),
+                format_new_score(&score.0, &beatmap, &beatmapset, &pp, None)?,
                 format_diff(
                     new,
                     old,
                     gamemode_from_string(&linked_profile.mode).unwrap()
-                ),
+                )?,
                 score.0.ended_at.unix_timestamp()
             );
 
@@ -271,7 +273,7 @@ impl OsuTracker {
                     new,
                     old,
                     gamemode_from_string(&linked_profile.mode).unwrap()
-                )
+                )?
             );
         };
 
@@ -295,7 +297,7 @@ impl OsuTracker {
 
                         let builder = CreateMessage::new().embed(embed);
 
-                        ChannelId(NonZeroU64::try_from(score_channel as u64).unwrap())
+                        ChannelId(NonZeroU64::try_from(score_channel as u64)?)
                             .send_message(&self.ctx, builder)
                             .await?;
                     }
@@ -311,7 +313,7 @@ impl OsuTracker {
         osu_id: i64,
         linked_profile: &LinkedOsuProfile,
         connection: &mut PgConnection,
-    ) -> Vec<(Score, usize)> {
+    ) -> Result<Vec<(Score, usize)>, Error> {
         let last_notifications = if let Ok(updates) = osu_notifications::read(connection, osu_id) {
             updates
         } else {
@@ -320,7 +322,7 @@ impl OsuTracker {
                 last_pp: Utc::now(),
                 last_event: Utc::now(),
             };
-            osu_notifications::create(connection, &item).unwrap()
+            osu_notifications::create(connection, &item)?
         };
 
         let mut new_scores = Vec::new();
@@ -348,11 +350,11 @@ impl OsuTracker {
             };
 
             if let Err(why) = osu_notifications::update(connection, osu_id, &item) {
-                error!("Error occured while running tracking loop: {}", why);
+                error!("Error occurred while running tracking loop: {}", why);
             };
         }
 
-        new_scores
+        Ok(new_scores)
     }
 
     async fn notify_recent(
@@ -370,7 +372,7 @@ impl OsuTracker {
                     last_pp: Utc::now(),
                     last_event: Utc::now(),
                 };
-                osu_notifications::create(connection, &item).unwrap()
+                osu_notifications::create(connection, &item)?
             };
 
         let mut recent_events = self.osu_client.recent_events(new.id as u32).await?;
@@ -405,8 +407,7 @@ impl OsuTracker {
                     .osu_client
                     .beatmap_user_score(beatmap_info.beatmap_id.unwrap() as u32, new.id as u32)
                     .mode(*mode)
-                    .await
-                    .unwrap();
+                    .await?;
 
                 if recent_scores.contains(&score.score.score_id.unwrap()) {
                     continue;
@@ -437,7 +438,7 @@ impl OsuTracker {
 
                 let potential_string: String;
                 let pp = if let Ok(pp) = pp {
-                    potential_string = format_potential_string(&pp);
+                    potential_string = format_potential_string(&pp)?;
                     Some(pp)
                 } else {
                     potential_string = String::new();
@@ -452,7 +453,7 @@ impl OsuTracker {
 
                 let formatted_score = &format!(
                     "{}<t:{}:R>",
-                    format_new_score(&score.score, &beatmap, &beatmapset, &pp, Some(&score.pos)),
+                    format_new_score(&score.score, &beatmap, &beatmapset, &pp, Some(&score.pos))?,
                     score.score.ended_at.unix_timestamp()
                 );
 
@@ -478,7 +479,7 @@ impl OsuTracker {
 
                                 let builder = CreateMessage::new().embed(embed);
 
-                                ChannelId(NonZeroU64::try_from(score_channel as u64).unwrap())
+                                ChannelId(NonZeroU64::try_from(score_channel as u64)?)
                                     .send_message(&self.ctx, builder)
                                     .await?;
                             }
@@ -497,7 +498,7 @@ impl OsuTracker {
             };
 
             if let Err(why) = osu_notifications::update(connection, linked_profile.osu_id, &item) {
-                error!("Error occured while running tracking loop: {}", why);
+                error!("Error occurred while running tracking loop: {}", why);
             };
         }
 

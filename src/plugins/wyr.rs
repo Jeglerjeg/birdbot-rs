@@ -10,17 +10,17 @@ use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rand::seq::SliceRandom;
 use serenity_prelude::{
     CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage, GuildId, Mentionable,
+    CreateInteractionResponseMessage, Mentionable,
 };
 use std::time::Duration;
 
 pub struct PreviousServerQuestions {
-    pub previous_questions: DashMap<GuildId, Vec<i32>>,
+    pub recent_questions: DashMap<u64, Vec<i32>>,
 }
 
 lazy_static! {
-    static ref PREVIOUS_SERVER_QUESTIONS: PreviousServerQuestions = PreviousServerQuestions {
-        previous_questions: DashMap::new(),
+    static ref RECENTLY_ASKED_QUESTIONS: PreviousServerQuestions = PreviousServerQuestions {
+        recent_questions: DashMap::new(),
     };
 }
 
@@ -164,7 +164,7 @@ async fn handle_interaction_responses(
 
 fn add_recent_question(
     connection: &mut PgConnection,
-    mut previous_questions: RefMut<GuildId, Vec<i32>>,
+    mut previous_questions: RefMut<u64, Vec<i32>>,
     id: i32,
 ) -> Result<(), Error> {
     previous_questions.push(id);
@@ -235,14 +235,20 @@ pub async fn wyr(
             return Ok(());
         };
 
-        let previous_vec = PREVIOUS_SERVER_QUESTIONS
-            .previous_questions
-            .entry(ctx.guild_id().unwrap())
+        let id = if let Some(guild_id) = ctx.guild_id() {
+            guild_id.get()
+        } else {
+            ctx.channel_id().get()
+        };
+
+        let recent_vec = RECENTLY_ASKED_QUESTIONS
+            .recent_questions
+            .entry(id)
             .or_default();
-        while previous_vec.contains(&db_question.id) {
+        while recent_vec.contains(&db_question.id) {
             db_question = crate::utils::db::questions::get_random_question(connection)?;
         }
-        add_recent_question(connection, previous_vec, db_question.id)?;
+        add_recent_question(connection, recent_vec, db_question.id)?;
 
         create_wyr_message(ctx, db_question, connection).await?;
     }

@@ -3,7 +3,7 @@ use crate::models::osu_users::OsuUser;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::{get_stat_diff, DiffTypes};
 use crate::utils::osu::pp::CalculateResults;
-use crate::Context;
+use crate::{Context, Error};
 use num_format::{Locale, ToFormattedString};
 use poise::serenity_prelude::User;
 use rosu_v2::model::beatmap::RankStatus;
@@ -31,34 +31,38 @@ pub fn format_mode_abbreviation(mode: GameMode) -> String {
     }
 }
 
-pub fn format_potential_string(pp: &CalculateResults) -> String {
+pub fn format_potential_string(pp: &CalculateResults) -> Result<String, Error> {
     match pp.max_pp {
         Some(max_pp) => {
             if ((pp.pp / max_pp) * 100.0) < 99.0 {
-                format!(
+                Ok(format!(
                     "Potential: {}pp, {:+}pp",
-                    remove_trailing_zeros(max_pp, 2),
-                    remove_trailing_zeros(max_pp - pp.pp, 2)
-                )
+                    remove_trailing_zeros(max_pp, 2)?,
+                    remove_trailing_zeros(max_pp - pp.pp, 2)?
+                ))
             } else {
-                String::new()
+                Ok(String::new())
             }
         }
-        _ => String::new(),
+        _ => Ok(String::new()),
     }
 }
 
-pub fn format_completion_rate(score: &Score, beatmap: &Beatmap, pp: &CalculateResults) -> String {
+pub fn format_completion_rate(
+    score: &Score,
+    beatmap: &Beatmap,
+    pp: &CalculateResults,
+) -> Result<String, Error> {
     let beatmap_objects =
         f64::from(beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders);
-    format!(
+    Ok(format!(
         "Completion rate: {}%({}★)",
-        remove_trailing_zeros((f64::from(score.total_hits()) / beatmap_objects) * 100.0, 2),
-        remove_trailing_zeros(pp.partial_stars, 2)
-    )
+        remove_trailing_zeros((f64::from(score.total_hits()) / beatmap_objects) * 100.0, 2)?,
+        remove_trailing_zeros(pp.partial_stars, 2)?
+    ))
 }
 
-pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
+pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<String, Error> {
     let pp_diff = get_stat_diff(old, new, &DiffTypes::Pp);
     let country_diff = -get_stat_diff(old, new, &DiffTypes::CountryRank);
     let global_diff = -get_stat_diff(old, new, &DiffTypes::GlobalRank);
@@ -68,7 +72,7 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
     let formatted_pp_diff = if pp_diff == 0.0 {
         String::new()
     } else {
-        format!(" {:+}pp", remove_trailing_zeros(pp_diff, 2))
+        format!(" {:+}pp", remove_trailing_zeros(pp_diff, 2)?)
     };
 
     let formatted_global_diff = if global_diff == 0.0 {
@@ -96,7 +100,7 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
     let formatted_acc_diff = if acc_diff == 0.0 {
         String::new()
     } else {
-        format!(" {:+}%", remove_trailing_zeros(acc_diff, 2))
+        format!(" {:+}%", remove_trailing_zeros(acc_diff, 2)?)
     };
 
     let formatted_score_diff = if score_diff == 0.0 {
@@ -115,10 +119,10 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
         "\u{1f3af}"
     };
 
-    format!(
+    Ok(format!(
         "\u{2139}`{} {}pp{}` \u{1F30D}`#{}{}` :flag_{}:`#{}{}`\n{}`{}%{}` \u{1f522}`{}{}`",
         format_mode_abbreviation(mode),
-        remove_trailing_zeros(new.pp, 2),
+        remove_trailing_zeros(new.pp, 2)?,
         formatted_pp_diff,
         new.global_rank.to_formatted_string(&Locale::en),
         formatted_global_diff,
@@ -126,15 +130,15 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> String {
         new.country_rank.to_formatted_string(&Locale::en),
         formatted_country_diff,
         acc_emoji,
-        remove_trailing_zeros(new.accuracy, 2),
+        remove_trailing_zeros(new.accuracy, 2)?,
         formatted_acc_diff,
         new.ranked_score.to_formatted_string(&Locale::en),
         formatted_score_diff
-    )
+    ))
 }
 
-pub async fn format_missing_user_string(ctx: Context<'_>, user: &User) -> String {
-    format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", user.name, crate::utils::db::prefix::get_guild_prefix(ctx.into()).await.unwrap().unwrap())
+pub async fn format_missing_user_string(ctx: Context<'_>, user: &User) -> Result<String, Error> {
+    Ok(format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", user.name, crate::utils::db::prefix::get_guild_prefix(ctx.into()).await?.unwrap()))
 }
 
 pub fn format_beatmap_link(beatmap_id: i64, beatmapset_id: i64, mode: &str) -> String {
