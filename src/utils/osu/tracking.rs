@@ -19,7 +19,8 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use lazy_static::lazy_static;
 use poise::serenity_prelude;
-use rosu_v2::prelude::{EventType, Score};
+use rosu_v2::model::GameMode;
+use rosu_v2::prelude::{EventBeatmap, EventType, Score};
 use rosu_v2::Osu;
 use serenity_prelude::model::colour::colours::roles::BLUE;
 use serenity_prelude::{ChannelId, CreateMessage};
@@ -166,11 +167,6 @@ impl OsuTracker {
         connection: &mut PgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
-        let author_text: String;
-        let formatted_score: String;
-        let footer: String;
-        let thumbnail: String;
-
         if get_stat_diff(old, new, &DiffTypes::Pp) < *PP_THRESHOLD {
             return Ok(());
         }
@@ -180,103 +176,162 @@ impl OsuTracker {
         if new_scores.is_empty() {
             return Ok(());
         } else if new_scores.len() == 1 {
-            let score = &new_scores[0];
-
-            if let Some(mut recent_scores) = SCORE_NOTIFICATIONS.get_mut(&linked_profile.osu_id) {
-                if recent_scores.value().contains(&score.0.score_id.unwrap()) {
-                    return Ok(());
-                }
-                recent_scores.push(score.0.score_id.unwrap());
-            } else {
-                SCORE_NOTIFICATIONS.insert(linked_profile.osu_id, vec![score.0.score_id.unwrap()]);
-            };
-
-            let beatmap = get_beatmap(
-                connection,
-                self.osu_client.clone(),
-                score.0.map.as_ref().unwrap().map_id,
-            )
-            .await?;
-
-            let beatmapset = get_beatmapset(
-                connection,
-                self.osu_client.clone(),
-                beatmap.beatmapset_id as u32,
-            )
-            .await?;
-
-            let pp = calculate(&score.0, &beatmap, calculate_potential_acc(&score.0)).await;
-            author_text = format!(
-                "{} set a new best score (#{}/{})",
-                &new.username, score.1, 100
-            );
-            let potential_string: String;
-            let pp = if let Ok(pp) = pp {
-                potential_string = format_potential_string(&pp)?;
-                Some(pp)
-            } else {
-                potential_string = String::new();
-                None
-            };
-
-            thumbnail = beatmapset.list_cover.clone();
-            formatted_score = format!(
-                "{}{}\n<t:{}:R>",
-                format_new_score(&score.0, &beatmap, &beatmapset, &pp, None)?,
-                format_diff(
-                    new,
-                    old,
-                    gamemode_from_string(&linked_profile.mode).unwrap()
-                )?,
-                score.0.ended_at.unix_timestamp()
-            );
-
-            footer = potential_string;
+            self.notify_single_score(&new_scores, linked_profile, new, old, connection)
+                .await?;
         } else {
-            let mut recent_scores = SCORE_NOTIFICATIONS
-                .entry(linked_profile.osu_id)
-                .or_default();
-
-            let mut to_notify: Vec<(Score, usize)> = Vec::new();
-
-            for score in &new_scores {
-                if recent_scores.value().contains(&score.0.score_id.unwrap()) {
-                    continue;
-                }
-                recent_scores.push(score.0.score_id.unwrap());
-                to_notify.push(score.clone());
-            }
-
-            if to_notify.is_empty() {
-                return Ok(());
-            }
-
-            author_text = format!("{} set a new best scores", &new.username);
-
-            thumbnail = new.avatar_url.clone();
-
-            footer = String::new();
-
-            formatted_score = format!(
-                "{}\n{}",
-                format_score_list(
-                    connection,
-                    self.osu_client.clone(),
-                    &to_notify,
-                    None,
-                    None,
-                    None,
-                    None
-                )
-                .await?,
-                format_diff(
-                    new,
-                    old,
-                    gamemode_from_string(&linked_profile.mode).unwrap()
-                )?
-            );
+            self.notify_multiple_scores(&new_scores, linked_profile, new, old, connection)
+                .await?;
         };
 
+        Ok(())
+    }
+
+    async fn notify_multiple_scores(
+        &mut self,
+        new_scores: &[(Score, usize)],
+        linked_profile: &LinkedOsuProfile,
+        new: &OsuUser,
+        old: &OsuUser,
+        connection: &mut PgConnection,
+    ) -> Result<(), Error> {
+        let mut recent_scores = SCORE_NOTIFICATIONS
+            .entry(linked_profile.osu_id)
+            .or_default();
+
+        let mut to_notify: Vec<(Score, usize)> = Vec::new();
+
+        for score in new_scores.iter() {
+            if recent_scores.value().contains(&score.0.score_id.unwrap()) {
+                continue;
+            }
+            recent_scores.push(score.0.score_id.unwrap());
+            to_notify.push(score.clone());
+        }
+
+        if to_notify.is_empty() {
+            return Ok(());
+        }
+
+        let author_text = format!("{} set a new best scores", &new.username);
+
+        let thumbnail = new.avatar_url.clone();
+
+        let formatted_score = format!(
+            "{}\n{}",
+            format_score_list(
+                connection,
+                self.osu_client.clone(),
+                &to_notify,
+                None,
+                None,
+                None,
+                None
+            )
+            .await?,
+            format_diff(
+                new,
+                old,
+                gamemode_from_string(&linked_profile.mode).unwrap()
+            )?
+        );
+
+        self.send_score_notifications(
+            connection,
+            linked_profile,
+            &thumbnail,
+            &formatted_score,
+            "",
+            &author_text,
+            new,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn notify_single_score(
+        &mut self,
+        new_scores: &[(Score, usize)],
+        linked_profile: &LinkedOsuProfile,
+        new: &OsuUser,
+        old: &OsuUser,
+        connection: &mut PgConnection,
+    ) -> Result<(), Error> {
+        let score = &new_scores[0];
+
+        if let Some(mut recent_scores) = SCORE_NOTIFICATIONS.get_mut(&linked_profile.osu_id) {
+            if recent_scores.value().contains(&score.0.score_id.unwrap()) {
+                return Ok(());
+            }
+            recent_scores.push(score.0.score_id.unwrap());
+        } else {
+            SCORE_NOTIFICATIONS.insert(linked_profile.osu_id, vec![score.0.score_id.unwrap()]);
+        };
+
+        let beatmap = get_beatmap(
+            connection,
+            self.osu_client.clone(),
+            score.0.map.as_ref().unwrap().map_id,
+        )
+        .await?;
+
+        let beatmapset = get_beatmapset(
+            connection,
+            self.osu_client.clone(),
+            beatmap.beatmapset_id as u32,
+        )
+        .await?;
+
+        let pp = calculate(&score.0, &beatmap, calculate_potential_acc(&score.0)).await;
+        let author_text = format!(
+            "{} set a new best score (#{}/{})",
+            &new.username, score.1, 100
+        );
+        let potential_string: String;
+        let pp = if let Ok(pp) = pp {
+            potential_string = format_potential_string(&pp)?;
+            Some(pp)
+        } else {
+            potential_string = String::new();
+            None
+        };
+
+        let thumbnail = beatmapset.list_cover.clone();
+        let formatted_score = format!(
+            "{}{}\n<t:{}:R>",
+            format_new_score(&score.0, &beatmap, &beatmapset, &pp, None)?,
+            format_diff(
+                new,
+                old,
+                gamemode_from_string(&linked_profile.mode).unwrap()
+            )?,
+            score.0.ended_at.unix_timestamp()
+        );
+
+        self.send_score_notifications(
+            connection,
+            linked_profile,
+            &thumbnail,
+            &formatted_score,
+            &potential_string,
+            &author_text,
+            new,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn send_score_notifications(
+        &mut self,
+        connection: &mut PgConnection,
+        linked_profile: &LinkedOsuProfile,
+        thumbnail: &str,
+        formatted_score: &str,
+        footer: &str,
+        author_text: &str,
+        new: &OsuUser,
+    ) -> Result<(), Error> {
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, guild_id.0.get() as i64)
@@ -287,11 +342,11 @@ impl OsuTracker {
 
                         let embed = create_embed(
                             color,
-                            &thumbnail,
-                            &formatted_score,
-                            &footer,
+                            thumbnail,
+                            formatted_score,
+                            footer,
                             &new.avatar_url,
-                            &author_text,
+                            author_text,
                             &format_user_link(new.id),
                         );
 
@@ -378,10 +433,6 @@ impl OsuTracker {
         let mut recent_events = self.osu_client.recent_events(new.id as u32).await?;
         recent_events.reverse();
 
-        let mut recent_scores = SCORE_NOTIFICATIONS
-            .entry(linked_profile.osu_id)
-            .or_default();
-
         let mut notified = false;
 
         for event in &recent_events {
@@ -401,93 +452,11 @@ impl OsuTracker {
                     continue;
                 }
 
-                let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url));
-
-                let score = self
-                    .osu_client
-                    .beatmap_user_score(beatmap_info.beatmap_id.unwrap() as u32, new.id as u32)
-                    .mode(*mode)
+                self.notify_leaderboard_score(beatmap, mode, new, connection, linked_profile)
                     .await?;
 
-                if recent_scores.contains(&score.score.score_id.unwrap()) {
-                    continue;
-                }
-
-                recent_scores.push(score.score.score_id.unwrap());
-
-                let beatmap = get_beatmap(
-                    connection,
-                    self.osu_client.clone(),
-                    beatmap_info.beatmap_id.unwrap() as u32,
-                )
-                .await?;
-
-                let beatmapset = get_beatmapset(
-                    connection,
-                    self.osu_client.clone(),
-                    beatmap.beatmapset_id as u32,
-                )
-                .await?;
-
-                let pp = calculate(
-                    &score.score,
-                    &beatmap,
-                    calculate_potential_acc(&score.score),
-                )
-                .await;
-
-                let potential_string: String;
-                let pp = if let Ok(pp) = pp {
-                    potential_string = format_potential_string(&pp)?;
-                    Some(pp)
-                } else {
-                    potential_string = String::new();
-                    None
-                };
-
-                let author_text = &format!("{} set a new leaderboard score!", new.username);
-
-                let thumbnail = &beatmapset.list_cover;
-
-                let footer = &potential_string;
-
-                let formatted_score = &format!(
-                    "{}<t:{}:R>",
-                    format_new_score(&score.score, &beatmap, &beatmapset, &pp, Some(&score.pos))?,
-                    score.score.ended_at.unix_timestamp()
-                );
-
-                for guild_id in self.ctx.cache.guilds() {
-                    if let Ok(guild_channels) =
-                        osu_guild_channels::read(connection, guild_id.0.get() as i64)
-                    {
-                        if let Some(score_channel) = guild_channels.score_channel {
-                            if let Ok(member) =
-                                guild_id.member(&self.ctx, linked_profile.id as u64).await
-                            {
-                                let color = member.colour(&self.ctx).unwrap_or(BLUE);
-
-                                let embed = create_embed(
-                                    color,
-                                    thumbnail,
-                                    formatted_score,
-                                    footer,
-                                    &new.avatar_url,
-                                    author_text,
-                                    &format_user_link(new.id),
-                                );
-
-                                let builder = CreateMessage::new().embed(embed);
-
-                                ChannelId(NonZeroU64::try_from(score_channel as u64)?)
-                                    .send_message(&self.ctx, builder)
-                                    .await?;
-                            }
-                        }
-                    }
-                }
                 notified = true;
-            };
+            }
         }
 
         if notified {
@@ -502,6 +471,104 @@ impl OsuTracker {
             };
         }
 
+        Ok(())
+    }
+
+    async fn notify_leaderboard_score(
+        &mut self,
+        beatmap: &EventBeatmap,
+        mode: &GameMode,
+        new: &OsuUser,
+        connection: &mut PgConnection,
+        linked_profile: &LinkedOsuProfile,
+    ) -> Result<(), Error> {
+        let mut recent_scores = SCORE_NOTIFICATIONS
+            .entry(linked_profile.osu_id)
+            .or_default();
+
+        let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url));
+
+        let score = self
+            .osu_client
+            .beatmap_user_score(beatmap_info.beatmap_id.unwrap() as u32, new.id as u32)
+            .mode(*mode)
+            .await?;
+
+        if recent_scores.contains(&score.score.score_id.unwrap()) {
+            return Ok(());
+        }
+
+        recent_scores.push(score.score.score_id.unwrap());
+
+        let beatmap = get_beatmap(
+            connection,
+            self.osu_client.clone(),
+            beatmap_info.beatmap_id.unwrap() as u32,
+        )
+        .await?;
+
+        let beatmapset = get_beatmapset(
+            connection,
+            self.osu_client.clone(),
+            beatmap.beatmapset_id as u32,
+        )
+        .await?;
+
+        let pp = calculate(
+            &score.score,
+            &beatmap,
+            calculate_potential_acc(&score.score),
+        )
+        .await;
+
+        let potential_string: String;
+        let pp = if let Ok(pp) = pp {
+            potential_string = format_potential_string(&pp)?;
+            Some(pp)
+        } else {
+            potential_string = String::new();
+            None
+        };
+
+        let author_text = &format!("{} set a new leaderboard score!", new.username);
+
+        let thumbnail = &beatmapset.list_cover;
+
+        let footer = &potential_string;
+
+        let formatted_score = &format!(
+            "{}<t:{}:R>",
+            format_new_score(&score.score, &beatmap, &beatmapset, &pp, Some(&score.pos))?,
+            score.score.ended_at.unix_timestamp()
+        );
+
+        for guild_id in self.ctx.cache.guilds() {
+            if let Ok(guild_channels) =
+                osu_guild_channels::read(connection, guild_id.0.get() as i64)
+            {
+                if let Some(score_channel) = guild_channels.score_channel {
+                    if let Ok(member) = guild_id.member(&self.ctx, linked_profile.id as u64).await {
+                        let color = member.colour(&self.ctx).unwrap_or(BLUE);
+
+                        let embed = create_embed(
+                            color,
+                            thumbnail,
+                            formatted_score,
+                            footer,
+                            &new.avatar_url,
+                            author_text,
+                            &format_user_link(new.id),
+                        );
+
+                        let builder = CreateMessage::new().embed(embed);
+
+                        ChannelId(NonZeroU64::try_from(score_channel as u64)?)
+                            .send_message(&self.ctx, builder)
+                            .await?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 }
