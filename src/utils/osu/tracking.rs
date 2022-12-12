@@ -205,7 +205,16 @@ impl OsuTracker {
                 continue;
             }
             recent_scores.push(score.0.score_id.unwrap());
-            to_notify.push(score.clone());
+
+            let api_score = self
+                .osu_client
+                .score(
+                    score.0.score_id.unwrap(),
+                    gamemode_from_string(&linked_profile.mode).unwrap(),
+                )
+                .await?;
+
+            to_notify.push((api_score.clone(), score.1));
         }
 
         if to_notify.is_empty() {
@@ -296,10 +305,18 @@ impl OsuTracker {
             None
         };
 
+        let api_score = self
+            .osu_client
+            .score(
+                score.0.score_id.unwrap(),
+                gamemode_from_string(&linked_profile.mode).unwrap(),
+            )
+            .await?;
+
         let thumbnail = beatmapset.list_cover.clone();
         let formatted_score = format!(
             "{}{}\n<t:{}:R>",
-            format_new_score(&score.0, &beatmap, &beatmapset, &pp, None)?,
+            format_new_score(&api_score, &beatmap, &beatmapset, &pp, None)?,
             format_diff(
                 new,
                 old,

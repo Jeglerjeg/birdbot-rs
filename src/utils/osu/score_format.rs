@@ -103,9 +103,12 @@ pub fn format_score_info(
         score_pp = f64::from(score.pp.unwrap_or(0.0));
     }
 
-    let scoreboard_rank = match scoreboard_rank {
+    let scoreboard_rank = match score.rank_global {
         Some(rank) => format!("#{} ", rank),
-        _ => String::new(),
+        _ => match scoreboard_rank {
+            Some(rank) => format!("#{} ", rank),
+            _ => String::new(),
+        },
     };
 
     Ok(format!(
