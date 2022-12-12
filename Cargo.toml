@@ -21,15 +21,15 @@ reqwest = "0.11"
 time = "0.3"
 dashmap = "5.4"
 rosu-pp = { version = "0.9", features = ["async_tokio"] }
-regex = "1.6"
+regex = "1.7"
 
 [dependencies.tokio]
-version = "1.21"
+version = "1.23"
 features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/Jeglerjeg/poise"
-rev = "2ab9fe08f8bdb4a40b7a67293ac4fe0beb820fd0"
+rev = "375f2ee682adba3b25a0c74db8903a53b0d21c37"
 
 [dependencies.diesel]
 version = "2.0"
@@ -43,12 +43,12 @@ branch = "songbird-fixes"
 
 [dependencies.songbird]
 git = "https://github.com/Jeglerjeg/songbird"
-rev = "14beca3dae0b509a7d3e0db7889069f11248d98d"
+rev = "2cb56dbe9b2501a35362a0baf2c115075ffe30b9"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
-rev = "387367595fb693d867cb6f85eb42f0bd775871b7"
+rev = "ea134e2a1b947c5a56538b7faa29156e367c6d21"
 default-features = false
 features = ["builder", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 

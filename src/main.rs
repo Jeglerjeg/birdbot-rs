@@ -10,6 +10,7 @@ use diesel::PgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use poise::serenity_prelude;
 use rosu_v2::prelude::Osu;
+use serenity::client::FullEvent;
 use songbird::SerenityInit;
 use std::env;
 use std::sync::Arc;
@@ -31,13 +32,15 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
 async fn event_listener(
-    ctx: &serenity_prelude::Context,
-    event: &poise::Event,
+    event: &FullEvent,
     _framework: poise::FrameworkContext<'_, Data, Error>,
     user_data: &Data,
 ) -> Result<(), Error> {
     match event {
-        poise::Event::Ready { data_about_bot } => {
+        FullEvent::Ready {
+            ctx,
+            data_about_bot,
+        } => {
             info!("{} is connected!", data_about_bot.user.name);
 
             let mut osu_tracker = OsuTracker {
@@ -53,7 +56,11 @@ async fn event_listener(
                 Ok::<(), Error>(())
             });
         }
-        poise::Event::VoiceStateUpdate { old, new: _new } => {
+        FullEvent::VoiceStateUpdate {
+            ctx,
+            old,
+            new: _new,
+        } => {
             let voice = match old {
                 Some(old) => old,
                 _ => return Ok(()),
@@ -93,13 +100,13 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
                 .say("The command returned an error. Try again later.")
                 .await
             {
-                error!("Error while handling error: {}", why)
+                error!("Error while handling error: {}", why);
             }
         }
         poise::FrameworkError::Listener { error, event, .. } => {
             error!(
                 "Listener returned error during {:?} event: {:?}",
-                event.name(),
+                event.snake_case_name(),
                 error
             );
         }
@@ -153,8 +160,8 @@ async fn main() {
             // changing a parameter type, you should call this function.
             plugins::basic::register(),
         ],
-        listener: |ctx, event, framework, user_data| {
-            Box::pin(event_listener(ctx, event, framework, user_data))
+        listener: |event, framework, user_data| {
+            Box::pin(event_listener(event, framework, user_data))
         },
         on_error: |error| Box::pin(on_error(error)),
         // Set a function to be called prior to each command execution. This
@@ -213,26 +220,24 @@ async fn main() {
         ),
     };
 
-    let framework = poise::Framework::builder()
-        .client_settings(SerenityInit::register_songbird)
-        .token(token.clone())
-        .intents(intents)
-        .options(options)
-        .user_data_setup(|_ctx, _data_about_bot, _framework| {
-            Box::pin(async move {
-                Ok(Data {
-                    time_started: Utc::now(),
-                    osu_client,
-                    db_pool: connection,
-                    http_client: reqwest::Client::new(),
-                })
+    let framework = poise::Framework::new(options, move |_ctx, _data_about_bot, _framework| {
+        Box::pin(async move {
+            Ok(Data {
+                time_started: Utc::now(),
+                osu_client,
+                db_pool: connection,
+                http_client: reqwest::Client::new(),
             })
         })
-        .build()
+    });
+
+    let mut client = serenity::Client::builder(token, intents)
+        .framework(framework)
+        .register_songbird()
         .await
         .unwrap();
 
-    let shard_manager = framework.shard_manager().clone();
+    let shard_manager = client.shard_manager.clone();
     tokio::spawn(async move {
         tokio::signal::ctrl_c()
             .await
@@ -240,7 +245,7 @@ async fn main() {
         shard_manager.lock().await.shutdown_all().await;
     });
 
-    if let Err(why) = framework.start_autosharded().await {
+    if let Err(why) = client.start_autosharded().await {
         error!("Client error: {:?}", why);
     }
 }

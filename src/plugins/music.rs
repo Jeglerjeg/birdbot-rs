@@ -1,4 +1,3 @@
-use crate::serenity_prelude::TypeMapKey;
 use crate::{Context, Error};
 use lazy_static::lazy_static;
 use poise::{serenity_prelude, CreateReply};
@@ -15,12 +14,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::{error, info};
-
-struct HttpKey;
-
-impl TypeMapKey for HttpKey {
-    type Value = reqwest::Client;
-}
 
 pub struct PlayingGuilds {
     pub guilds: HashMap<GuildId, Arc<Mutex<Guild>>>,
