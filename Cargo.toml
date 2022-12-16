@@ -38,12 +38,11 @@ features = ["chrono", "postgres", "r2d2"]
 [dependencies.symphonia]
 # version = "0.5"
 features = ["aac", "mp3", "isomp4", "alac"]
-git = "https://github.com/FelixMcFelix/Symphonia"
-branch = "songbird-fixes"
+git = "https://github.com/pdeljanov/Symphonia"
 
 [dependencies.songbird]
 git = "https://github.com/Jeglerjeg/songbird"
-rev = "2cb56dbe9b2501a35362a0baf2c115075ffe30b9"
+rev = "1a02bf6cd7a7a45d09b41ce78a61cdb1f276294e"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
