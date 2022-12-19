@@ -111,6 +111,12 @@ pub fn format_score_info(
         },
     };
 
+    let grade = if &score.grade.to_string() != "F" && !score.passed {
+        format!("{} (Failed)", score.grade)
+    } else {
+        score.grade.to_string()
+    };
+
     Ok(format!(
         "[{italic}{} - {} [{}]{italic}]({})\n\
         **{}pp {}★, {} {}+{} {}**",
@@ -120,7 +126,7 @@ pub fn format_score_info(
         format_beatmap_link(beatmap.id, beatmapset.id, &score.mode.to_string()),
         remove_trailing_zeros(score_pp, 2)?,
         remove_trailing_zeros(stars, 2)?,
-        score.grade,
+        grade,
         scoreboard_rank,
         score.mods,
         score.score.to_formatted_string(&Locale::en)

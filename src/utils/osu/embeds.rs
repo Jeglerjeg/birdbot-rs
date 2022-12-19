@@ -60,7 +60,7 @@ pub async fn send_score_embed(
     let completion_rate: String;
     let pp = if let Ok(pp) = pp {
         potential_string = format_potential_string(&pp)?;
-        if score.grade == Grade::F && score.mode != GameMode::Catch {
+        if (score.grade == Grade::F || !score.passed) && score.mode != GameMode::Catch {
             completion_rate = format!("\n{}", format_completion_rate(score, beatmap, &pp)?);
         } else {
             completion_rate = String::new();
