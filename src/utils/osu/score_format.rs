@@ -174,7 +174,7 @@ pub async fn format_score_list(
                 crate::utils::osu::caching::get_beatmap(
                     connection,
                     osu_client.clone(),
-                    score.0.map.as_ref().unwrap().map_id,
+                    score.0.map_id,
                 )
                 .await?
             }

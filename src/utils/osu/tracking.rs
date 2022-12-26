@@ -277,12 +277,7 @@ impl OsuTracker {
             SCORE_NOTIFICATIONS.insert(linked_profile.osu_id, vec![score.0.score_id.unwrap()]);
         };
 
-        let beatmap = get_beatmap(
-            connection,
-            self.osu_client.clone(),
-            score.0.map.as_ref().unwrap().map_id,
-        )
-        .await?;
+        let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
         let beatmapset = get_beatmapset(
             connection,

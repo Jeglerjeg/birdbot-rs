@@ -252,7 +252,7 @@ pub async fn score(
             let beatmap = crate::utils::osu::caching::get_beatmap(
                 connection,
                 ctx.data().osu_client.clone(),
-                score.score.map.as_ref().unwrap().map_id,
+                score.score.map_id,
             )
             .await?;
 
@@ -315,6 +315,7 @@ pub async fn scores(
         .beatmap_user_scores(beatmap_id as u32, osu_user.user_id)
         .mode(osu_user.mode)
         .await;
+
     match api_scores {
         Ok(api_scores) => {
             if api_scores.is_empty() {
@@ -413,7 +414,7 @@ pub async fn recent(
                 let beatmap = crate::utils::osu::caching::get_beatmap(
                     connection,
                     ctx.data().osu_client.clone(),
-                    score.map.as_ref().unwrap().map_id,
+                    score.map_id,
                 )
                 .await?;
 
