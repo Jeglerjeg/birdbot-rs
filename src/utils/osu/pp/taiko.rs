@@ -11,6 +11,7 @@ pub async fn calculate_taiko_pp(
     n100: Option<usize>,
     nmiss: Option<usize>,
     passed_objects: Option<usize>,
+    clock_rate: Option<f64>,
 ) -> CalculateResults {
     let map = parse_map(file_path).await;
     let map = map.convert_mode(GameMode::Taiko);
@@ -19,6 +20,10 @@ pub async fn calculate_taiko_pp(
 
     if let Some(passed_objects) = passed_objects {
         result = result.passed_objects(passed_objects);
+    }
+
+    if let Some(clock_rate) = clock_rate {
+        result = result.clock_rate(clock_rate);
     }
 
     if let Some(combo) = combo {
