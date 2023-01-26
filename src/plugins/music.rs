@@ -1,8 +1,8 @@
 use crate::{Context, Error};
 use lazy_static::lazy_static;
-use poise::{serenity_prelude, CreateReply};
-use serenity_prelude::model::colour::colours::roles::BLUE;
-use serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
+use poise::serenity_prelude::model::colour::colours::roles::BLUE;
+use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
+use poise::CreateReply;
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{
@@ -120,7 +120,7 @@ fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
 
 fn format_track(metadata: &AuxMetadata, play_time: Option<Duration>) -> String {
     let title = match &metadata.title {
-        Some(title) => format!("**{}**\n", title),
+        Some(title) => format!("**{title}**\n"),
         _ => String::new(),
     };
 
@@ -132,11 +132,11 @@ fn format_track(metadata: &AuxMetadata, play_time: Option<Duration>) -> String {
     }
 
     let url = match &metadata.source_url {
-        Some(url) => format!("**URL**: <{}>", url),
+        Some(url) => format!("**URL**: <{url}>"),
         _ => String::new(),
     };
 
-    format!("{}{}{}", title, duration, url)
+    format!("{title}{duration}{url}")
 }
 
 async fn send_track_embed(
@@ -170,7 +170,7 @@ async fn send_track_embed(
 }
 
 pub async fn check_for_empty_channel(
-    ctx: &serenity_prelude::Context,
+    ctx: &poise::serenity_prelude::Context,
     guild: Option<GuildId>,
 ) -> Result<(), Error> {
     let guild_id = match guild {
@@ -206,7 +206,10 @@ pub async fn check_for_empty_channel(
     Ok(())
 }
 
-pub async fn leave(ctx: &serenity_prelude::Context, guild: Option<GuildId>) -> Result<(), Error> {
+pub async fn leave(
+    ctx: &poise::serenity_prelude::Context,
+    guild: Option<GuildId>,
+) -> Result<(), Error> {
     let guild_id = match guild {
         Some(guild) => guild,
         _ => {
@@ -259,7 +262,7 @@ impl VoiceEventHandler for TrackErrorNotifier {
 
 struct TrackEndNotifier {
     guild_id: GuildId,
-    ctx: serenity_prelude::Context,
+    ctx: poise::serenity_prelude::Context,
 }
 
 #[async_trait]
@@ -322,30 +325,33 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
 
-    let (handle_lock, _success) = manager.join(guild_id, connect_to).await;
-    let mut handle = handle_lock.lock().await;
-    let mut guild_lock = PLAYING_GUILDS.lock().await;
-    guild_lock.guilds.insert(
-        guild_id,
-        Arc::from(Mutex::from(Guild {
-            queued_tracks: Queue {
-                queue: HashMap::new(),
-            },
-            volume: 0.6,
-        })),
-    );
-    drop(guild_lock);
-
-    let leave_context = ctx.discord().clone();
-    handle.add_global_event(
-        Event::Track(TrackEvent::End),
-        TrackEndNotifier {
+    if let Ok(handle_lock) = manager.join(guild_id, connect_to).await {
+        let mut handle = handle_lock.lock().await;
+        let mut guild_lock = PLAYING_GUILDS.lock().await;
+        guild_lock.guilds.insert(
             guild_id,
-            ctx: leave_context,
-        },
-    );
+            Arc::from(Mutex::from(Guild {
+                queued_tracks: Queue {
+                    queue: HashMap::new(),
+                },
+                volume: 0.6,
+            })),
+        );
+        drop(guild_lock);
 
-    handle.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
+        let leave_context = ctx.discord().clone();
+        handle.add_global_event(
+            Event::Track(TrackEvent::End),
+            TrackEndNotifier {
+                guild_id,
+                ctx: leave_context,
+            },
+        );
+
+        handle.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
+    }
+
+    info!("Finished joining");
 
     Ok(true)
 }
@@ -377,7 +383,7 @@ async fn queue(
     let http_client = get_http_client(ctx);
 
     if !url.starts_with("http") {
-        url = format!("ytsearch1:{}", url);
+        url = format!("ytsearch1:{url}");
     }
 
     let mut source = YoutubeDl::new(http_client, url);
@@ -600,8 +606,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 drop(current_guild_lock);
                 drop(playing_guilds_lock);
                 ctx.say(format!(
-                    "Voted to skip the current song. `{}/{}`",
-                    skipped, needed_to_skip
+                    "Voted to skip the current song. `{skipped}/{needed_to_skip}`",
                 ))
                 .await?;
             }
@@ -711,7 +716,7 @@ pub async fn volume(
             for track in &queue.current_queue() {
                 track.set_volume(adjusted_volume)?;
             }
-            ctx.say(format!("Changed volume to {}%.", volume)).await?;
+            ctx.say(format!("Changed volume to {volume}%.")).await?;
         }
     } else {
         let queue = handler_lock.queue();
@@ -753,8 +758,8 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
                 ctx.say("Current track isn't playing.").await?;
                 return Ok(());
             }
-            if let Err(e) = track.pause() {
-                ctx.say(format!("Failed: {:?}", e)).await?;
+            if let Err(why) = track.pause() {
+                ctx.say(format!("Failed: {why:?}")).await?;
                 return Ok(());
             }
             ctx.say("Paused song").await?;
@@ -789,8 +794,8 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
                 ctx.say("Current track isn't paused.").await?;
                 return Ok(());
             }
-            if let Err(e) = track.play() {
-                ctx.say(format!("Failed: {:?}", e)).await?;
+            if let Err(why) = track.play() {
+                ctx.say(format!("Failed: {why:?}")).await?;
                 return Ok(());
             }
             ctx.say("Resumed song").await?;

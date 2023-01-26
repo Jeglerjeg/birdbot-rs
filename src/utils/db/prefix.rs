@@ -1,10 +1,10 @@
 use crate::models::prefix::{NewPrefix, Prefix};
 use crate::schema::prefix;
-use crate::serenity_prelude::GuildId;
 use crate::{Error, PartialContext};
 use dashmap::DashMap;
 use diesel::prelude::*;
 use lazy_static::lazy_static;
+use poise::serenity_prelude::GuildId;
 use std::env;
 
 lazy_static! {

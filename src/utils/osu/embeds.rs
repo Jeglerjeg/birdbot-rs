@@ -7,13 +7,14 @@ use crate::utils::osu::misc_format::{
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use diesel::PgConnection;
+use poise::serenity_prelude::model::colour::colours::roles::BLUE;
+use poise::serenity_prelude::{
+    CacheHttp, Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor,
+    CreateEmbedFooter,
+};
 use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{Score, User};
-use serenity_prelude::model::colour::colours::roles::BLUE;
-use serenity_prelude::{
-    Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
-};
 use std::time::Duration;
 
 pub fn create_embed(
@@ -72,7 +73,7 @@ pub async fn send_score_embed(
         None
     };
 
-    let footer = format!("{}{}", potential_string, completion_rate);
+    let footer = format!("{potential_string}{completion_rate}");
 
     let formatted_score = crate::utils::osu::score_format::format_new_score(
         score,
@@ -84,7 +85,7 @@ pub async fn send_score_embed(
 
     if let Some(guild_ref) = ctx.guild() {
         let guild = guild_ref.clone();
-        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, discord_user.id) {
+        if let Some(member) = ctx.cache().unwrap().member(guild.id, discord_user.id) {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;
@@ -127,7 +128,7 @@ pub async fn send_scores_embed(
 ) -> Result<(), Error> {
     let color: Colour;
     if let Some(guild) = ctx.guild() {
-        if let Some(member) = ctx.cache_and_http().cache.member(guild.id, discord_user.id) {
+        if let Some(member) = ctx.cache().unwrap().member(guild.id, discord_user.id) {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;
@@ -206,9 +207,8 @@ async fn handle_top_score_interactions(
         let interaction = match reply
             .message()
             .await?
-            .component_interaction_collector(&ctx.discord().shard)
+            .await_component_interaction(&ctx.discord().shard)
             .timeout(Duration::from_secs(15))
-            .collect_single()
             .await
         {
             Some(x) => x,
@@ -336,7 +336,7 @@ async fn remove_top_score_paginators(
         color,
         &user.avatar_url,
         &formatted_scores,
-        &format!("Page {} of {}", page, max_pages),
+        &format!("Page {page} of {max_pages}"),
         &user.avatar_url,
         user.username.as_str(),
         &format_user_link(i64::from(user.user_id)),
@@ -377,7 +377,7 @@ async fn change_top_scores_page(
         color,
         &user.avatar_url,
         &formatted_scores,
-        &format!("Page {} of {}", page, max_pages),
+        &format!("Page {page} of {max_pages}"),
         &user.avatar_url,
         user.username.as_str(),
         &format_user_link(i64::from(user.user_id)),

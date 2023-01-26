@@ -104,9 +104,9 @@ pub fn format_score_info(
     }
 
     let scoreboard_rank = match score.rank_global {
-        Some(rank) => format!("#{} ", rank),
+        Some(rank) => format!("#{rank} "),
         _ => match scoreboard_rank {
-            Some(rank) => format!("#{} ", rank),
+            Some(rank) => format!("#{rank} "),
             _ => String::new(),
         },
     };
@@ -205,7 +205,7 @@ pub async fn format_score_list(
             if formatted_potential.is_empty() {
                 potential_string = String::new();
             } else {
-                potential_string = format!("\n{}", formatted_potential);
+                potential_string = format!("\n{formatted_potential}");
             }
             Some(pp)
         } else {

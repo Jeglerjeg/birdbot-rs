@@ -15,7 +15,7 @@ chrono = { version = "0.4", features = ["rkyv"] }
 lazy_static = "1.4"
 diesel_migrations = "2.0"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "7cca0104051557f1fe81fe6d2a60810299b32929", features = ["rkyv"] }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "1d68a6d201aa5ea5c73baff5f3b47c857b0cf9d4", features = ["rkyv"] }
 num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
@@ -24,32 +24,31 @@ rosu-pp = { version = "0.9", features = ["async_tokio"] }
 regex = "1.7"
 
 [dependencies.tokio]
-version = "1.23"
+version = "1.24"
 features = ["full"]
 
 [dependencies.poise]
-git = "https://github.com/Jeglerjeg/poise"
-rev = "375f2ee682adba3b25a0c74db8903a53b0d21c37"
+git = "https://github.com/serenity-rs/poise"
+rev = "ecf4cf5ef2ef578e311facbcd3c26710a1d21195"
 
 [dependencies.diesel]
 version = "2.0"
 features = ["chrono", "postgres", "r2d2"]
 
 [dependencies.symphonia]
-# version = "0.5"
+version = "0.5"
 features = ["aac", "mp3", "isomp4", "alac"]
-git = "https://github.com/pdeljanov/Symphonia"
 
 [dependencies.songbird]
-git = "https://github.com/Jeglerjeg/songbird"
-rev = "1a02bf6cd7a7a45d09b41ce78a61cdb1f276294e"
+git = "https://github.com/serenity-rs/songbird"
+rev = "a9abc8a1c8838195f2f3f9166eee4a36a699bc57"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
-rev = "ea134e2a1b947c5a56538b7faa29156e367c6d21"
+branch = "next"
 default-features = false
-features = ["builder", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
+features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 
 [profile.release]
 lto = "fat"

@@ -8,9 +8,8 @@ use chrono::{DateTime, Utc};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use poise::serenity_prelude;
+use poise::serenity_prelude::FullEvent;
 use rosu_v2::prelude::Osu;
-use serenity::client::FullEvent;
 use songbird::SerenityInit;
 use std::env;
 use std::sync::Arc;
@@ -129,12 +128,12 @@ async fn main() {
     let mut migration_connection = match connection.get() {
         Ok(connection) => connection,
         Err(why) => {
-            panic!("Couldn't get db connection: {:?}", why);
+            panic!("Couldn't get db connection: {why:?}");
         }
     };
 
     if let Err(why) = migration_connection.run_pending_migrations(MIGRATIONS) {
-        panic!("Couldn't run migrations: {:?}", why);
+        panic!("Couldn't run migrations: {why:?}");
     }
 
     let options = poise::FrameworkOptions {
@@ -196,13 +195,13 @@ async fn main() {
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
 
-    let intents = serenity_prelude::GatewayIntents::GUILD_MEMBERS
-        | serenity_prelude::GatewayIntents::GUILD_VOICE_STATES
-        | serenity_prelude::GatewayIntents::GUILD_PRESENCES
-        | serenity_prelude::GatewayIntents::MESSAGE_CONTENT
-        | serenity_prelude::GatewayIntents::GUILD_MESSAGES
-        | serenity_prelude::GatewayIntents::GUILDS
-        | serenity_prelude::GatewayIntents::DIRECT_MESSAGES;
+    let intents = serenity::prelude::GatewayIntents::GUILD_MEMBERS
+        | serenity::prelude::GatewayIntents::GUILD_VOICE_STATES
+        | serenity::prelude::GatewayIntents::GUILD_PRESENCES
+        | serenity::prelude::GatewayIntents::MESSAGE_CONTENT
+        | serenity::prelude::GatewayIntents::GUILD_MESSAGES
+        | serenity::prelude::GatewayIntents::GUILDS
+        | serenity::prelude::GatewayIntents::DIRECT_MESSAGES;
 
     let client_id = env::var("OSU_CLIENT_ID")
         .expect("Expected an osu client id in the environment")
@@ -214,10 +213,7 @@ async fn main() {
 
     let osu_client: Arc<Osu> = match Osu::new(client_id, client_secret).await {
         Ok(client) => Arc::new(client),
-        Err(why) => panic!(
-            "Failed to create client or make initial osu!api interaction: {}",
-            why
-        ),
+        Err(why) => panic!("Failed to create client or make initial osu!api interaction: {why}"),
     };
 
     let framework = poise::Framework::new(options, move |_ctx, _data_about_bot, _framework| {

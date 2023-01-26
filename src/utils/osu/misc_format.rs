@@ -146,5 +146,5 @@ pub fn format_beatmap_link(beatmap_id: i64, beatmapset_id: i64, mode: &str) -> S
 }
 
 pub fn format_user_link(user_id: i64) -> String {
-    format!("https://osu.ppy.sh/users/{}", user_id)
+    format!("https://osu.ppy.sh/users/{user_id}")
 }

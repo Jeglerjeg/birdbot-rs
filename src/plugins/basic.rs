@@ -1,10 +1,10 @@
 use crate::{Context, Error};
 use poise::builtins::HelpConfiguration;
 
-use poise::{serenity_prelude, Command, ContextMenuCommandAction, CreateReply, PartialContext};
+use poise::serenity_prelude::model::colour::colours::roles::BLUE;
+use poise::serenity_prelude::{CacheHttp, Colour, CreateEmbed, User};
+use poise::{Command, ContextMenuCommandAction, CreateReply, PartialContext};
 use rand::Rng;
-use serenity_prelude::model::colour::colours::roles::BLUE;
-use serenity_prelude::{Colour, CreateEmbed, User};
 use std::fmt::Write;
 use std::time::Instant;
 use std::writeln;
@@ -69,7 +69,7 @@ async fn help_single_command<U, E>(
                 .to_owned(),
         }
     } else {
-        format!("No such command `{}`", command_name)
+        format!("No such command `{command_name}`")
     };
 
     ctx.say(reply).await?;
@@ -170,7 +170,7 @@ async fn help_all_commands<U, E>(
                 None => continue,
             };
             let name = command.context_menu_name.unwrap_or(&command.name);
-            let _ = writeln!(menu, "  {} (on {})", name, kind);
+            let _ = writeln!(menu, "  {name} (on {kind})");
         }
     }
 
@@ -222,8 +222,8 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 
     let color = match ctx.guild() {
         Some(guild) => match ctx
-            .cache_and_http()
-            .cache
+            .cache()
+            .unwrap()
             .member(guild.id, ctx.framework().bot_id)
         {
             Some(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
@@ -278,8 +278,7 @@ pub async fn prefix(
         new_prefix.clone(),
     )?;
 
-    ctx.say(format!("Set guild prefix to {}", new_prefix))
-        .await?;
+    ctx.say(format!("Set guild prefix to {new_prefix}")).await?;
 
     Ok(())
 }
@@ -341,8 +340,8 @@ pub async fn avatar(
 
     if let Some(guild) = ctx.guild() {
         if let Some(member) = ctx
-            .cache_and_http()
-            .cache
+            .cache()
+            .unwrap()
             .member(guild.id, user.as_ref().unwrap_or_else(|| ctx.author()).id)
         {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);

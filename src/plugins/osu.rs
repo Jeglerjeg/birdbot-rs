@@ -3,10 +3,10 @@ use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notification
 use crate::utils::osu::misc::{gamemode_from_string, get_user, sort_scores, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
-use poise::{serenity_prelude, CreateReply};
+use poise::serenity_prelude::model::colour::colours::roles::BLUE;
+use poise::serenity_prelude::{CacheHttp, Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel};
+use poise::CreateReply;
 use rosu_v2::prelude::Score;
-use serenity_prelude::model::colour::colours::roles::BLUE;
-use serenity_prelude::{Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel};
 
 use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::models::osu_notifications::NewOsuNotification;
@@ -42,7 +42,7 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
         Ok(profile) => {
             let color: Colour;
             if let Some(guild) = ctx.guild() {
-                if let Some(member) = ctx.cache_and_http().cache.member(guild.id, ctx.author().id) {
+                if let Some(member) = ctx.cache().unwrap().member(guild.id, ctx.author().id) {
                     color = member.colour(ctx.discord()).unwrap_or(BLUE);
                 } else {
                     color = BLUE;
@@ -197,7 +197,7 @@ pub async fn mode(
             linked_osu_profiles::update(connection, profile.id, &query_item)?;
             wipe_profile_data(connection, profile.osu_id)?;
 
-            ctx.say(format!("Updated your osu! mode to {}.", parsed_mode))
+            ctx.say(format!("Updated your osu! mode to {parsed_mode}."))
                 .await?;
         }
         Err(_) => {
@@ -275,7 +275,7 @@ pub async fn score(
             .await?;
         }
         Err(why) => {
-            ctx.say(format!("Failed to get beatmap score. {}", why))
+            ctx.say(format!("Failed to get beatmap score. {why}"))
                 .await?;
         }
     }
@@ -365,7 +365,7 @@ pub async fn scores(
             .await?;
         }
         Err(why) => {
-            ctx.say(format!("Failed to get beatmap scores. {}", why))
+            ctx.say(format!("Failed to get beatmap scores. {why}"))
                 .await?;
         }
     }
@@ -438,7 +438,7 @@ pub async fn recent(
             }
         }
         Err(why) => {
-            ctx.say(format!("Failed to get recent scores. {}", why))
+            ctx.say(format!("Failed to get recent scores. {why}"))
                 .await?;
         }
     }
@@ -516,7 +516,7 @@ pub async fn pins(
             .await?;
         }
         Err(why) => {
-            ctx.say(format!("Failed to get pinned scores. {}", why))
+            ctx.say(format!("Failed to get pinned scores. {why}"))
                 .await?;
         }
     }
@@ -580,7 +580,7 @@ pub async fn firsts(
             .await?;
         }
         Err(why) => {
-            ctx.say(format!("Failed to get first scores. {}", why))
+            ctx.say(format!("Failed to get first scores. {why}"))
                 .await?;
         }
     }
@@ -643,8 +643,7 @@ pub async fn top(
             .await?;
         }
         Err(why) => {
-            ctx.say(format!("Failed to get best scores. {}", why))
-                .await?;
+            ctx.say(format!("Failed to get best scores. {why}")).await?;
         }
     }
 

@@ -1,17 +1,17 @@
 use crate::models::questions::Question;
-use crate::serenity_prelude as serenity;
 use crate::{Context, Error};
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use diesel::PgConnection;
 use lazy_static::lazy_static;
 use poise::futures_util::StreamExt;
-use poise::{serenity_prelude, CreateReply, ReplyHandle};
-use rand::seq::SliceRandom;
-use serenity_prelude::{
+use poise::serenity_prelude::ButtonStyle::{Danger, Success};
+use poise::serenity_prelude::{
     CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage, Mentionable,
+    CreateInteractionResponseMessage, Mentionable, User,
 };
+use poise::{CreateReply, ReplyHandle};
+use rand::seq::SliceRandom;
 use std::time::Duration;
 
 pub struct PreviousServerQuestions {
@@ -31,7 +31,7 @@ fn format_results(question: &Question) -> String {
     )
 }
 
-fn format_response(user: &serenity::User, choice: &String) -> String {
+fn format_response(user: &User, choice: &String) -> String {
     format!("**{}** would **{}**!", user.mention(), choice)
 }
 
@@ -52,12 +52,8 @@ async fn create_wyr_message(
     let embed = CreateEmbed::new().description(format_question(&question, &[]));
 
     let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new("choice_1")
-            .style(serenity_prelude::ButtonStyle::Success)
-            .label("1"),
-        CreateButton::new("choice_2")
-            .style(serenity_prelude::ButtonStyle::Danger)
-            .label("2"),
+        CreateButton::new("choice_1").style(Success).label("1"),
+        CreateButton::new("choice_2").style(Danger).label("2"),
     ])];
 
     let builder = CreateReply::default().embed(embed).components(components);
@@ -82,9 +78,9 @@ async fn handle_interaction_responses(
     let mut interaction_stream = reply
         .message()
         .await?
-        .component_interaction_collector(&ctx.discord().shard)
+        .await_component_interaction(&ctx.discord().shard)
         .timeout(Duration::from_secs(30))
-        .collect_stream();
+        .stream();
 
     while let Some(interaction) = interaction_stream.next().await {
         if replies.contains(&interaction.user.id.0.get()) {

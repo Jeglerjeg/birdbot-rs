@@ -18,12 +18,11 @@ use dashmap::DashMap;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use lazy_static::lazy_static;
-use poise::serenity_prelude;
+use poise::serenity_prelude::model::colour::colours::roles::BLUE;
+use poise::serenity_prelude::{ChannelId, Context, CreateMessage};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, Score};
 use rosu_v2::Osu;
-use serenity_prelude::model::colour::colours::roles::BLUE;
-use serenity_prelude::{ChannelId, CreateMessage};
 use std::env;
 use std::num::NonZeroU64;
 use std::sync::Arc;
@@ -57,7 +56,7 @@ lazy_static! {
 }
 
 pub struct OsuTracker {
-    pub ctx: serenity_prelude::Context,
+    pub ctx: Context,
     pub osu_client: Arc<Osu>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub shut_down: bool,

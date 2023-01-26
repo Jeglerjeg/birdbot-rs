@@ -14,7 +14,7 @@ use tokio::fs::create_dir_all;
 const CACHE_PATH: &str = "osu_files/";
 
 async fn download_beatmap(path: &PathBuf, map_id: i64) -> Result<(), Error> {
-    let response = reqwest::get(format!("https://osu.ppy.sh/osu/{}", map_id)).await?;
+    let response = reqwest::get(format!("https://osu.ppy.sh/osu/{map_id}")).await?;
     let mut file = std::fs::File::create(path)?;
     let mut content = Cursor::new(response.bytes().await?);
     std::io::copy(&mut content, &mut file)?;
