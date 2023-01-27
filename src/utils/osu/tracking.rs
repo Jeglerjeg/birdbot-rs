@@ -97,15 +97,11 @@ impl OsuTracker {
             if is_playing(&self.ctx, user.id, linked_profile.home_guild)
                 || (f64::from(profile.ticks) % f64::from(*NOT_PLAYING_SKIP)) == 0.0
             {
-                let osu_profile = match self
+                let Ok(osu_profile) = self
                     .osu_client
                     .user(linked_profile.osu_id as u32)
                     .mode(gamemode_from_string(&linked_profile.mode).unwrap())
-                    .await
-                {
-                    Ok(profile) => profile,
-                    Err(_) => return Ok(()),
-                };
+                    .await else { return Ok(()) };
                 let new = osu_users::create(
                     connection,
                     &rosu_user_to_db(osu_profile, Some(profile.ticks)),
@@ -143,15 +139,11 @@ impl OsuTracker {
                 osu_users::create(connection, &user_update)?;
             }
         } else {
-            let osu_profile = match self
+            let Ok(osu_profile) = self
                 .osu_client
                 .user(linked_profile.osu_id as u32)
                 .mode(gamemode_from_string(&linked_profile.mode).unwrap())
-                .await
-            {
-                Ok(profile) => profile,
-                Err(_) => return Ok(()),
-            };
+                .await else { return Ok(()) };
 
             osu_users::create(connection, &rosu_user_to_db(osu_profile, None))?;
         }

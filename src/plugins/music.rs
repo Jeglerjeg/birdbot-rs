@@ -173,12 +173,9 @@ pub async fn check_for_empty_channel(
     ctx: &poise::serenity_prelude::Context,
     guild: Option<GuildId>,
 ) -> Result<(), Error> {
-    let guild_id = match guild {
-        Some(guild) => guild,
-        _ => {
+    let Some(guild_id) = guild else {
             return Ok(());
-        }
-    };
+        };
 
     let manager = songbird::get(ctx)
         .await
@@ -210,11 +207,8 @@ pub async fn leave(
     ctx: &poise::serenity_prelude::Context,
     guild: Option<GuildId>,
 ) -> Result<(), Error> {
-    let guild_id = match guild {
-        Some(guild) => guild,
-        _ => {
-            return Ok(());
-        }
+    let Some(guild_id) = guild else {
+        return Ok(());
     };
 
     let manager = songbird::get(ctx)
@@ -313,9 +307,7 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         .get(&ctx.author().id)
         .and_then(|voice_state| voice_state.channel_id);
 
-    let connect_to = if let Some(channel) = channel_id {
-        channel
-    } else {
+    let Some(connect_to) = channel_id else {
         ctx.say("Not in a voice channel").await?;
         return Ok(false);
     };
@@ -349,7 +341,7 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         );
 
         handle.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
-        drop(handle)
+        drop(handle);
     }
 
     Ok(true)
@@ -395,9 +387,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
 
-    let handler = if let Some(handler) = manager.get(guild_id) {
-        handler
-    } else {
+    let Some(handler) = manager.get(guild_id) else {
         return Ok(());
     };
 
@@ -529,9 +519,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         .get(&ctx.author().id)
         .and_then(|voice_state| voice_state.channel_id);
 
-    let user_channel = if let Some(channel) = channel_id {
-        channel
-    } else {
+    let Some(user_channel) = channel_id else {
         ctx.say("Not in a voice channel").await?;
         return Ok(());
     };
@@ -691,9 +679,7 @@ pub async fn volume(
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
 
-    let handler = if let Some(handler) = manager.get(guild_id) {
-        handler
-    } else {
+    let Some(handler) = manager.get(guild_id) else {
         ctx.say("Not in a voice channel.").await?;
         return Ok(());
     };

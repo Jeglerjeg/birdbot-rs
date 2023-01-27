@@ -180,9 +180,7 @@ pub async fn mode(
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
     match profile {
         Ok(profile) => {
-            let parsed_mode = if let Some(mode) = gamemode_from_string(&mode) {
-                mode
-            } else {
+            let Some(parsed_mode) = gamemode_from_string(&mode) else {
                 ctx.say("Invalid gamemode specified.").await?;
                 return Ok(());
             };
@@ -220,15 +218,10 @@ pub async fn score(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match get_user(ctx, user, connection).await? {
-        Some(user) => user,
-        _ => return Ok(()),
-    };
+    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
 
     let beatmap_info = get_beatmap_info(&beatmap_url);
-    let beatmap_id = if let Some(id) = beatmap_info.beatmap_id {
-        id
-    } else {
+    let Some(beatmap_id) = beatmap_info.beatmap_id else {
         ctx.say("Please link to a specific beatmap difficulty.")
             .await?;
         return Ok(());
@@ -295,15 +288,10 @@ pub async fn scores(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match get_user(ctx, user, connection).await? {
-        Some(user) => user,
-        _ => return Ok(()),
-    };
+    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
 
     let beatmap_info = get_beatmap_info(&beatmap_url);
-    let beatmap_id = if let Some(id) = beatmap_info.beatmap_id {
-        id
-    } else {
+    let Some(beatmap_id) = beatmap_info.beatmap_id else {
         ctx.say("Please link to a specific beatmap difficulty.")
             .await?;
         return Ok(());
@@ -388,10 +376,7 @@ pub async fn recent(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match get_user(ctx, user, connection).await? {
-        Some(user) => user,
-        _ => return Ok(()),
-    };
+    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
 
     let recent_score = ctx
         .data()
@@ -471,10 +456,7 @@ pub async fn pins(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match get_user(ctx, user, connection).await? {
-        Some(user) => user,
-        _ => return Ok(()),
-    };
+    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
 
     let pinned_scores = ctx
         .data()
@@ -535,10 +517,7 @@ pub async fn firsts(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match get_user(ctx, user, connection).await? {
-        Some(user) => user,
-        _ => return Ok(()),
-    };
+    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
 
     let first_scores = ctx
         .data()
@@ -599,10 +578,7 @@ pub async fn top(
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let osu_user = match get_user(ctx, user, connection).await? {
-        Some(user) => user,
-        _ => return Ok(()),
-    };
+    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
 
     let best_scores = ctx
         .data()

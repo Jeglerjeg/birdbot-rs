@@ -224,9 +224,7 @@ pub async fn wyr(
         ctx.say(format!("I would {}!", choice[0])).await?;
     } else {
         let db_question = crate::utils::db::questions::get_random_question(connection);
-        let mut db_question = if let Ok(db_question) = db_question {
-            db_question
-        } else {
+        let Ok(mut db_question) = db_question else {
             ctx.say("No questions added! Ask me one!").await?;
             return Ok(());
         };

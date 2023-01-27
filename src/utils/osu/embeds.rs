@@ -203,20 +203,13 @@ async fn handle_top_score_interactions(
     let mut page = 1;
     let max_pages = count_score_pages(best_scores.len(), 5);
 
-    loop {
-        let interaction = match reply
-            .message()
-            .await?
-            .await_component_interaction(&ctx.discord().shard)
-            .timeout(Duration::from_secs(15))
-            .await
-        {
-            Some(x) => x,
-            _ => {
-                break;
-            }
-        };
-
+    while let Some(interaction) = reply
+        .message()
+        .await?
+        .await_component_interaction(&ctx.discord().shard)
+        .timeout(Duration::from_secs(15))
+        .await
+    {
         let choice = &interaction.data.custom_id;
         match choice.as_str() {
             "last_page" => {

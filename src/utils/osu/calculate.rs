@@ -79,7 +79,7 @@ pub async fn calculate(
                 Some(score.statistics.count_50 as usize),
                 Some(score.statistics.count_miss as usize),
                 Some(score.total_hits() as usize),
-                Some(score.mods.clock_rate() as f64),
+                Some(f64::from(score.mods.clock_rate())),
             )
             .await)
         }
@@ -95,7 +95,7 @@ pub async fn calculate(
                 Some(score.statistics.count_50 as usize),
                 Some(score.statistics.count_miss as usize),
                 Some(score.total_hits() as usize),
-                Some(score.mods.clock_rate() as f64),
+                Some(f64::from(score.mods.clock_rate())),
             )
             .await)
         }
@@ -110,7 +110,7 @@ pub async fn calculate(
                 Some(score.statistics.count_100 as usize),
                 Some(score.statistics.count_miss as usize),
                 Some(score.total_hits() as usize),
-                Some(score.mods.clock_rate() as f64),
+                Some(f64::from(score.mods.clock_rate())),
             )
             .await)
         }
@@ -126,7 +126,7 @@ pub async fn calculate(
                 Some(score.statistics.count_katu as usize),
                 Some(score.statistics.count_miss as usize),
                 Some(score.total_hits() as usize),
-                Some(score.mods.clock_rate() as f64),
+                Some(f64::from(score.mods.clock_rate())),
             )
             .await)
         }

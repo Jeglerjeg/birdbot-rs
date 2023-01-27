@@ -60,10 +60,7 @@ async fn event_listener(
             old,
             new: _new,
         } => {
-            let voice = match old {
-                Some(old) => old,
-                _ => return Ok(()),
-            };
+            let Some(voice) = old else { return Ok(()) };
             plugins::music::check_for_empty_channel(ctx, voice.guild_id).await?;
         }
         _ => {}
