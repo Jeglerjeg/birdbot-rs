@@ -6,13 +6,13 @@ use poise::CreateReply;
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{
-    tracks::TrackHandle, Call, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent,
+    tracks::TrackHandle, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent,
 };
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, MutexGuard};
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 pub struct PlayingGuilds {
@@ -349,9 +349,8 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         );
 
         handle.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
+        drop(handle)
     }
-
-    info!("Finished joining");
 
     Ok(true)
 }
@@ -371,12 +370,7 @@ pub(crate) async fn music(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-async fn queue(
-    ctx: Context<'_>,
-    handler_lock: Arc<Mutex<Call>>,
-    mut playing_guild: MutexGuard<'_, Guild>,
-    mut url: String,
-) -> Result<(), Error> {
+async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(), Error> {
     // Here, we use lazy restartable sources to make sure that we don't pay
     // for decoding, playback on tracks which aren't actually live yet.
 
@@ -396,17 +390,38 @@ async fn queue(
         }
     };
 
-    let mut handler = handler_lock.lock().await;
+    let manager = songbird::get(ctx.discord())
+        .await
+        .expect("Songbird Voice client placed in at initialisation.")
+        .clone();
+
+    let handler = if let Some(handler) = manager.get(guild_id) {
+        handler
+    } else {
+        return Ok(());
+    };
+
+    let mut handler_lock = handler.lock().await;
+
+    let guild_lock = PLAYING_GUILDS.lock().await;
+
+    let mut playing_guild = guild_lock
+        .guilds
+        .get(&ctx.guild_id().unwrap())
+        .unwrap()
+        .lock()
+        .await;
 
     let mut requested: u16 = 0;
-    if !handler.queue().is_empty() {
+    if !handler_lock.queue().is_empty() {
         for requester in &playing_guild.queued_tracks.queue {
             if requester.1.lock().await.requested.id == ctx.author().id {
                 requested += 1;
             }
         }
         if requested >= *MAX_SONGS_QUEUED {
-            drop(handler);
+            drop(handler_lock);
+            drop(playing_guild);
             ctx.say(format!(
                 "You have queued more than the maximum of {} songs.",
                 *MAX_SONGS_QUEUED
@@ -418,8 +433,9 @@ async fn queue(
 
     if let Some(duration) = metadata.duration {
         if duration > *MAX_MUSIC_DURATION {
-            let empty = handler.queue().is_empty();
-            drop(handler);
+            let empty = handler_lock.queue().is_empty();
+            drop(handler_lock);
+            drop(playing_guild);
             ctx.say(format!(
                 "Song is longer than the max allowed duration of {}",
                 format_duration(*MAX_MUSIC_DURATION, None)
@@ -436,9 +452,9 @@ async fn queue(
 
     track = track.volume(playing_guild.volume);
 
-    let track = handler.enqueue(track).await;
+    let track = handler_lock.enqueue(track).await;
 
-    drop(handler);
+    drop(handler_lock);
 
     let queued_track = QueuedTrack {
         track: track.clone(),
@@ -451,6 +467,8 @@ async fn queue(
         .queued_tracks
         .queue
         .insert(track.uuid().as_u128(), Mutex::from(queued_track));
+
+    drop(playing_guild);
 
     send_track_embed(ctx, &metadata, "Queued:", None).await?;
 
@@ -479,32 +497,16 @@ pub async fn play(
         .await
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
-    if let Some(handler_lock) = manager.get(guild_id) {
-        let guild_lock = PLAYING_GUILDS.lock().await;
 
-        let playing_guild = guild_lock
-            .guilds
-            .get(&ctx.guild_id().unwrap())
-            .unwrap()
-            .lock()
-            .await;
-
-        queue(ctx, handler_lock, playing_guild, url_or_name).await?;
+    if manager.get(guild_id).is_some() {
+        queue(ctx, url_or_name, guild_id).await?;
     } else {
         if !join(ctx).await? {
             return Ok(());
         }
-        let guild_lock = PLAYING_GUILDS.lock().await;
 
-        let playing_guild = guild_lock
-            .guilds
-            .get(&ctx.guild_id().unwrap())
-            .unwrap()
-            .lock()
-            .await;
-
-        if let Some(handler_lock) = manager.get(guild_id) {
-            queue(ctx, handler_lock, playing_guild, url_or_name).await?;
+        if manager.get(guild_id).is_some() {
+            queue(ctx, url_or_name, guild_id).await?;
         }
     }
     Ok(())
