@@ -227,7 +227,7 @@ pub async fn leave(
     };
 
     let mut guild_lock = PLAYING_GUILDS.lock().await;
-    if let Some(..) = guild_lock.guilds.get(&guild_id) {
+    if guild_lock.guilds.get(&guild_id).is_some() {
         guild_lock.guilds.remove(&guild_id);
     };
     drop(guild_lock);
@@ -405,9 +405,11 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
     let mut requested: u16 = 0;
     if !handler_lock.queue().is_empty() {
         for requester in &playing_guild.queued_tracks.queue {
-            if requester.1.lock().await.requested.id == ctx.author().id {
+            let request_lock = requester.1.lock().await;
+            if request_lock.requested.id == ctx.author().id {
                 requested += 1;
             }
+            drop(request_lock);
         }
         if requested >= *MAX_SONGS_QUEUED {
             drop(handler_lock);
@@ -647,6 +649,9 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
             let metadata = track_lock.metadata.clone();
 
             drop(handler);
+            drop(track_lock);
+            drop(current_guild_lock);
+            drop(playing_guilds_lock);
             send_track_embed(ctx, &metadata, "Undid:", None).await?;
         }
     } else {
