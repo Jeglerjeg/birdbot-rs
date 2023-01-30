@@ -24,7 +24,7 @@ rosu-pp = { version = "0.9", features = ["async_tokio"] }
 regex = "1.7"
 
 [dependencies.tokio]
-version = "1.24"
+version = "1.25"
 features = ["full"]
 
 [dependencies.poise]
