@@ -1,11 +1,12 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications};
-use crate::utils::osu::misc::{gamemode_from_string, get_user, sort_scores, wipe_profile_data};
+use crate::utils::osu::misc::{get_user, sort_scores, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{CacheHttp, Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel};
 use poise::CreateReply;
+use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
 
 use crate::models::osu_guild_channels::NewOsuGuildChannel;
@@ -165,6 +166,29 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+#[derive(poise::ChoiceParameter)]
+pub enum GameModeChoices {
+    #[name = "Standard"]
+    #[name = "osu"]
+    #[name = "osu!"]
+    #[name = "std"]
+    #[name = "osu!standard"]
+    Standard,
+    #[name = "Mania"]
+    #[name = "Keys"]
+    #[name = "osu!mania"]
+    Mania,
+    #[name = "Catch"]
+    #[name = "ctb"]
+    #[name = "fruits"]
+    #[name = "osu!catch"]
+    Catch,
+    #[name = "Taiko"]
+    #[name = "osu!taiko"]
+    #[name = "drums"]
+    Taiko,
+}
+
 /// Changed your osu! mode.
 #[poise::command(
     prefix_command,
@@ -174,28 +198,31 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn mode(
     ctx: Context<'_>,
-    #[description = "Gamemode to switch to."] mode: String,
+    #[description = "Gamemode to switch to."] mode: GameModeChoices,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
+
+    let mode = match mode {
+        GameModeChoices::Standard => GameMode::Osu,
+        GameModeChoices::Taiko => GameMode::Taiko,
+        GameModeChoices::Catch => GameMode::Catch,
+        GameModeChoices::Mania => GameMode::Mania,
+    };
+
     match profile {
         Ok(profile) => {
-            let Some(parsed_mode) = gamemode_from_string(&mode) else {
-                ctx.say("Invalid gamemode specified.").await?;
-                return Ok(());
-            };
-
             let query_item = NewLinkedOsuProfile {
                 id: profile.id,
                 osu_id: profile.osu_id,
                 home_guild: profile.home_guild,
-                mode: parsed_mode.to_string(),
+                mode: mode.to_string(),
             };
 
             linked_osu_profiles::update(connection, profile.id, &query_item)?;
             wipe_profile_data(connection, profile.osu_id)?;
 
-            ctx.say(format!("Updated your osu! mode to {parsed_mode}."))
+            ctx.say(format!("Updated your osu! mode to {mode}."))
                 .await?;
         }
         Err(_) => {
@@ -370,6 +397,7 @@ pub async fn scores(
 )]
 pub async fn recent(
     ctx: Context<'_>,
+    #[description = "User to see profile for."] mode: Option<GameModeChoices>,
     #[rest]
     #[description = "User to see profile for."]
     user: Option<String>,
@@ -378,12 +406,23 @@ pub async fn recent(
 
     let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
 
+    let mode = if let Some(mode) = mode {
+        match mode {
+            GameModeChoices::Standard => GameMode::Osu,
+            GameModeChoices::Taiko => GameMode::Taiko,
+            GameModeChoices::Catch => GameMode::Catch,
+            GameModeChoices::Mania => GameMode::Mania,
+        }
+    } else {
+        osu_user.mode
+    };
+
     let recent_score = ctx
         .data()
         .osu_client
         .user_scores(osu_user.user_id)
         .recent()
-        .mode(osu_user.mode)
+        .mode(mode)
         .include_fails(true)
         .limit(1)
         .await;
