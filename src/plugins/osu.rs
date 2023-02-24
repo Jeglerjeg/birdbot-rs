@@ -198,12 +198,12 @@ pub enum GameModeChoices {
 )]
 pub async fn mode(
     ctx: Context<'_>,
-    #[description = "Gamemode to switch to."] mode: GameModeChoices,
+    #[description = "Gamemode to switch to."] new_mode: GameModeChoices,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
     let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
 
-    let mode = match mode {
+    let mode = match new_mode {
         GameModeChoices::Standard => GameMode::Osu,
         GameModeChoices::Taiko => GameMode::Taiko,
         GameModeChoices::Catch => GameMode::Catch,
