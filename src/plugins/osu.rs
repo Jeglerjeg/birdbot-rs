@@ -239,13 +239,18 @@ pub async fn mode(
 pub async fn score(
     ctx: Context<'_>,
     #[description = "Beatmap ID to check for a score."] beatmap_url: String,
+    #[description = "Discord user to check score for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
     #[rest]
-    #[description = "User to see score for."]
+    #[description = "osu! user to see score for."]
     user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
     let beatmap_info = get_beatmap_info(&beatmap_url);
     let Some(beatmap_id) = beatmap_info.beatmap_id else {
@@ -309,13 +314,18 @@ pub async fn scores(
     ctx: Context<'_>,
     #[description = "Beatmap ID to check for scores."] beatmap_url: String,
     #[description = "Sort your scores by something other than pp."] sort_type: Option<SortChoices>,
+    #[description = "Discord user to check score for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
     #[rest]
     #[description = "User to see scores for."]
     user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
     let beatmap_info = get_beatmap_info(&beatmap_url);
     let Some(beatmap_id) = beatmap_info.beatmap_id else {
@@ -398,13 +408,18 @@ pub async fn scores(
 pub async fn recent(
     ctx: Context<'_>,
     #[description = "User to see profile for."] mode: Option<GameModeChoices>,
+    #[description = "Discord user to check score for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
     #[rest]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
     let mode = if let Some(mode) = mode {
         match mode {
@@ -489,13 +504,18 @@ pub enum SortChoices {
 pub async fn pins(
     ctx: Context<'_>,
     #[description = "Sort your pins by something else."] sort_type: Option<SortChoices>,
+    #[description = "Discord user to check score for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
     #[rest]
     #[description = "User to see pins for."]
     user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
     let pinned_scores = ctx
         .data()
@@ -550,13 +570,18 @@ pub async fn pins(
 pub async fn firsts(
     ctx: Context<'_>,
     #[description = "Sort your #1 scores by something else."] sort_type: Option<SortChoices>,
+    #[description = "Discord user to check score for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
     #[rest]
     #[description = "User to see firsts for."]
     user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
     let first_scores = ctx
         .data()
@@ -611,13 +636,18 @@ pub async fn firsts(
 pub async fn top(
     ctx: Context<'_>,
     #[description = "Sort your top scores by something else."] sort_type: Option<SortChoices>,
+    #[description = "Discord user to check score for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
     #[rest]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
-    let Some(osu_user) = get_user(ctx, user, connection).await? else { return Ok(()) };
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
     let best_scores = ctx
         .data()

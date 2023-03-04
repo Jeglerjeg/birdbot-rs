@@ -4,10 +4,9 @@ use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::Error;
 use diesel::PgConnection;
-use poise::serenity_prelude;
+use poise::serenity_prelude::{Context, Presence, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, User};
-use serenity_prelude::{Context, Presence, UserId};
 use std::sync::Arc;
 
 pub enum DiffTypes {
@@ -151,6 +150,7 @@ pub fn sort_scores(mut scores: Vec<(Score, usize)>, sort_by: &SortChoices) -> Ve
 
 pub async fn get_user(
     ctx: crate::Context<'_>,
+    discord_user: &poise::serenity_prelude::User,
     user: Option<String>,
     connection: &mut PgConnection,
 ) -> Result<Option<User>, Error> {
@@ -162,7 +162,7 @@ pub async fn get_user(
             Ok(None)
         }
     } else {
-        let linked_profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
+        let linked_profile = linked_osu_profiles::read(connection, discord_user.id.0.get() as i64);
         if let Ok(linked_profile) = linked_profile {
             if let Ok(user) = ctx
                 .data()
@@ -177,7 +177,7 @@ pub async fn get_user(
                 Ok(None)
             }
         } else {
-            ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
+            ctx.say(format_missing_user_string(ctx, &discord_user).await?)
                 .await?;
             Ok(None)
         }
