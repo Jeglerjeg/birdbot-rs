@@ -29,7 +29,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "ecf4cf5ef2ef578e311facbcd3c26710a1d21195"
+rev = "03fb7b73108d7f9026ed648db76477d78cf9b483"
 
 [dependencies.diesel]
 version = "2.0"
