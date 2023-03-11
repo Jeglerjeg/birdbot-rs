@@ -154,7 +154,7 @@ pub async fn get_user(
     user: Option<String>,
     connection: &mut PgConnection,
 ) -> Result<Option<User>, Error> {
-    return if let Some(user) = user {
+    if let Some(user) = user {
         if let Ok(user) = ctx.data().osu_client.user(user).await {
             Ok(Some(user))
         } else {
@@ -177,9 +177,9 @@ pub async fn get_user(
                 Ok(None)
             }
         } else {
-            ctx.say(format_missing_user_string(ctx, &discord_user).await?)
+            ctx.say(format_missing_user_string(ctx, discord_user).await?)
                 .await?;
             Ok(None)
         }
-    };
+    }
 }
