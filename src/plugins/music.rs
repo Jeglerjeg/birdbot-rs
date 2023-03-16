@@ -5,9 +5,7 @@ use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User
 use poise::CreateReply;
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
-use songbird::{
-    tracks::TrackHandle, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent,
-};
+use songbird::{tracks::TrackHandle, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent, Songbird};
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
@@ -177,10 +175,7 @@ pub async fn check_for_empty_channel(
             return Ok(());
         };
 
-    let manager = songbird::get(ctx)
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx).await;
 
     let guild_handler = manager.get(guild_id);
 
@@ -211,10 +206,7 @@ pub async fn leave(
         return Ok(());
     };
 
-    let manager = songbird::get(ctx)
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx).await;
 
     if let Some(guild_handler) = manager.get(guild_id) {
         let lock = guild_handler.lock().await;
@@ -233,6 +225,13 @@ pub async fn leave(
     drop(guild_lock);
 
     Ok(())
+}
+
+#[inline]
+pub async fn get_manager(ctx: &poise::serenity_prelude::Context) -> Arc<Songbird> {
+    songbird::get(ctx)
+        .await
+        .expect("Songbird Voice client placed in at initialisation.")
 }
 
 struct TrackErrorNotifier;
@@ -263,10 +262,8 @@ struct TrackEndNotifier {
 impl VoiceEventHandler for TrackEndNotifier {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         if let EventContext::Track(_track_list) = ctx {
-            let manager = songbird::get(&self.ctx)
-                .await
-                .expect("Songbird Voice client placed in at initialisation.")
-                .clone();
+            let manager = get_manager(&self.ctx).await;
+
             if let Some(handler_lock) = manager.get(self.guild_id) {
                 let handler = handler_lock.lock().await;
                 if handler.queue().is_empty() {
@@ -312,10 +309,7 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         return Ok(false);
     };
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     if let Ok(handle_lock) = manager.join(guild_id, connect_to).await {
         let mut handle = handle_lock.lock().await;
@@ -382,10 +376,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         }
     };
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     let Some(handler) = manager.get(guild_id) else {
         return Ok(());
@@ -485,10 +476,7 @@ pub async fn play(
     let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     if manager.get(guild_id).is_some() {
         queue(ctx, url_or_name, guild_id).await?;
@@ -526,10 +514,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -616,10 +601,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -679,10 +661,7 @@ pub async fn volume(
     let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     let Some(handler) = manager.get(guild_id) else {
         ctx.say("Not in a voice channel.").await?;
@@ -737,10 +716,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -773,10 +749,7 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -815,10 +788,7 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
     let guild = ctx.guild().unwrap().clone();
     let guild_id = guild.id;
 
-    let manager = songbird::get(ctx.discord())
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
+    let manager = get_manager(ctx.discord()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
