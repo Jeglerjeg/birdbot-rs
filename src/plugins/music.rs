@@ -5,7 +5,10 @@ use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User
 use poise::CreateReply;
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
-use songbird::{tracks::TrackHandle, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent, Songbird};
+use songbird::{
+    tracks::TrackHandle, Event, EventContext, EventHandler as VoiceEventHandler, Songbird,
+    TrackEvent,
+};
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;

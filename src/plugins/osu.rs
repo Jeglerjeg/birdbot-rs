@@ -1,6 +1,6 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications};
-use crate::utils::osu::misc::{get_user, sort_scores, wipe_profile_data};
+use crate::utils::osu::misc::{find_beatmap_link, get_user, sort_scores, wipe_profile_data};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
@@ -14,7 +14,7 @@ use crate::models::osu_notifications::NewOsuNotification;
 use crate::{Context, Error};
 
 use crate::utils::osu::embeds::{send_score_embed, send_scores_embed};
-use crate::utils::osu::regex::get_beatmap_info;
+use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 
 /// Display information about your osu! user.
 #[poise::command(
@@ -238,7 +238,7 @@ pub async fn mode(
 #[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
 pub async fn score(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for a score."] beatmap_url: String,
+    #[description = "Beatmap ID to check for a score."] beatmap_url: Option<String>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
@@ -252,12 +252,20 @@ pub async fn score(
 
     let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
-    let beatmap_info = get_beatmap_info(&beatmap_url);
-    let Some(beatmap_id) = beatmap_info.beatmap_id else {
-        ctx.say("Please link to a specific beatmap difficulty.")
-            .await?;
+    let beatmap_info: BeatmapInfo;
+    if let Some(beatmap_url) = beatmap_url {
+        beatmap_info = get_beatmap_info(&beatmap_url);
+        let Some(_) = beatmap_info.beatmap_id else {
+            ctx.say("Please link to a specific beatmap difficulty.")
+                .await?;
+            return Ok(());
+        };
+    } else if let Some(found_info) = find_beatmap_link(ctx).await? {
+        beatmap_info = found_info;
+    } else {
+        ctx.say("No beatmap link found.").await?;
         return Ok(());
-    };
+    }
 
     let mode = if let Some(mode) = beatmap_info.mode {
         mode
@@ -268,7 +276,7 @@ pub async fn score(
     let score = ctx
         .data()
         .osu_client
-        .beatmap_user_score(beatmap_id as u32, osu_user.user_id)
+        .beatmap_user_score(beatmap_info.beatmap_id.unwrap() as u32, osu_user.user_id)
         .mode(mode)
         .await;
 
@@ -312,7 +320,7 @@ pub async fn score(
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn scores(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for scores."] beatmap_url: String,
+    #[description = "Beatmap ID to check for scores."] beatmap_url: Option<String>,
     #[description = "Sort your scores by something other than pp."] sort_type: Option<SortChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
@@ -327,12 +335,22 @@ pub async fn scores(
 
     let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
 
-    let beatmap_info = get_beatmap_info(&beatmap_url);
-    let Some(beatmap_id) = beatmap_info.beatmap_id else {
-        ctx.say("Please link to a specific beatmap difficulty.")
-            .await?;
+    let beatmap_info: BeatmapInfo;
+    if let Some(beatmap_url) = beatmap_url {
+        beatmap_info = get_beatmap_info(&beatmap_url);
+        let Some(_) = beatmap_info.beatmap_id else {
+            ctx.say("Please link to a specific beatmap difficulty.")
+                .await?;
+            return Ok(());
+        };
+    } else if let Some(found_info) = find_beatmap_link(ctx).await? {
+        beatmap_info = found_info;
+    } else {
+        ctx.say("No beatmap link found.").await?;
         return Ok(());
-    };
+    }
+
+    let beatmap_id = beatmap_info.beatmap_id.unwrap();
 
     let api_scores = ctx
         .data()

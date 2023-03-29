@@ -2,6 +2,7 @@ use crate::models::osu_users::OsuUser;
 use crate::plugins::osu::SortChoices;
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::misc_format::format_missing_user_string;
+use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 use crate::Error;
 use diesel::PgConnection;
 use poise::serenity_prelude::{Context, Presence, UserId};
@@ -182,4 +183,30 @@ pub async fn get_user(
             Ok(None)
         }
     }
+}
+
+pub async fn find_beatmap_link(ctx: crate::Context<'_>) -> Result<Option<BeatmapInfo>, Error> {
+    let builder = poise::serenity_prelude::GetMessages::new().limit(100);
+    for message in ctx.channel_id().messages(ctx.discord(), builder).await? {
+        let mut to_search = message.content;
+        for embed in message.embeds {
+            if let Some(description) = embed.description {
+                to_search.push_str(&description);
+            }
+
+            if let Some(title) = embed.title {
+                to_search.push_str(&title);
+            }
+
+            if let Some(footer) = embed.footer {
+                to_search.push_str(&footer.text);
+            }
+        }
+        let beatmap_info = get_beatmap_info(&to_search);
+
+        if beatmap_info.beatmap_id.is_some() {
+            return Ok(Some(beatmap_info));
+        }
+    }
+    Ok(None)
 }
