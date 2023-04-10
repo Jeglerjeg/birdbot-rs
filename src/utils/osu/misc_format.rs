@@ -120,7 +120,7 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<Strin
     };
 
     Ok(format!(
-        "\u{2139}`{} {}pp{}` \u{1F30D}`#{}{}` :flag_{}:`#{}{}`\n{}`{}%{}` \u{1f522}`{}{}`",
+        "`{} {}pp{}` \u{1F30D}`#{}{}` :flag_{}:`#{}{}`\n{}`{}%{}` \u{1f522}`{}{}`",
         format_mode_abbreviation(mode),
         remove_trailing_zeros(new.pp, 2)?,
         formatted_pp_diff,
