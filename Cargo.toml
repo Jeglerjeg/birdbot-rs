@@ -15,7 +15,7 @@ chrono = { version = "0.4", features = ["rkyv"] }
 lazy_static = "1.4"
 diesel_migrations = "2.0"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "996ec7c1db07e8bbcfaad07d555c9d56b763d414", features = ["rkyv"] }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "5a5f5a9b1b972ffb73e3ff344f14e6f8a92c95ed", features = ["rkyv"] }
 num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
@@ -28,8 +28,8 @@ version = "1.27"
 features = ["full"]
 
 [dependencies.poise]
-git = "https://github.com/serenity-rs/poise"
-rev = "03fb7b73108d7f9026ed648db76477d78cf9b483"
+git = "https://github.com/water-mod/poise"
+rev = "f1d162ef5a3514c79cf49acb2330f0990efb9dff"
 
 [dependencies.diesel]
 version = "2.0"
@@ -40,8 +40,8 @@ version = "0.5"
 features = ["aac", "mp3", "isomp4", "alac"]
 
 [dependencies.songbird]
-git = "https://github.com/tazz4843/songbird"
-rev = "75776da780495011f0d3908f754d9dc10b514ca5"
+git = "https://github.com/serenity-rs/songbird"
+rev = "275e207ad456e08f70ef0c6b9c8232ca105468ab"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]

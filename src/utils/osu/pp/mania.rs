@@ -12,7 +12,7 @@ pub async fn calculate_mania_pp(
     n50: Option<usize>,
     nmiss: Option<usize>,
     passed_objects: Option<usize>,
-    clock_rate: Option<f64>,
+    clock_rate: Option<f32>,
 ) -> CalculateResults {
     let map = parse_map(file_path).await;
     let map = map.convert_mode(GameMode::Mania);
@@ -24,7 +24,7 @@ pub async fn calculate_mania_pp(
     };
 
     if let Some(clock_rate) = clock_rate {
-        result = result.clock_rate(clock_rate);
+        result = result.clock_rate(f64::from(clock_rate));
     }
 
     if let Some(nmiss) = nmiss {
