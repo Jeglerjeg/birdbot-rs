@@ -150,7 +150,7 @@ async fn send_track_embed(
     let color = ctx
         .author_member()
         .await
-        .unwrap()
+        .ok_or("Failed to get author member in send_track_embed")?
         .colour(ctx.discord())
         .unwrap_or(BLUE);
 
@@ -190,10 +190,16 @@ pub async fn check_for_empty_channel(
         if channel.is_none() {
             return Ok(());
         }
-        let channel_id = ChannelId::from(channel.unwrap().0);
+        let channel_id = ChannelId::from(
+            channel
+                .ok_or("Failed to parse channel ID in check_for_empty_channel")?
+                .0,
+        );
         let guild = ctx.http.get_guild(guild_id).await?;
         let guild_channels = guild.channels(&ctx).await?;
-        let channel = guild_channels.get(&channel_id).unwrap();
+        let channel = guild_channels
+            .get(&channel_id)
+            .ok_or("Failed to get guild channel in check_for_empty")?;
         if channel.members(ctx)?.len() <= 1 {
             leave(ctx, Some(guild_id)).await?;
         }
@@ -293,7 +299,10 @@ impl VoiceEventHandler for TrackEndNotifier {
 }
 
 async fn join(ctx: Context<'_>) -> Result<bool, Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in join function")?
+        .clone();
     let guild_id = guild.id;
 
     let channel_id = guild
@@ -379,7 +388,14 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
 
     let mut handler_lock = handler.lock().await;
 
-    let playing_guild = PLAYING_GUILDS.guilds.get(&ctx.guild_id().unwrap()).unwrap();
+    let guild_id = &ctx
+        .guild_id()
+        .ok_or("Failed to get guild ID in queue function")?;
+
+    let playing_guild = PLAYING_GUILDS
+        .guilds
+        .get(guild_id)
+        .ok_or("Failed to get playing guild in queue function")?;
 
     let mut playing_guild_lock = playing_guild.lock().await;
 
@@ -463,7 +479,10 @@ pub async fn play(
     url_or_name: String,
 ) -> Result<(), Error> {
     ctx.defer().await?;
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in play function")?
+        .clone();
     let guild_id = guild.id;
 
     let manager = get_manager(ctx.discord()).await;
@@ -491,7 +510,10 @@ pub async fn play(
     guild_only = true
 )]
 pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in skip function")?
+        .clone();
     let guild_id = guild.id;
 
     let channel_id = guild
@@ -509,7 +531,9 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
 
-        let channel_id = handler.current_channel().unwrap();
+        let channel_id = handler
+            .current_channel()
+            .ok_or("Failed to get current playing channel in skip function")?;
         if user_channel.0 != channel_id.0 {
             ctx.say("Not connected to the voice channel").await?;
             return Ok(());
@@ -517,17 +541,26 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 
         let queue = handler.queue();
 
-        let track = queue.current().unwrap();
-        let playing_guild = PLAYING_GUILDS.guilds.get(&guild_id).unwrap();
+        let track = queue
+            .current()
+            .ok_or("Failed to get current track in skip function")?;
+        let playing_guild = PLAYING_GUILDS
+            .guilds
+            .get(&guild_id)
+            .ok_or("Failed to get playing guilds in skip function")?;
         let current_guild_lock = playing_guild.lock().await;
 
-        let mut track_lock = current_guild_lock
+        let Some(queued_track) = current_guild_lock
             .queued_tracks
             .queue
-            .get(&track.uuid().as_u128())
-            .unwrap()
-            .lock()
-            .await;
+            .get(&track.uuid().as_u128()) else {
+                drop(handler);
+                drop(current_guild_lock);
+                ctx.say("Something went wrong while skipping the track.").await?;
+                return Ok(())
+            };
+
+        let mut track_lock = queued_track.lock().await;
 
         if track_lock.requested.id == ctx.author().id {
             drop(queue.skip());
@@ -546,8 +579,18 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             }
 
             let guild_channels = guild.channels(ctx.discord()).await?;
-            let channel = guild_channels.get(&ChannelId::from(channel_id.0)).unwrap();
-            let needed_to_skip = channel.members(ctx.discord())?.len() - 2;
+
+            let needed_to_skip = match guild_channels.get(&ChannelId::from(channel_id.0)) {
+                None => {
+                    drop(handler);
+                    drop(track_lock);
+                    drop(current_guild_lock);
+                    ctx.say("Something went wrong while skipping the track.")
+                        .await?;
+                    return Ok(());
+                }
+                Some(channel) => channel.members(ctx.discord())?.len() - 2,
+            };
 
             track_lock.skipped.push(ctx.author().id.0.get());
 
@@ -579,7 +622,10 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 ///Undo your previously queued song. This will not *skip* the song if it's playing.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in undo function")?
+        .clone();
     let guild_id = guild.id;
 
     let manager = get_manager(ctx.discord()).await;
@@ -592,17 +638,26 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
             drop(handler);
             ctx.say("No items queued").await?;
         } else {
-            let removed_item = queue.dequeue(queue.len() - 1).unwrap();
-            let playing_guild = PLAYING_GUILDS.guilds.get(&guild_id).unwrap();
+            let removed_item = queue
+                .dequeue(queue.len() - 1)
+                .ok_or("Failed to deque track in undo function")?;
+            let playing_guild = PLAYING_GUILDS
+                .guilds
+                .get(&guild_id)
+                .ok_or("Failed to get playing guild in undo function")?;
             let current_guild_lock = playing_guild.lock().await;
 
-            let track_lock = current_guild_lock
+            let Some(queued_track) = current_guild_lock
                 .queued_tracks
                 .queue
-                .get(&removed_item.uuid().as_u128())
-                .unwrap()
-                .lock()
-                .await;
+                .get(&removed_item.uuid().as_u128()) else {
+                drop(handler);
+                drop(current_guild_lock);
+                ctx.say("Something went wrong while skipping the track.").await?;
+                return Ok(())
+            };
+
+            let track_lock = queued_track.lock().await;
 
             let metadata = track_lock.metadata.clone();
 
@@ -633,7 +688,10 @@ pub async fn volume(
     #[description = "Volume to change the track to, accepts 1-200"]
     new_volume: Option<u8>,
 ) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in volume function.")?
+        .clone();
     let guild_id = guild.id;
 
     let manager = get_manager(ctx.discord()).await;
@@ -650,7 +708,10 @@ pub async fn volume(
         }
 
         let adjusted_volume = f32::from(volume) / 100.0;
-        let playing_guild = PLAYING_GUILDS.guilds.get(&guild_id).unwrap();
+        let playing_guild = PLAYING_GUILDS
+            .guilds
+            .get(&guild_id)
+            .ok_or("Failed to get playing guild in volume function.")?;
         let mut playing_guild_lock = playing_guild.lock().await;
         playing_guild_lock.volume = adjusted_volume;
         drop(playing_guild_lock);
@@ -687,7 +748,10 @@ pub async fn volume(
 ///Pause the currently playing song.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in pause function.")?
+        .clone();
     let guild_id = guild.id;
 
     let manager = get_manager(ctx.discord()).await;
@@ -720,7 +784,10 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
 ///Resume the currently paused song.
 #[poise::command(prefix_command, slash_command, category = "Music", guild_only = true)]
 pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in resume function.")?
+        .clone();
     let guild_id = guild.id;
 
     let manager = get_manager(ctx.discord()).await;
@@ -759,7 +826,10 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
     aliases("np", "playing")
 )]
 pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in now_playing function.")?
+        .clone();
     let guild_id = guild.id;
 
     let manager = get_manager(ctx.discord()).await;
@@ -770,17 +840,23 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
         if let Some(track) = queue.current() {
             drop(handler);
 
-            let playing_guilds = PLAYING_GUILDS.guilds.get(&guild_id).unwrap();
+            let playing_guilds = PLAYING_GUILDS
+                .guilds
+                .get(&guild_id)
+                .ok_or("Failed to get playing guild in now_playing function.")?;
 
             let current_guild_lock = playing_guilds.lock().await;
 
-            let track_lock = current_guild_lock
+            let Some(queued_track) = current_guild_lock
                 .queued_tracks
                 .queue
-                .get(&track.uuid().as_u128())
-                .unwrap()
-                .lock()
-                .await;
+                .get(&track.uuid().as_u128()) else {
+                drop(current_guild_lock);
+                ctx.say("Something went wrong while skipping the track.").await?;
+                return Ok(())
+            };
+
+            let track_lock = queued_track.lock().await;
 
             let metadata = track_lock.metadata.clone();
 
