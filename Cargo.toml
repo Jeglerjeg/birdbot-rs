@@ -15,7 +15,7 @@ chrono = { version = "0.4", features = ["rkyv"] }
 lazy_static = "1.4"
 diesel_migrations = "2.0"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "5a5f5a9b1b972ffb73e3ff344f14e6f8a92c95ed", features = ["rkyv"] }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "7128334b1fb4a05155dfa1dd535ca9e9f548915b", features = ["rkyv"] }
 num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
@@ -28,8 +28,8 @@ version = "1.27"
 features = ["full"]
 
 [dependencies.poise]
-git = "https://github.com/water-mod/poise"
-rev = "f1d162ef5a3514c79cf49acb2330f0990efb9dff"
+git = "https://github.com/serenity-rs/poise"
+rev = "5c66751a4a1c82dce33677e0ccfa5f1570cb805b"
 
 [dependencies.diesel]
 version = "2.0"
