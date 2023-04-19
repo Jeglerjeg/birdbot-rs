@@ -43,7 +43,11 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
         Ok(profile) => {
             let color: Colour;
             if let Some(guild) = ctx.guild() {
-                if let Some(member) = ctx.cache().unwrap().member(guild.id, ctx.author().id) {
+                if let Some(member) = ctx
+                    .cache()
+                    .ok_or("Failed to get discord cache in osu command")?
+                    .member(guild.id, ctx.author().id)
+                {
                     color = member.colour(ctx.discord()).unwrap_or(BLUE);
                 } else {
                     color = BLUE;
@@ -117,7 +121,11 @@ pub async fn link(
     let query_item = NewLinkedOsuProfile {
         id: ctx.author().id.0.get() as i64,
         osu_id: i64::from(user.user_id),
-        home_guild: ctx.guild_id().unwrap().0.get() as i64,
+        home_guild: ctx
+            .guild_id()
+            .ok_or("Failed to get guild ID in link command")?
+            .0
+            .get() as i64,
         mode: user.mode.to_string(),
     };
 
@@ -254,7 +262,7 @@ pub async fn score(
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
-        beatmap_info = get_beatmap_info(&beatmap_url);
+        beatmap_info = get_beatmap_info(&beatmap_url)?;
         let Some(_) = beatmap_info.beatmap_id else {
             ctx.say("Please link to a specific beatmap difficulty.")
                 .await?;
@@ -276,7 +284,12 @@ pub async fn score(
     let score = ctx
         .data()
         .osu_client
-        .beatmap_user_score(beatmap_info.beatmap_id.unwrap() as u32, osu_user.user_id)
+        .beatmap_user_score(
+            beatmap_info
+                .beatmap_id
+                .ok_or("Failed to get beatmap ID in score command")? as u32,
+            osu_user.user_id,
+        )
         .mode(mode)
         .await;
 
@@ -337,7 +350,7 @@ pub async fn scores(
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
-        beatmap_info = get_beatmap_info(&beatmap_url);
+        beatmap_info = get_beatmap_info(&beatmap_url)?;
         let Some(_) = beatmap_info.beatmap_id else {
             ctx.say("Please link to a specific beatmap difficulty.")
                 .await?;
@@ -350,7 +363,9 @@ pub async fn scores(
         return Ok(());
     }
 
-    let beatmap_id = beatmap_info.beatmap_id.unwrap();
+    let beatmap_id = beatmap_info
+        .beatmap_id
+        .ok_or("Failed to get beatmap ID in scores command")?;
 
     let api_scores = ctx
         .data()
@@ -718,7 +733,10 @@ pub async fn score_notifications(
     ctx: Context<'_>,
     #[description = "Channel to notify scores in"] scores_channel: GuildChannel,
 ) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in score_notifications command")?
+        .clone();
     let connection = &mut ctx.data().db_pool.get()?;
     let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
         Ok(guild_config) => NewOsuGuildChannel {
@@ -744,9 +762,12 @@ pub async fn score_notifications(
 #[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
 pub async fn map_notifications(
     ctx: Context<'_>,
-    #[description = "Channel to notify scores in"] map_channel: GuildChannel,
+    #[description = "Channel to notify maps in"] map_channel: GuildChannel,
 ) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in map_notifications command")?
+        .clone();
     let connection = &mut ctx.data().db_pool.get()?;
     let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
         Ok(guild_config) => NewOsuGuildChannel {
@@ -771,7 +792,10 @@ pub async fn map_notifications(
 
 #[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
 pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild().unwrap().clone();
+    let guild = ctx
+        .guild()
+        .ok_or("Failed to get guild in delete_guild_config command")?
+        .clone();
     let connection = &mut ctx.data().db_pool.get()?;
     match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
         Ok(guild_config) => {

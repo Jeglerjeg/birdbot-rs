@@ -85,7 +85,11 @@ pub async fn send_score_embed(
 
     if let Some(guild_ref) = ctx.guild() {
         let guild = guild_ref.clone();
-        if let Some(member) = ctx.cache().unwrap().member(guild.id, discord_user.id) {
+        if let Some(member) = ctx
+            .cache()
+            .ok_or("Failed to get discord cache in send_score_embed function")?
+            .member(guild.id, discord_user.id)
+        {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;
@@ -128,7 +132,11 @@ pub async fn send_scores_embed(
 ) -> Result<(), Error> {
     let color: Colour;
     if let Some(guild) = ctx.guild() {
-        if let Some(member) = ctx.cache().unwrap().member(guild.id, discord_user.id) {
+        if let Some(member) = ctx
+            .cache()
+            .ok_or("Failed to get discord cache in send_scores_embed function")?
+            .member(guild.id, discord_user.id)
+        {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);
         } else {
             color = BLUE;

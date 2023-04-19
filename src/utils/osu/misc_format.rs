@@ -138,7 +138,9 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<Strin
 }
 
 pub async fn format_missing_user_string(ctx: Context<'_>, user: &User) -> Result<String, Error> {
-    Ok(format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", user.name, crate::utils::db::prefix::get_guild_prefix(ctx.into()).await?.unwrap()))
+    Ok(format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", 
+               user.name,
+               crate::utils::db::prefix::get_guild_prefix(ctx.into()).await?.ok_or("Failed to get guild prefix in format_missing_user function")?))
 }
 
 pub fn format_beatmap_link(beatmap_id: i64, beatmapset_id: i64, mode: &str) -> String {

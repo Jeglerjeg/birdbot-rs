@@ -90,7 +90,7 @@ async fn format_command<U, E>(
     ctx: poise::Context<'_, U, E>,
     command: &Command<U, E>,
     parent: Option<String>,
-) -> String {
+) -> Result<String, Error> {
     let prefix = if command.prefix_action.is_some() {
         let options = &ctx.framework().options().prefix_options;
 
@@ -111,18 +111,22 @@ async fn format_command<U, E>(
     } else {
         // This is not a prefix or slash command, i.e. probably a context menu only command
         // which we will only show later
-        return String::new();
+        return Ok(String::new());
     };
-    format!(
+    Ok(format!(
         "  {}{} {}",
         prefix,
         if parent.is_some() {
-            format!("{} {}", parent.unwrap(), &command.name)
+            format!(
+                "{} {}",
+                parent.ok_or("Failed to unwrap parent in format_command")?,
+                &command.name
+            )
         } else {
             command.name.clone()
         },
         format_args(&command.parameters)
-    )
+    ))
 }
 
 async fn help_all_commands<U, E>(
@@ -144,7 +148,7 @@ async fn help_all_commands<U, E>(
             if command.hide_in_help {
                 continue;
             }
-            let _ = writeln!(menu, "{}", format_command(ctx, command, None).await);
+            let _ = writeln!(menu, "{}", format_command(ctx, command, None).await?);
             if !command.subcommands.is_empty() {
                 for subcommand in &command.subcommands {
                     if subcommand.hide_in_help {
@@ -153,7 +157,7 @@ async fn help_all_commands<U, E>(
                     let _ = writeln!(
                         menu,
                         "{}",
-                        format_command(ctx, subcommand, Option::from(command.name.clone())).await
+                        format_command(ctx, subcommand, Option::from(command.name.clone())).await?
                     );
                 }
             }
@@ -223,7 +227,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let color = match ctx.guild() {
         Some(guild) => match ctx
             .cache()
-            .unwrap()
+            .ok_or("Failed to get discord cache in info")?
             .member(guild.id, ctx.framework().bot_id)
         {
             Some(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
@@ -274,7 +278,10 @@ pub async fn prefix(
     let connection = &mut ctx.data().db_pool.get()?;
     crate::utils::db::prefix::add_guild_prefix(
         connection,
-        ctx.guild_id().unwrap().0.get() as i64,
+        ctx.guild_id()
+            .ok_or("Failed to get guild ID in prefix")?
+            .0
+            .get() as i64,
         new_prefix.clone(),
     )?;
 
@@ -341,7 +348,7 @@ pub async fn avatar(
     if let Some(guild) = ctx.guild() {
         if let Some(member) = ctx
             .cache()
-            .unwrap()
+            .ok_or("Failed to get discord cache in avatar")?
             .member(guild.id, user.as_ref().unwrap_or_else(|| ctx.author()).id)
         {
             color = member.colour(ctx.discord()).unwrap_or(BLUE);

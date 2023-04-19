@@ -86,7 +86,7 @@ pub fn wipe_profile_data(db: &mut PgConnection, user_id: i64) -> Result<(), Erro
     Ok(())
 }
 
-pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> bool {
+pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
     let mut presence: Option<Presence> = None;
     let fetched_guild = ctx.cache.guild(home_guild as u64);
     if let Some(guild_ref) = fetched_guild {
@@ -96,7 +96,11 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> bool {
             presence = presences.get(&user_id).cloned();
         } else {
             for guild in ctx.cache.guilds() {
-                let cached_guild = Arc::from(guild.to_guild_cached(ctx).unwrap());
+                let cached_guild = Arc::from(
+                    guild
+                        .to_guild_cached(ctx)
+                        .ok_or("Failed to get cached guild in is_playing function")?,
+                );
                 if let Some(_member) = ctx.cache.member(guild, user_id) {
                     presence = cached_guild
                         .clone()
@@ -112,7 +116,7 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> bool {
             if let Some(_member) = ctx.cache.member(guild, user_id) {
                 presence = guild
                     .to_guild_cached(&ctx.cache)
-                    .unwrap()
+                    .ok_or("Failed to get user presences in is_playing function")?
                     .presences
                     .get(&user_id)
                     .cloned();
@@ -123,12 +127,12 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> bool {
     if let Some(presence) = presence {
         for activity in presence.activities {
             if activity.name.to_lowercase().contains("osu!") {
-                return true;
+                return Ok(true);
             }
         }
     }
 
-    false
+    Ok(false)
 }
 
 pub fn sort_scores(mut scores: Vec<(Score, usize)>, sort_by: &SortChoices) -> Vec<(Score, usize)> {
@@ -169,7 +173,10 @@ pub async fn get_user(
                 .data()
                 .osu_client
                 .user(linked_profile.osu_id as u32)
-                .mode(gamemode_from_string(&linked_profile.mode).unwrap())
+                .mode(
+                    gamemode_from_string(&linked_profile.mode)
+                        .ok_or("Failed to parse gamemode from string in get_user function")?,
+                )
                 .await
             {
                 Ok(Some(user))
@@ -202,7 +209,7 @@ pub async fn find_beatmap_link(ctx: crate::Context<'_>) -> Result<Option<Beatmap
                 to_search.push_str(&footer.text);
             }
         }
-        let beatmap_info = get_beatmap_info(&to_search);
+        let beatmap_info = get_beatmap_info(&to_search)?;
 
         if beatmap_info.beatmap_id.is_some() {
             return Ok(Some(beatmap_info));

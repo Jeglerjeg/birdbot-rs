@@ -94,17 +94,17 @@ impl OsuTracker {
 
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id) {
             profile.ticks += 1;
-            if is_playing(&self.ctx, user.id, linked_profile.home_guild)
+            if is_playing(&self.ctx, user.id, linked_profile.home_guild)?
                 || (f64::from(profile.ticks) % f64::from(*NOT_PLAYING_SKIP)) == 0.0
             {
                 let Ok(osu_profile) = self
                     .osu_client
                     .user(linked_profile.osu_id as u32)
-                    .mode(gamemode_from_string(&linked_profile.mode).unwrap())
+                    .mode(gamemode_from_string(&linked_profile.mode).ok_or("Failed to parse gamemode in update_user_data function")?)
                     .await else { return Ok(()) };
                 let new = osu_users::create(
                     connection,
-                    &rosu_user_to_db(osu_profile, Some(profile.ticks)),
+                    &rosu_user_to_db(osu_profile, Some(profile.ticks))?,
                 )?;
 
                 if let Err(why) = self
@@ -142,10 +142,10 @@ impl OsuTracker {
             let Ok(osu_profile) = self
                 .osu_client
                 .user(linked_profile.osu_id as u32)
-                .mode(gamemode_from_string(&linked_profile.mode).unwrap())
+                .mode(gamemode_from_string(&linked_profile.mode).ok_or("Failed to parse gamemode in update_user_data function")?)
                 .await else { return Ok(()) };
 
-            osu_users::create(connection, &rosu_user_to_db(osu_profile, None))?;
+            osu_users::create(connection, &rosu_user_to_db(osu_profile, None)?)?;
         }
 
         Ok(())
@@ -191,19 +191,21 @@ impl OsuTracker {
 
         let mut to_notify: Vec<(Score, usize)> = Vec::new();
 
+        let gamemode = gamemode_from_string(&linked_profile.mode)
+            .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
+
         for score in new_scores.iter() {
-            if recent_scores.value().contains(&score.0.score_id.unwrap()) {
+            let score_id = score
+                .0
+                .score_id
+                .ok_or("Failed to get score id in notify_multiple_scores function")?;
+
+            if recent_scores.value().contains(&score_id) {
                 continue;
             }
-            recent_scores.push(score.0.score_id.unwrap());
+            recent_scores.push(score_id);
 
-            let api_score = self
-                .osu_client
-                .score(
-                    score.0.score_id.unwrap(),
-                    gamemode_from_string(&linked_profile.mode).unwrap(),
-                )
-                .await?;
+            let api_score = self.osu_client.score(score_id, gamemode).await?;
 
             to_notify.push((api_score.clone(), score.1));
         }
@@ -228,11 +230,7 @@ impl OsuTracker {
                 None
             )
             .await?,
-            format_diff(
-                new,
-                old,
-                gamemode_from_string(&linked_profile.mode).unwrap()
-            )?
+            format_diff(new, old, gamemode)?
         );
 
         self.send_score_notifications(
@@ -259,13 +257,21 @@ impl OsuTracker {
     ) -> Result<(), Error> {
         let score = &new_scores[0];
 
+        let score_id = score
+            .0
+            .score_id
+            .ok_or("Failed to get score_id in notify_single_score function")?;
+
+        let gamemode = gamemode_from_string(&linked_profile.mode)
+            .ok_or("Failed to parse gamemode in notify_single_score function")?;
+
         if let Some(mut recent_scores) = SCORE_NOTIFICATIONS.get_mut(&linked_profile.osu_id) {
-            if recent_scores.value().contains(&score.0.score_id.unwrap()) {
+            if recent_scores.value().contains(&score_id) {
                 return Ok(());
             }
-            recent_scores.push(score.0.score_id.unwrap());
+            recent_scores.push(score_id);
         } else {
-            SCORE_NOTIFICATIONS.insert(linked_profile.osu_id, vec![score.0.score_id.unwrap()]);
+            SCORE_NOTIFICATIONS.insert(linked_profile.osu_id, vec![score_id]);
         };
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
@@ -291,23 +297,13 @@ impl OsuTracker {
             None
         };
 
-        let api_score = self
-            .osu_client
-            .score(
-                score.0.score_id.unwrap(),
-                gamemode_from_string(&linked_profile.mode).unwrap(),
-            )
-            .await?;
+        let api_score = self.osu_client.score(score_id, gamemode).await?;
 
         let thumbnail = beatmapset.list_cover.clone();
         let formatted_score = format!(
             "{}{}\n<t:{}:R>",
             format_new_score(&api_score, &beatmap, &beatmapset, &pp, None)?,
-            format_diff(
-                new,
-                old,
-                gamemode_from_string(&linked_profile.mode).unwrap()
-            )?,
+            format_diff(new, old, gamemode)?,
             score.0.ended_at.unix_timestamp()
         );
 
@@ -389,7 +385,10 @@ impl OsuTracker {
             .osu_client
             .user_scores(osu_id as u32)
             .best()
-            .mode(gamemode_from_string(&linked_profile.mode).unwrap())
+            .mode(
+                gamemode_from_string(&linked_profile.mode)
+                    .ok_or("Failed to parse gamemode in get_new_score function")?,
+            )
             .limit(100)
             .await
             .unwrap_or_default();
@@ -489,26 +488,31 @@ impl OsuTracker {
             .entry(linked_profile.osu_id)
             .or_default();
 
-        let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url));
+        let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url))?;
+
+        let beatmap_id = beatmap_info
+            .beatmap_id
+            .ok_or("Failed to get beatmap ID in notify_leaderboard_score")?
+            as u32;
 
         let score = self
             .osu_client
-            .beatmap_user_score(beatmap_info.beatmap_id.unwrap() as u32, new.id as u32)
+            .beatmap_user_score(beatmap_id, new.id as u32)
             .mode(*mode)
             .await?;
 
-        if recent_scores.contains(&score.score.score_id.unwrap()) {
+        let score_id = score
+            .score
+            .score_id
+            .ok_or("Failed to get score_id in notify_leaderboard_score")?;
+
+        if recent_scores.contains(&score_id) {
             return Ok(());
         }
 
-        recent_scores.push(score.score.score_id.unwrap());
+        recent_scores.push(score_id);
 
-        let beatmap = get_beatmap(
-            connection,
-            self.osu_client.clone(),
-            beatmap_info.beatmap_id.unwrap() as u32,
-        )
-        .await?;
+        let beatmap = get_beatmap(connection, self.osu_client.clone(), beatmap_id).await?;
 
         let beatmapset = get_beatmapset(
             connection,

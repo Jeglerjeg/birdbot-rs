@@ -4,9 +4,14 @@ use chrono::Utc;
 use diesel::prelude::*;
 use diesel::{insert_into, QueryResult, RunQueryDsl};
 
-pub fn rosu_user_to_db(user: rosu_v2::prelude::User, ticks: Option<i32>) -> NewOsuUser {
-    let statistic = user.statistics.unwrap();
-    NewOsuUser {
+pub fn rosu_user_to_db(
+    user: rosu_v2::prelude::User,
+    ticks: Option<i32>,
+) -> Result<NewOsuUser, Error> {
+    let statistic = user
+        .statistics
+        .ok_or("Failed to get user statistic in rosu_user_to_db function")?;
+    Ok(NewOsuUser {
         id: i64::from(user.user_id),
         username: user.username.to_string(),
         avatar_url: user.avatar_url,
@@ -20,7 +25,7 @@ pub fn rosu_user_to_db(user: rosu_v2::prelude::User, ticks: Option<i32>) -> NewO
         ranked_score: statistic.ranked_score as i64,
         ticks: ticks.unwrap_or(0),
         time_cached: Utc::now(),
-    }
+    })
 }
 
 pub fn create(db: &mut PgConnection, item: &NewOsuUser) -> Result<OsuUser, Error> {

@@ -1,4 +1,5 @@
 use crate::utils::osu::misc::gamemode_from_string;
+use crate::Error;
 use lazy_static::lazy_static;
 use regex::Regex;
 use rosu_v2::prelude::GameMode;
@@ -25,64 +26,95 @@ pub struct BeatmapInfo {
     pub mode: Option<GameMode>,
 }
 
-pub fn get_beatmap_info(url: &str) -> BeatmapInfo {
+pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
     if BEATMAP_URL_PATTERN_V2.is_match(url) {
-        let info = BEATMAP_URL_PATTERN_V2.captures(url).unwrap();
-        BeatmapInfo {
+        let info = BEATMAP_URL_PATTERN_V2
+            .captures(url)
+            .ok_or("Failed to get BEATMAP_URL_PATTERN_V2 captures in get_beatmap_info function")?;
+        Ok(BeatmapInfo {
             beatmapset_id: None,
-            beatmap_id: info
-                .name("beatmap_id")
-                .map(|id| id.as_str().parse::<i64>().unwrap()),
-            mode: info
-                .name("mode")
-                .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
-        }
+            beatmap_id: Some(
+                info.name("beatmap_id")
+                    .ok_or(
+                        "Failed to get beatmap_id in BEATMAP_URL_PATTERN_V2 on get_beatmap_info function",
+                    )?
+                    .as_str()
+                    .parse::<i64>()?,
+            ),
+            mode: gamemode_from_string(
+                info.name("mode")
+                    .ok_or(
+                        "Failed to get mode in BEATMAP_URL_PATTERN_V2 on get_beatmap_info function",
+                    )?
+                    .as_str(),
+            ),
+        })
     } else if BEATMAPSET_URL_PATTERN_V2.is_match(url) {
-        let info = BEATMAPSET_URL_PATTERN_V2.captures(url).unwrap();
-        BeatmapInfo {
-            beatmapset_id: info
-                .name("beatmapset_id")
-                .map(|id| id.as_str().parse::<i64>().unwrap()),
-            beatmap_id: info
-                .name("beatmap_id")
-                .map(|id| id.as_str().parse::<i64>().unwrap()),
-            mode: info
-                .name("mode")
-                .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
-        }
+        let info = BEATMAPSET_URL_PATTERN_V2.captures(url).ok_or(
+            "Failed to get BEATMAPSET_URL_PATTERN_V2 captures in get_beatmap_info function",
+        )?;
+        Ok(BeatmapInfo {
+            beatmapset_id: Some(
+                info.name("beatmapset_id")
+                    .ok_or(
+                        "Failed to get beatmapset_id in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function",
+                    )?
+                    .as_str()
+                    .parse::<i64>()?,
+            ),
+            beatmap_id: Some(
+                info.name("beatmap_id")
+                    .ok_or(
+                        "Failed to get beatmap_id in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function",
+                    )?
+                    .as_str()
+                    .parse::<i64>()?,
+            ),
+            mode: gamemode_from_string(info.name("mode").ok_or("Failed to get mode in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function")?.as_str()),
+        })
     } else if BEATMAP_URL_PATTERN_V1.is_match(url) {
-        let info = BEATMAP_URL_PATTERN_V1.captures(url).unwrap();
+        let info = BEATMAP_URL_PATTERN_V1
+            .captures(url)
+            .ok_or("Failed to get BEATMAP_URL_PATTERN_V1 captures in get_beatmap_info function")?;
         if info
             .name("type")
-            .map(|map_type| map_type.as_str().parse::<String>().unwrap())
-            .unwrap()
-            == *"b"
+            .ok_or(
+                "Failed to get link type in BEATMAP_URL_PATTERN_V1 in get_beatmap_info function",
+            )?
+            .as_str()
+            == "b"
         {
-            BeatmapInfo {
+            Ok(BeatmapInfo {
                 beatmapset_id: None,
-                beatmap_id: info
-                    .name("id")
-                    .map(|id| id.as_str().parse::<i64>().unwrap()),
-                mode: info
-                    .name("mode")
-                    .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
-            }
+                beatmap_id: Some(
+                    info.name("beatmap_id")
+                        .ok_or(
+                            "Failed to get beatmap_id in BEATMAP_URL_PATTERN_V1 (beatmap) on get_beatmap_info function",
+                        )?
+                        .as_str()
+                        .parse::<i64>()?,
+                ),
+                mode: gamemode_from_string(info.name("mode").ok_or("Failed to get mode in BEATMAP_URL_PATTERN_V1 (beatmap) on get_beatmap_info function")?.as_str()),
+            })
         } else {
-            BeatmapInfo {
-                beatmapset_id: info
-                    .name("id")
-                    .map(|id| id.as_str().parse::<i64>().unwrap()),
+            Ok(BeatmapInfo {
+                beatmapset_id: Some(
+                    info.name("beatmapset_id")
+                        .ok_or(
+                            "Failed to get beatmapset_id in BEATMAP_URL_PATTERN_V1 (beatmapset) on get_beatmap_info function",
+                        )?
+                        .as_str()
+                        .parse::<i64>()?,
+                ),
                 beatmap_id: None,
-                mode: info
-                    .name("mode")
-                    .map(|mode| gamemode_from_string(mode.as_str()).unwrap()),
-            }
+                mode: gamemode_from_string(info.name("mode").ok_or("Failed to get mode in BEATMAP_URL_PATTERN_V1 (beatmapset) on get_beatmap_info function")?.as_str()),
+            })
         }
     } else {
-        BeatmapInfo {
+        Ok(BeatmapInfo {
             beatmapset_id: None,
             beatmap_id: None,
             mode: None,
-        }
+        })
     }
 }
