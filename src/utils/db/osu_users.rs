@@ -54,3 +54,9 @@ pub fn delete(db: &mut PgConnection, param_id: i64) -> Result<(), Error> {
 
     Ok(())
 }
+
+pub fn get_all(db: &mut PgConnection) -> Result<Vec<OsuUser>, Error> {
+    use crate::schema::osu_users::dsl::osu_users;
+
+    Ok(osu_users.load::<OsuUser>(db)?)
+}

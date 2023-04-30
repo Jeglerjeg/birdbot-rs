@@ -1,6 +1,8 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
-use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications};
-use crate::utils::osu::misc::{find_beatmap_link, get_user, sort_scores, wipe_profile_data};
+use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
+use crate::utils::osu::misc::{
+    find_beatmap_link, get_user, is_playing, sort_scores, wipe_profile_data,
+};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
@@ -33,7 +35,8 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
         "top",
         "score_notifications",
         "map_notifications",
-        "delete_guild_config"
+        "delete_guild_config",
+        "debug"
     )
 )]
 pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
@@ -806,6 +809,49 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
             ctx.say("Your guild doesn't have a config stored.").await?;
         }
     };
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
+    let connection = &mut ctx.data().db_pool.get()?;
+    let linked_profiles = linked_osu_profiles::get_all(connection)?;
+    let tracked_profiles = osu_users::get_all(connection)?;
+
+    let mut playing_users: Vec<String> = Vec::new();
+    for linked_profile in &linked_profiles {
+        for osu_user in &tracked_profiles {
+            if linked_profile.osu_id == osu_user.id {
+                let user = ctx
+                    .cache()
+                    .ok_or("Failed to retrieve discord cache in debug command")?
+                    .user(linked_profile.id as u64);
+                if let Some(user) = user {
+                    if is_playing(ctx.discord(), user.id, linked_profile.home_guild)? {
+                        playing_users.push(format!("`{}`", user.name.clone()));
+                    }
+                } else {
+                    continue;
+                }
+            }
+        }
+    }
+
+    let formatted_playing_members = if playing_users.is_empty() {
+        "None".into()
+    } else {
+        playing_users.join(", ")
+    };
+
+    let formatted_message = format!(
+        "Members registered as playing: {}\n\
+         Total members tracked: `{}`",
+        formatted_playing_members,
+        tracked_profiles.len()
+    );
+
+    ctx.say(formatted_message).await?;
 
     Ok(())
 }
