@@ -148,17 +148,17 @@ async fn help_all_commands<U, E>(
             if command.hide_in_help {
                 continue;
             }
-            let _ = writeln!(menu, "{}", format_command(ctx, command, None).await?);
+            writeln!(menu, "{}", format_command(ctx, command, None).await?)?;
             if !command.subcommands.is_empty() {
                 for subcommand in &command.subcommands {
                     if subcommand.hide_in_help {
                         continue;
                     }
-                    let _ = writeln!(
+                    writeln!(
                         menu,
                         "{}",
                         format_command(ctx, subcommand, Option::from(command.name.clone())).await?
-                    );
+                    )?;
                 }
             }
         }
@@ -174,7 +174,7 @@ async fn help_all_commands<U, E>(
                 None => continue,
             };
             let name = command.context_menu_name.unwrap_or(&command.name);
-            let _ = writeln!(menu, "  {name} (on {kind})");
+            writeln!(menu, "  {name} (on {kind})")?;
         }
     }
 
@@ -209,6 +209,7 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let information = ctx.discord().http.get_current_application_info().await?;
+    let owner = information.owner.ok_or("No application owner registered")?;
     let content = format!(
         "```elm\n\
         Owner   : {}#{}\n\
@@ -216,8 +217,8 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         Members : {}\n\
         Guilds  : {}```\
         {}",
-        information.owner.name,
-        information.owner.discriminator,
+        owner.name,
+        owner.discriminator,
         ctx.data().time_started.format("%d-%m-%Y %H:%M:%S"),
         ctx.discord().cache.users().len(),
         ctx.discord().cache.guilds().len(),
