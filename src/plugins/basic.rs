@@ -210,15 +210,20 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let information = ctx.discord().http.get_current_application_info().await?;
     let owner = information.owner.ok_or("No application owner registered")?;
+    let username = if let Some(discriminator) = owner.discriminator {
+        format!("@{}#{}", owner.name, discriminator)
+    } else {
+        format!("@{}", owner.name)
+    };
+
     let content = format!(
         "```elm\n\
-        Owner   : {}#{}\n\
+        Owner   : {}\n\
         Up      : {} UTC\n\
         Members : {}\n\
         Guilds  : {}```\
         {}",
-        owner.name,
-        owner.discriminator,
+        username,
         ctx.data().time_started.format("%d-%m-%Y %H:%M:%S"),
         ctx.discord().cache.users().len(),
         ctx.discord().cache.guilds().len(),

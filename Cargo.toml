@@ -20,7 +20,7 @@ num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
 dashmap = "5.4"
-rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "7b87041f49b366325840465adfa4c90e5ed673ff", features = ["async_tokio"] }
+rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
 regex = "1.8"
 
 [dependencies.tokio]
@@ -29,7 +29,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "bdf80de8e57afe5ce782d73cd81582dff8e01b39"
+rev = "6af358f5103db1bfb9f976e4f63a4d6f693d56aa"
 
 [dependencies.diesel]
 version = "2.0"

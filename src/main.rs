@@ -71,16 +71,15 @@ async fn event_listener(
 
 async fn pre_command(ctx: Context<'_>) {
     info!(
-        "@{}#{} ({}) -> {}",
+        "@{} ({}) -> {}",
         ctx.author().name,
-        ctx.author().discriminator,
         match ctx.guild() {
             Some(guild) => guild.name.clone(),
             _ => {
                 "Direct Message".into()
             }
         },
-        ctx.command().name
+        ctx.invocation_string()
     );
 }
 
