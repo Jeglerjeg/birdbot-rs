@@ -87,7 +87,7 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
             Ok(BeatmapInfo {
                 beatmapset_id: None,
                 beatmap_id: Some(
-                    info.name("beatmap_id")
+                    info.name("id")
                         .ok_or(
                             "Failed to get beatmap_id in BEATMAP_URL_PATTERN_V1 (beatmap) on get_beatmap_info function",
                         )?
@@ -99,7 +99,7 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
         } else {
             Ok(BeatmapInfo {
                 beatmapset_id: Some(
-                    info.name("beatmapset_id")
+                    info.name("id")
                         .ok_or(
                             "Failed to get beatmapset_id in BEATMAP_URL_PATTERN_V1 (beatmapset) on get_beatmap_info function",
                         )?
