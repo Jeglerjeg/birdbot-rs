@@ -29,7 +29,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "4a225da29d6225b5f526b61157a584ce4990af57"
+rev = "50ddbbb85a66068e3de33a9ba3c6ff72e62596b6"
 
 [dependencies.diesel]
 version = "2.0"
@@ -41,7 +41,7 @@ features = ["aac", "mp3", "isomp4", "alac"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "20da9e1cac0cca9c7f6ca1169a582064290dee8f"
+rev = "0044728b5407aa7644153c72158aa3ee99c69bfa"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
