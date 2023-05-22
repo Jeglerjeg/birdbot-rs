@@ -813,7 +813,7 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+#[poise::command(prefix_command, category = "osu!", guild_only, owners_only)]
 pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
     let linked_profiles = linked_osu_profiles::get_all(connection)?;
