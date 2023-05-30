@@ -76,6 +76,16 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
         let info = BEATMAP_URL_PATTERN_V1
             .captures(url)
             .ok_or("Failed to get BEATMAP_URL_PATTERN_V1 captures in get_beatmap_info function")?;
+
+        let mode = if let Some(mode) = info.name("mode") {
+            Some(
+                gamemode_from_string(mode.as_str())
+                    .ok_or("Failed to parse mode in BEATMAP_URL_PATTERN_V1")?,
+            )
+        } else {
+            None
+        };
+
         if info
             .name("type")
             .ok_or(
@@ -94,7 +104,7 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
                         .as_str()
                         .parse::<i64>()?,
                 ),
-                mode: gamemode_from_string(info.name("mode").ok_or("Failed to get mode in BEATMAP_URL_PATTERN_V1 (beatmap) on get_beatmap_info function")?.as_str()),
+                mode,
             })
         } else {
             Ok(BeatmapInfo {
@@ -107,7 +117,7 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
                         .parse::<i64>()?,
                 ),
                 beatmap_id: None,
-                mode: gamemode_from_string(info.name("mode").ok_or("Failed to get mode in BEATMAP_URL_PATTERN_V1 (beatmapset) on get_beatmap_info function")?.as_str()),
+                mode,
             })
         }
     } else {

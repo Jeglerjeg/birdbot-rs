@@ -249,13 +249,13 @@ pub async fn mode(
 #[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
 pub async fn score(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for a score."] beatmap_url: Option<String>,
+    #[description = "Beatmap ID to check for a score."]
+    beatmap_url: Option<url::Url>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
     #[rest]
-    #[description = "osu! user to see score for."]
-    user: Option<String>,
+    #[description = "osu! user to see score for."] user: Option<String>,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get()?;
 
@@ -265,7 +265,7 @@ pub async fn score(
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
-        beatmap_info = get_beatmap_info(&beatmap_url)?;
+        beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
         let Some(_) = beatmap_info.beatmap_id else {
             ctx.say("Please link to a specific beatmap difficulty.")
                 .await?;
@@ -336,7 +336,7 @@ pub async fn score(
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn scores(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for scores."] beatmap_url: Option<String>,
+    #[description = "Beatmap ID to check for scores."] beatmap_url: Option<url::Url>,
     #[description = "Sort your scores by something other than pp."] sort_type: Option<SortChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
@@ -353,7 +353,7 @@ pub async fn scores(
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
-        beatmap_info = get_beatmap_info(&beatmap_url)?;
+        beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
         let Some(_) = beatmap_info.beatmap_id else {
             ctx.say("Please link to a specific beatmap difficulty.")
                 .await?;

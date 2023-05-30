@@ -22,6 +22,7 @@ time = "0.3"
 dashmap = "5.4"
 rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
 regex = "1.8"
+url = "2.3"
 
 [dependencies.tokio]
 version = "1.28"
