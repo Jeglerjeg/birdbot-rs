@@ -22,7 +22,7 @@ time = "0.3"
 dashmap = "5.4"
 rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
 regex = "1.8"
-url = "2.3"
+url = "2.4"
 
 [dependencies.tokio]
 version = "1.28"
@@ -42,7 +42,7 @@ features = ["aac", "mp3", "isomp4", "alac"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "0044728b5407aa7644153c72158aa3ee99c69bfa"
+rev = "94a031721d57c4c4475de3765dfc71c72915d629"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]

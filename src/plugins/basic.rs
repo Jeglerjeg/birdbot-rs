@@ -213,7 +213,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let username = if let Some(discriminator) = owner.discriminator {
         format!("@{}#{}", owner.name, discriminator)
     } else {
-        format!("@{}", owner.name)
+        owner.name
     };
 
     let content = format!(
