@@ -13,7 +13,7 @@ use crate::utils::osu::misc_format::{format_diff, format_potential_string, forma
 use crate::utils::osu::regex::get_beatmap_info;
 use crate::utils::osu::score_format::{format_new_score, format_score_list};
 use crate::{Error, Pool};
-use chrono::{TimeZone, Utc};
+use chrono::Utc;
 use dashmap::DashMap;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
