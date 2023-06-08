@@ -13,7 +13,7 @@ use crate::utils::osu::misc_format::{format_diff, format_potential_string, forma
 use crate::utils::osu::regex::get_beatmap_info;
 use crate::utils::osu::score_format::{format_new_score, format_score_list};
 use crate::{Error, Pool};
-use chrono::Utc;
+use chrono::{TimeZone, Utc};
 use dashmap::DashMap;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -27,6 +27,7 @@ use std::env;
 use std::num::NonZeroU64;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::time::sleep;
 use tracing::error;
 
@@ -395,6 +396,9 @@ impl OsuTracker {
 
         for (pos, score) in best_scores.iter().enumerate() {
             if score.ended_at.unix_timestamp() > last_notifications.last_pp.timestamp() {
+                if (OffsetDateTime::now_utc() - score.ended_at).whole_hours() > 3 {
+                    continue;
+                }
                 new_scores.push((score.clone(), pos + 1));
             }
         }
