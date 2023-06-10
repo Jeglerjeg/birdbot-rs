@@ -1,19 +1,18 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
+use crate::models::osu_guild_channels::NewOsuGuildChannel;
+use crate::models::osu_notifications::NewOsuNotification;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
+use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
 use crate::utils::osu::misc::{
-    find_beatmap_link, get_user, is_playing, sort_scores, wipe_profile_data,
+    find_beatmap_link, get_user, is_playing, set_up_score_list, sort_scores, wipe_profile_data,
 };
 use crate::utils::osu::misc_format::format_missing_user_string;
+use crate::{Context, Error};
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{CacheHttp, Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel};
 use poise::CreateReply;
 use rosu_v2::model::GameMode;
-use rosu_v2::prelude::Score;
-
-use crate::models::osu_guild_channels::NewOsuGuildChannel;
-use crate::models::osu_notifications::NewOsuNotification;
-use crate::{Context, Error};
 
 use crate::utils::osu::embeds::{send_score_embed, send_scores_embed};
 use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
@@ -300,14 +299,14 @@ pub async fn score(
 
     match score {
         Ok(score) => {
-            let beatmap = crate::utils::osu::caching::get_beatmap(
+            let beatmap = get_beatmap(
                 connection,
                 ctx.data().osu_client.clone(),
                 score.score.map_id,
             )
             .await?;
 
-            let beatmapset = crate::utils::osu::caching::get_beatmapset(
+            let beatmapset = get_beatmapset(
                 connection,
                 ctx.data().osu_client.clone(),
                 beatmap.beatmapset_id as u32,
@@ -390,24 +389,16 @@ pub async fn scores(
                 return Ok(());
             }
 
-            let mut beatmap_scores: Vec<(Score, usize)> = Vec::new();
-
-            for (pos, score) in api_scores.iter().enumerate() {
-                beatmap_scores.push((score.clone(), pos + 1));
-            }
+            let mut beatmap_scores = set_up_score_list(&ctx, connection, api_scores).await?;
 
             if let Some(sort_type) = sort_type {
                 beatmap_scores = sort_scores(beatmap_scores, &sort_type);
             }
 
-            let beatmap = crate::utils::osu::caching::get_beatmap(
-                connection,
-                ctx.data().osu_client.clone(),
-                beatmap_id as u32,
-            )
-            .await?;
+            let beatmap =
+                get_beatmap(connection, ctx.data().osu_client.clone(), beatmap_id as u32).await?;
 
-            let beatmapset = crate::utils::osu::caching::get_beatmapset(
+            let beatmapset = get_beatmapset(
                 connection,
                 ctx.data().osu_client.clone(),
                 beatmap.beatmapset_id as u32,
@@ -417,13 +408,10 @@ pub async fn scores(
             send_scores_embed(
                 ctx,
                 ctx.author(),
-                connection,
                 &beatmap_scores,
                 &osu_user,
                 beatmap_scores.len() > 5,
                 &beatmapset.list_cover,
-                Some(&beatmap),
-                Some(&beatmapset),
             )
             .await?;
         }
@@ -488,14 +476,10 @@ pub async fn recent(
             } else {
                 let score = &scores[0];
 
-                let beatmap = crate::utils::osu::caching::get_beatmap(
-                    connection,
-                    ctx.data().osu_client.clone(),
-                    score.map_id,
-                )
-                .await?;
+                let beatmap =
+                    get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
-                let beatmapset = crate::utils::osu::caching::get_beatmapset(
+                let beatmapset = get_beatmapset(
                     connection,
                     ctx.data().osu_client.clone(),
                     beatmap.beatmapset_id as u32,
@@ -571,14 +555,10 @@ pub async fn recent_best(
                 api_scores.sort_by(|a, b| b.pp.unwrap_or(0.0).total_cmp(&a.pp.unwrap_or(0.0)));
                 let score = &api_scores[0];
 
-                let beatmap = crate::utils::osu::caching::get_beatmap(
-                    connection,
-                    ctx.data().osu_client.clone(),
-                    score.map_id,
-                )
-                .await?;
+                let beatmap =
+                    get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
-                let beatmapset = crate::utils::osu::caching::get_beatmapset(
+                let beatmapset = get_beatmapset(
                     connection,
                     ctx.data().osu_client.clone(),
                     beatmap.beatmapset_id as u32,
@@ -655,10 +635,7 @@ pub async fn pins(
                 return Ok(());
             }
 
-            let mut pinned_scores: Vec<(Score, usize)> = Vec::new();
-            for (pos, score) in api_scores.iter().enumerate() {
-                pinned_scores.push((score.clone(), pos + 1));
-            }
+            let mut pinned_scores = set_up_score_list(&ctx, connection, api_scores).await?;
 
             if let Some(sort_type) = sort_type {
                 pinned_scores = sort_scores(pinned_scores, &sort_type);
@@ -667,13 +644,10 @@ pub async fn pins(
             send_scores_embed(
                 ctx,
                 ctx.author(),
-                connection,
                 &pinned_scores,
                 &osu_user,
                 pinned_scores.len() > 5,
                 &osu_user.avatar_url,
-                None,
-                None,
             )
             .await?;
         }
@@ -721,10 +695,7 @@ pub async fn firsts(
                 return Ok(());
             }
 
-            let mut first_scores: Vec<(Score, usize)> = Vec::new();
-            for (pos, score) in api_scores.iter().enumerate() {
-                first_scores.push((score.clone(), pos + 1));
-            }
+            let mut first_scores = set_up_score_list(&ctx, connection, api_scores).await?;
 
             if let Some(sort_type) = sort_type {
                 first_scores = sort_scores(first_scores, &sort_type);
@@ -733,13 +704,10 @@ pub async fn firsts(
             send_scores_embed(
                 ctx,
                 ctx.author(),
-                connection,
                 &first_scores,
                 &osu_user,
                 first_scores.len() > 5,
                 &osu_user.avatar_url,
-                None,
-                None,
             )
             .await?;
         }
@@ -786,10 +754,7 @@ pub async fn top(
                 return Ok(());
             }
 
-            let mut best_scores: Vec<(Score, usize)> = Vec::new();
-            for (pos, score) in api_scores.iter().enumerate() {
-                best_scores.push((score.clone(), pos + 1));
-            }
+            let mut best_scores = set_up_score_list(&ctx, connection, api_scores).await?;
 
             if let Some(sort_type) = sort_type {
                 best_scores = sort_scores(best_scores, &sort_type);
@@ -798,13 +763,10 @@ pub async fn top(
             send_scores_embed(
                 ctx,
                 ctx.author(),
-                connection,
                 &best_scores,
                 &osu_user,
                 best_scores.len() > 5,
                 &osu_user.avatar_url,
-                None,
-                None,
             )
             .await?;
         }

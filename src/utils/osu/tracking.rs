@@ -1,3 +1,5 @@
+use crate::models::beatmaps::Beatmap;
+use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::models::osu_users::{NewOsuUser, OsuUser};
@@ -191,7 +193,7 @@ impl OsuTracker {
             .entry(linked_profile.osu_id)
             .or_default();
 
-        let mut to_notify: Vec<(Score, usize)> = Vec::new();
+        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset)> = Vec::new();
 
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
@@ -209,7 +211,16 @@ impl OsuTracker {
 
             let api_score = self.osu_client.score(score_id, gamemode).await?;
 
-            to_notify.push((api_score.clone(), score.1));
+            let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
+
+            let beatmapset = get_beatmapset(
+                connection,
+                self.osu_client.clone(),
+                beatmap.beatmapset_id as u32,
+            )
+            .await?;
+
+            to_notify.push((api_score.clone(), score.1, beatmap, beatmapset));
         }
 
         if to_notify.is_empty() {
@@ -222,16 +233,7 @@ impl OsuTracker {
 
         let formatted_score = format!(
             "{}\n{}",
-            format_score_list(
-                connection,
-                self.osu_client.clone(),
-                &to_notify,
-                None,
-                None,
-                None,
-                None
-            )
-            .await?,
+            format_score_list(&to_notify, None, None,).await?,
             format_diff(new, old, gamemode)?
         );
 

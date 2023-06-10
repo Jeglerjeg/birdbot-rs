@@ -6,7 +6,6 @@ use crate::utils::osu::misc_format::{
 };
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
-use diesel_async::AsyncPgConnection;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     CacheHttp, Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor,
@@ -122,13 +121,10 @@ pub async fn send_score_embed(
 pub async fn send_scores_embed(
     ctx: Context<'_>,
     discord_user: &serenity_prelude::User,
-    connection: &mut AsyncPgConnection,
-    best_scores: &[(Score, usize)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset)],
     user: &User,
     paginate: bool,
     thumbnail: &str,
-    beatmap: Option<&Beatmap>,
-    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
     let color: Colour;
     if let Some(guild) = ctx.guild() {
@@ -145,16 +141,7 @@ pub async fn send_scores_embed(
         color = BLUE;
     };
 
-    let formatted_scores = format_score_list(
-        connection,
-        ctx.data().osu_client.clone(),
-        best_scores,
-        None,
-        None,
-        beatmap,
-        beatmapset,
-    )
-    .await?;
+    let formatted_scores = format_score_list(best_scores, None, None).await?;
 
     let embed = create_embed(
         color,
@@ -177,17 +164,7 @@ pub async fn send_scores_embed(
 
         let reply = ctx.send(builder).await?;
 
-        handle_top_score_interactions(
-            ctx,
-            connection,
-            reply,
-            best_scores,
-            color,
-            user,
-            beatmap,
-            beatmapset,
-        )
-        .await?;
+        handle_top_score_interactions(ctx, reply, best_scores, color, user).await?;
     } else {
         let builder = CreateReply::new().embed(embed);
 
@@ -199,13 +176,10 @@ pub async fn send_scores_embed(
 
 async fn handle_top_score_interactions(
     ctx: Context<'_>,
-    connection: &mut AsyncPgConnection,
     reply: ReplyHandle<'_>,
-    best_scores: &[(Score, usize)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset)],
     color: Colour,
     user: &User,
-    beatmap: Option<&Beatmap>,
-    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
     let mut offset: usize = 0;
     let mut page = 1;
@@ -231,7 +205,6 @@ async fn handle_top_score_interactions(
                 }
                 change_top_scores_page(
                     ctx,
-                    connection,
                     &reply,
                     best_scores,
                     offset,
@@ -239,8 +212,6 @@ async fn handle_top_score_interactions(
                     &max_pages,
                     color,
                     user,
-                    beatmap,
-                    beatmapset,
                 )
                 .await?;
             }
@@ -255,7 +226,6 @@ async fn handle_top_score_interactions(
                 }
                 change_top_scores_page(
                     ctx,
-                    connection,
                     &reply,
                     best_scores,
                     offset,
@@ -263,8 +233,6 @@ async fn handle_top_score_interactions(
                     &max_pages,
                     color,
                     user,
-                    beatmap,
-                    beatmapset,
                 )
                 .await?;
             }
@@ -274,7 +242,6 @@ async fn handle_top_score_interactions(
                 offset = 0;
                 change_top_scores_page(
                     ctx,
-                    connection,
                     &reply,
                     best_scores,
                     offset,
@@ -282,8 +249,6 @@ async fn handle_top_score_interactions(
                     &max_pages,
                     color,
                     user,
-                    beatmap,
-                    beatmapset,
                 )
                 .await?;
             }
@@ -293,7 +258,6 @@ async fn handle_top_score_interactions(
 
     remove_top_score_paginators(
         ctx,
-        connection,
         reply,
         best_scores,
         offset,
@@ -301,8 +265,6 @@ async fn handle_top_score_interactions(
         &max_pages,
         color,
         user,
-        beatmap,
-        beatmapset,
     )
     .await?;
 
@@ -311,27 +273,15 @@ async fn handle_top_score_interactions(
 
 async fn remove_top_score_paginators(
     ctx: Context<'_>,
-    connection: &mut AsyncPgConnection,
     reply: ReplyHandle<'_>,
-    best_scores: &[(Score, usize)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset)],
     offset: usize,
     page: &usize,
     max_pages: &usize,
     color: Colour,
     user: &User,
-    beatmap: Option<&Beatmap>,
-    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(
-        connection,
-        ctx.data().osu_client.clone(),
-        best_scores,
-        None,
-        Some(offset),
-        beatmap,
-        beatmapset,
-    )
-    .await?;
+    let formatted_scores = format_score_list(best_scores, None, Some(offset)).await?;
 
     let embed = create_embed(
         color,
@@ -352,27 +302,15 @@ async fn remove_top_score_paginators(
 
 async fn change_top_scores_page(
     ctx: Context<'_>,
-    connection: &mut AsyncPgConnection,
     reply: &ReplyHandle<'_>,
-    best_scores: &[(Score, usize)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset)],
     offset: usize,
     page: &usize,
     max_pages: &usize,
     color: Colour,
     user: &User,
-    beatmap: Option<&Beatmap>,
-    beatmapset: Option<&Beatmapset>,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(
-        connection,
-        ctx.data().osu_client.clone(),
-        best_scores,
-        None,
-        Some(offset),
-        beatmap,
-        beatmapset,
-    )
-    .await?;
+    let formatted_scores = format_score_list(best_scores, None, Some(offset)).await?;
 
     let embed = create_embed(
         color,

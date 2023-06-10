@@ -99,7 +99,7 @@ pub fn check_beatmapset_valid_result(beatmapset: &Beatmapset) -> bool {
     let current_time = Utc::now().naive_utc();
     match beatmapset.status.as_str() {
         "Loved" => {
-            if (current_time - beatmapset.time_cached).num_days() > 30 {
+            if (current_time - beatmapset.time_cached).num_days() > 182 {
                 return false;
             }
         }
@@ -118,7 +118,7 @@ pub fn check_beatmap_valid_result(beatmap: &Beatmap) -> bool {
     let current_time = Utc::now();
     match beatmap.status.as_str() {
         "Loved" => {
-            if (current_time - beatmap.time_cached).num_days() > 30 {
+            if (current_time - beatmap.time_cached).num_days() > 182 {
                 return false;
             }
         }

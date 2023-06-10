@@ -5,12 +5,9 @@ use crate::utils::osu::misc::calculate_potential_acc;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_potential_string};
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
-use diesel_async::AsyncPgConnection;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
-use rosu_v2::Osu;
-use std::sync::Arc;
 
 pub fn format_score_statistic(
     score: &Score,
@@ -148,13 +145,9 @@ pub fn format_new_score(
 }
 
 pub async fn format_score_list(
-    connection: &mut AsyncPgConnection,
-    osu_client: Arc<Osu>,
-    scores: &[(Score, usize)],
+    scores: &[(Score, usize, Beatmap, Beatmapset)],
     limit: Option<usize>,
     offset: Option<usize>,
-    beatmap: Option<&Beatmap>,
-    beatmapset: Option<&Beatmapset>,
 ) -> Result<String, Error> {
     let offset = offset.unwrap_or(0);
     let limit = limit.unwrap_or(5);
@@ -168,33 +161,13 @@ pub async fn format_score_list(
             break;
         }
 
-        let beatmap = match beatmap {
-            Some(beatmap) => beatmap.clone(),
-            _ => {
-                crate::utils::osu::caching::get_beatmap(
-                    connection,
-                    osu_client.clone(),
-                    score.0.map_id,
-                )
-                .await?
-            }
-        };
+        let beatmap = &score.2;
 
-        let beatmapset = match beatmapset {
-            Some(beatmapset) => beatmapset.clone(),
-            _ => {
-                crate::utils::osu::caching::get_beatmapset(
-                    connection,
-                    osu_client.clone(),
-                    beatmap.beatmapset_id as u32,
-                )
-                .await?
-            }
-        };
+        let beatmapset = &score.3;
 
         let pp = crate::utils::osu::calculate::calculate(
             &score.0,
-            &beatmap,
+            beatmap,
             calculate_potential_acc(&score.0),
         )
         .await;
@@ -213,7 +186,7 @@ pub async fn format_score_list(
             None
         };
 
-        let formatted_score = format_new_score(&score.0, &beatmap, &beatmapset, &pp, None)?;
+        let formatted_score = format_new_score(&score.0, beatmap, beatmapset, &pp, None)?;
 
         formatted_list.push(format!(
             "{}.\n{}<t:{}:R>{}\n",
