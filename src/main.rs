@@ -150,6 +150,7 @@ async fn main() {
             plugins::osu::osu(),
             plugins::osu::top(),
             plugins::osu::recent(),
+            plugins::osu::recent_best(),
             plugins::osu::score(),
             plugins::osu::scores(),
             plugins::osu::firsts(),

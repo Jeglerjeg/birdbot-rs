@@ -30,6 +30,7 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
         "unlink",
         "mode",
         "recent",
+        "recent_best",
         "pins",
         "firsts",
         "top",
@@ -486,6 +487,89 @@ pub async fn recent(
                     .await?;
             } else {
                 let score = &scores[0];
+
+                let beatmap = crate::utils::osu::caching::get_beatmap(
+                    connection,
+                    ctx.data().osu_client.clone(),
+                    score.map_id,
+                )
+                .await?;
+
+                let beatmapset = crate::utils::osu::caching::get_beatmapset(
+                    connection,
+                    ctx.data().osu_client.clone(),
+                    beatmap.beatmapset_id as u32,
+                )
+                .await?;
+
+                send_score_embed(
+                    ctx,
+                    ctx.author(),
+                    score,
+                    &beatmap,
+                    &beatmapset,
+                    osu_user,
+                    None,
+                )
+                .await?;
+            }
+        }
+        Err(why) => {
+            ctx.say(format!("Failed to get recent scores. {why}"))
+                .await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Display your most recent osu score.
+#[poise::command(prefix_command, slash_command, category = "osu!", aliases("rb"))]
+pub async fn recent_best(
+    ctx: Context<'_>,
+    #[description = "User to see profile for."] mode: Option<GameModeChoices>,
+    #[description = "Discord user to check score for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
+    #[rest]
+    #[description = "User to see profile for."]
+    user: Option<String>,
+) -> Result<(), Error> {
+    let connection = &mut ctx.data().db_pool.get().await?;
+
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+
+    let mode = if let Some(mode) = mode {
+        match mode {
+            GameModeChoices::Standard => GameMode::Osu,
+            GameModeChoices::Taiko => GameMode::Taiko,
+            GameModeChoices::Catch => GameMode::Catch,
+            GameModeChoices::Mania => GameMode::Mania,
+        }
+    } else {
+        osu_user.mode
+    };
+
+    let recent_score = ctx
+        .data()
+        .osu_client
+        .user_scores(osu_user.user_id)
+        .recent()
+        .mode(mode)
+        .include_fails(false)
+        .limit(100)
+        .await;
+
+    match recent_score {
+        Ok(mut api_scores) => {
+            if api_scores.is_empty() {
+                ctx.say(format!("No recent scores found for {}.", osu_user.username))
+                    .await?;
+            } else {
+                api_scores.sort_by(|a, b| b.pp.unwrap_or(0.0).total_cmp(&a.pp.unwrap_or(0.0)));
+                let score = &api_scores[0];
 
                 let beatmap = crate::utils::osu::caching::get_beatmap(
                     connection,
