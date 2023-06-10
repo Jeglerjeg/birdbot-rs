@@ -4,29 +4,29 @@ use crate::utils::db::beatmaps;
 use crate::utils::db::beatmapsets;
 use crate::Error;
 use chrono::Utc;
-use diesel::PgConnection;
+use diesel_async::AsyncPgConnection;
 use rosu_v2::Osu;
 use std::sync::Arc;
 
 pub async fn cache_beatmapset(
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: i64,
 ) -> Result<(), Error> {
     let beatmapset = osu_client.beatmapset(id as u32).await?;
     if let Some(ref beatmaps) = beatmapset.maps {
         for beatmap in beatmaps {
-            beatmaps::create(connection, beatmap)?;
+            beatmaps::create(connection, beatmap).await?;
         }
     }
 
-    beatmapsets::create(connection, beatmapset)?;
+    beatmapsets::create(connection, beatmapset).await?;
 
     Ok(())
 }
 
 pub async fn cache_beatmapset_from_beatmap(
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: i64,
 ) -> Result<(), Error> {
@@ -34,17 +34,17 @@ pub async fn cache_beatmapset_from_beatmap(
 
     if let Some(ref beatmaps) = beatmapset.maps {
         for beatmap in beatmaps {
-            beatmaps::create(connection, beatmap)?;
+            beatmaps::create(connection, beatmap).await?;
         }
     }
 
-    beatmapsets::create(connection, beatmapset)?;
+    beatmapsets::create(connection, beatmapset).await?;
 
     Ok(())
 }
 
 pub async fn update_cache(
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: i64,
 ) -> Result<(), Error> {
@@ -52,47 +52,47 @@ pub async fn update_cache(
 
     if let Some(ref beatmaps) = beatmapset.maps {
         for beatmap in beatmaps {
-            beatmaps::update(connection, i64::from(beatmap.map_id), beatmap)?;
+            beatmaps::update(connection, i64::from(beatmap.map_id), beatmap).await?;
         }
     }
 
-    beatmapsets::update(connection, id, beatmapset)?;
+    beatmapsets::update(connection, id, beatmapset).await?;
 
     Ok(())
 }
 
 pub async fn get_beatmap(
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: u32,
 ) -> Result<Beatmap, Error> {
-    let query_beatmap = beatmaps::get_single(connection, i64::from(id));
+    let query_beatmap = beatmaps::get_single(connection, i64::from(id)).await;
     if let Ok(beatmap) = query_beatmap {
         if check_beatmap_valid_result(&beatmap) {
             return Ok(beatmap);
         }
         update_cache(connection, osu_client, beatmap.beatmapset_id).await?;
-        return Ok(beatmaps::get_single(connection, i64::from(id))?);
+        return Ok(beatmaps::get_single(connection, i64::from(id)).await?);
     }
     cache_beatmapset_from_beatmap(connection, osu_client, i64::from(id)).await?;
-    Ok(beatmaps::get_single(connection, i64::from(id))?)
+    Ok(beatmaps::get_single(connection, i64::from(id)).await?)
 }
 
 pub async fn get_beatmapset(
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: u32,
 ) -> Result<Beatmapset, Error> {
-    let query_beatmapset = beatmapsets::read(connection, i64::from(id));
+    let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await;
     if let Ok(beatmapset) = query_beatmapset {
         if check_beatmapset_valid_result(&beatmapset) {
             return Ok(beatmapset);
         }
         update_cache(connection, osu_client, beatmapset.id).await?;
-        return Ok(beatmapsets::read(connection, i64::from(id))?);
+        return Ok(beatmapsets::read(connection, i64::from(id)).await?);
     }
     cache_beatmapset(connection, osu_client, i64::from(id)).await?;
-    Ok(beatmapsets::read(connection, i64::from(id))?)
+    Ok(beatmapsets::read(connection, i64::from(id)).await?)
 }
 
 pub fn check_beatmapset_valid_result(beatmapset: &Beatmapset) -> bool {

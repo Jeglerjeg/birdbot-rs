@@ -2,7 +2,8 @@ use crate::models::prefix::{NewPrefix, Prefix};
 use crate::schema::prefix;
 use crate::{Error, PartialContext};
 use dashmap::DashMap;
-use diesel::prelude::*;
+use diesel::prelude::QueryDsl;
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use lazy_static::lazy_static;
 use poise::serenity_prelude::GuildId;
 use std::env;
@@ -21,8 +22,8 @@ lazy_static! {
     };
 }
 
-pub fn add_guild_prefix(
-    db: &mut PgConnection,
+pub async fn add_guild_prefix(
+    db: &mut AsyncPgConnection,
     guild_id: i64,
     guild_prefix: String,
 ) -> Result<(), Error> {
@@ -40,7 +41,8 @@ pub fn add_guild_prefix(
         .on_conflict(prefix::guild_id)
         .do_update()
         .set(&new_prefix)
-        .execute(db)?;
+        .execute(db)
+        .await?;
 
     Ok(())
 }
@@ -56,7 +58,8 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
                 match prefix::table
                     .find(guild_id.get() as i64)
                     .limit(1)
-                    .load::<Prefix>(&mut ctx.data.db_pool.get()?)?
+                    .load::<Prefix>(&mut ctx.data.db_pool.get().await?)
+                    .await?
                     .get(0)
                 {
                     Some(prefix) => prefix.guild_prefix.clone(),

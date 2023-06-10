@@ -5,7 +5,7 @@ use crate::utils::osu::misc::calculate_potential_acc;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_potential_string};
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
-use diesel::PgConnection;
+use diesel_async::AsyncPgConnection;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
@@ -148,7 +148,7 @@ pub fn format_new_score(
 }
 
 pub async fn format_score_list(
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     scores: &[(Score, usize)],
     limit: Option<usize>,

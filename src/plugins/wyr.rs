@@ -2,7 +2,7 @@ use crate::models::questions::Question;
 use crate::{Context, Error};
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
-use diesel::PgConnection;
+use diesel_async::AsyncPgConnection;
 use lazy_static::lazy_static;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::ButtonStyle::{Danger, Success};
@@ -47,7 +47,7 @@ fn format_question(question: &Question, responses: &[String]) -> String {
 async fn create_wyr_message(
     ctx: Context<'_>,
     question: Question,
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
 ) -> Result<(), Error> {
     let embed = CreateEmbed::new().description(format_question(&question, &[]));
 
@@ -69,7 +69,7 @@ async fn handle_interaction_responses(
     ctx: Context<'_>,
     reply: ReplyHandle<'_>,
     mut question: Question,
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
 ) -> Result<(), Error> {
     let mut responses: Vec<String> = vec![];
     let mut replies: Vec<u64> = vec![];
@@ -143,7 +143,8 @@ async fn handle_interaction_responses(
         question.id,
         question.choice1_answers,
         question.choice2_answers,
-    )?;
+    )
+    .await?;
 
     let embed = CreateEmbed::new().description(format!(
         "{}\n\n{}",
@@ -158,14 +159,14 @@ async fn handle_interaction_responses(
     Ok(())
 }
 
-fn add_recent_question(
-    connection: &mut PgConnection,
-    mut previous_questions: RefMut<u64, Vec<i32>>,
+async fn add_recent_question<'a>(
+    connection: &mut AsyncPgConnection,
+    mut previous_questions: RefMut<'_, u64, Vec<i32>>,
     id: i32,
 ) -> Result<(), Error> {
     previous_questions.push(id);
 
-    let previous_len = crate::utils::db::questions::count_entries(connection)?;
+    let previous_len = crate::utils::db::questions::count_entries(connection).await?;
     if previous_questions.len() as i64 > (previous_len / 2) {
         previous_questions.remove(0);
     };
@@ -173,12 +174,16 @@ fn add_recent_question(
     Ok(())
 }
 
-fn check_for_duplicates(connection: &mut PgConnection, choice_1: &str, choice_2: &str) -> bool {
-    if (crate::utils::db::questions::get_question(connection, choice_1, choice_2)).is_ok() {
+async fn check_for_duplicates(
+    connection: &mut AsyncPgConnection,
+    choice_1: &str,
+    choice_2: &str,
+) -> bool {
+    if (crate::utils::db::questions::get_question(connection, choice_1, choice_2).await).is_ok() {
         return false;
     };
 
-    if (crate::utils::db::questions::get_question(connection, choice_2, choice_1)).is_ok() {
+    if (crate::utils::db::questions::get_question(connection, choice_2, choice_1).await).is_ok() {
         return false;
     };
 
@@ -195,7 +200,7 @@ pub async fn wyr(
 ) -> Result<(), Error> {
     let mut choice_1: Option<String> = None;
     let mut choice_2: Option<String> = None;
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
     if let Some(question) = question {
         let split_question: Vec<&str> = question.split(" or ").collect();
         choice_1 = Some(String::from(split_question[0]));
@@ -208,12 +213,12 @@ pub async fn wyr(
             return Ok(());
         }
 
-        if !check_for_duplicates(connection, &choice_1, &choice_2) {
+        if !check_for_duplicates(connection, &choice_1, &choice_2).await {
             ctx.say("That question already exists.").await?;
             return Ok(());
         }
 
-        crate::utils::db::questions::add_question(connection, &choice_1, &choice_2)?;
+        crate::utils::db::questions::add_question(connection, &choice_1, &choice_2).await?;
 
         let choices = vec![choice_1, choice_2];
 
@@ -223,7 +228,7 @@ pub async fn wyr(
 
         ctx.say(format!("I would {}!", choice[0])).await?;
     } else {
-        let db_question = crate::utils::db::questions::get_random_question(connection);
+        let db_question = crate::utils::db::questions::get_random_question(connection).await;
         let Ok(mut db_question) = db_question else {
             ctx.say("No questions added! Ask me one!").await?;
             return Ok(());
@@ -240,9 +245,9 @@ pub async fn wyr(
             .entry(id)
             .or_default();
         while recent_vec.contains(&db_question.id) {
-            db_question = crate::utils::db::questions::get_random_question(connection)?;
+            db_question = crate::utils::db::questions::get_random_question(connection).await?;
         }
-        add_recent_question(connection, recent_vec, db_question.id)?;
+        add_recent_question(connection, recent_vec, db_question.id).await?;
 
         create_wyr_message(ctx, db_question, connection).await?;
     }

@@ -15,8 +15,8 @@ use crate::utils::osu::score_format::{format_new_score, format_score_list};
 use crate::{Error, Pool};
 use chrono::Utc;
 use dashmap::DashMap;
-use diesel::r2d2::ConnectionManager;
-use diesel::PgConnection;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::AsyncPgConnection;
 use lazy_static::lazy_static;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{ChannelId, Context, CreateMessage};
@@ -59,15 +59,15 @@ lazy_static! {
 pub struct OsuTracker {
     pub ctx: Context,
     pub osu_client: Arc<Osu>,
-    pub pool: Pool<ConnectionManager<PgConnection>>,
+    pub pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>>,
     pub shut_down: bool,
 }
 impl OsuTracker {
     pub async fn tracking_loop(&mut self) -> Result<(), Error> {
         loop {
             sleep(Duration::from_secs(*UPDATE_INTERVAL)).await;
-            let connection = &mut self.pool.get()?;
-            let profiles = match linked_osu_profiles::get_all(connection) {
+            let connection = &mut self.pool.get().await?;
+            let profiles = match linked_osu_profiles::get_all(connection).await {
                 Ok(profiles) => profiles,
                 Err(why) => {
                     error!("Failed to get linked osu profiles {}", why);
@@ -86,14 +86,14 @@ impl OsuTracker {
     async fn update_user_data(
         &mut self,
         linked_profile: &LinkedOsuProfile,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
         let user = match self.ctx.cache.user(linked_profile.id as u64) {
             Some(user) => user.clone(),
             _ => return Ok(()),
         };
 
-        if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id) {
+        if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id).await {
             profile.ticks += 1;
             if is_playing(&self.ctx, user.id, linked_profile.home_guild)?
                 || (f64::from(profile.ticks) % f64::from(*NOT_PLAYING_SKIP)) == 0.0
@@ -106,7 +106,8 @@ impl OsuTracker {
                 let new = osu_users::create(
                     connection,
                     &rosu_user_to_db(osu_profile, Some(profile.ticks))?,
-                )?;
+                )
+                .await?;
 
                 if let Err(why) = self
                     .notify_pp(&profile, &new, connection, linked_profile)
@@ -137,7 +138,7 @@ impl OsuTracker {
                     time_cached: profile.time_cached,
                 };
 
-                osu_users::create(connection, &user_update)?;
+                osu_users::create(connection, &user_update).await?;
             }
         } else {
             let Ok(osu_profile) = self
@@ -146,7 +147,7 @@ impl OsuTracker {
                 .mode(gamemode_from_string(&linked_profile.mode).ok_or("Failed to parse gamemode in update_user_data function")?)
                 .await else { return Ok(()) };
 
-            osu_users::create(connection, &rosu_user_to_db(osu_profile, None)?)?;
+            osu_users::create(connection, &rosu_user_to_db(osu_profile, None)?).await?;
         }
 
         Ok(())
@@ -156,7 +157,7 @@ impl OsuTracker {
         &mut self,
         old: &OsuUser,
         new: &OsuUser,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
         if get_stat_diff(old, new, &DiffTypes::Pp) < *PP_THRESHOLD {
@@ -184,7 +185,7 @@ impl OsuTracker {
         linked_profile: &LinkedOsuProfile,
         new: &OsuUser,
         old: &OsuUser,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
         let mut recent_scores = SCORE_NOTIFICATIONS
             .entry(linked_profile.osu_id)
@@ -254,7 +255,7 @@ impl OsuTracker {
         linked_profile: &LinkedOsuProfile,
         new: &OsuUser,
         old: &OsuUser,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
         let score = &new_scores[0];
 
@@ -324,7 +325,7 @@ impl OsuTracker {
 
     async fn send_score_notifications(
         &mut self,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
         thumbnail: &str,
         formatted_score: &str,
@@ -334,7 +335,7 @@ impl OsuTracker {
     ) -> Result<(), Error> {
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
-                osu_guild_channels::read(connection, guild_id.0.get() as i64)
+                osu_guild_channels::read(connection, guild_id.0.get() as i64).await
             {
                 if let Some(score_channel) = guild_channels.score_channel {
                     if let Ok(member) = guild_id.member(&self.ctx, linked_profile.id as u64).await {
@@ -367,18 +368,19 @@ impl OsuTracker {
         &mut self,
         osu_id: i64,
         linked_profile: &LinkedOsuProfile,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
     ) -> Result<Vec<(Score, usize)>, Error> {
-        let last_notifications = if let Ok(updates) = osu_notifications::read(connection, osu_id) {
-            updates
-        } else {
-            let item = NewOsuNotification {
-                id: osu_id,
-                last_pp: Utc::now(),
-                last_event: Utc::now(),
+        let last_notifications =
+            if let Ok(updates) = osu_notifications::read(connection, osu_id).await {
+                updates
+            } else {
+                let item = NewOsuNotification {
+                    id: osu_id,
+                    last_pp: Utc::now(),
+                    last_event: Utc::now(),
+                };
+                osu_notifications::create(connection, &item).await?
             };
-            osu_notifications::create(connection, &item)?
-        };
 
         let mut new_scores = Vec::new();
 
@@ -410,7 +412,7 @@ impl OsuTracker {
                 last_event: last_notifications.last_event,
             };
 
-            if let Err(why) = osu_notifications::update(connection, osu_id, &item) {
+            if let Err(why) = osu_notifications::update(connection, osu_id, &item).await {
                 error!("Error occurred while running tracking loop: {}", why);
             };
         }
@@ -421,11 +423,11 @@ impl OsuTracker {
     async fn notify_recent(
         &mut self,
         new: &OsuUser,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
         let last_notifications =
-            if let Ok(updates) = osu_notifications::read(connection, linked_profile.osu_id) {
+            if let Ok(updates) = osu_notifications::read(connection, linked_profile.osu_id).await {
                 updates
             } else {
                 let item = NewOsuNotification {
@@ -433,7 +435,7 @@ impl OsuTracker {
                     last_pp: Utc::now(),
                     last_event: Utc::now(),
                 };
-                osu_notifications::create(connection, &item)?
+                osu_notifications::create(connection, &item).await?
             };
 
         let mut recent_events = self.osu_client.recent_events(new.id as u32).await?;
@@ -472,7 +474,9 @@ impl OsuTracker {
                 last_event: Utc::now(),
             };
 
-            if let Err(why) = osu_notifications::update(connection, linked_profile.osu_id, &item) {
+            if let Err(why) =
+                osu_notifications::update(connection, linked_profile.osu_id, &item).await
+            {
                 error!("Error occurred while running tracking loop: {}", why);
             };
         }
@@ -485,7 +489,7 @@ impl OsuTracker {
         beatmap: &EventBeatmap,
         mode: &GameMode,
         new: &OsuUser,
-        connection: &mut PgConnection,
+        connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
         let mut recent_scores = SCORE_NOTIFICATIONS
@@ -555,7 +559,7 @@ impl OsuTracker {
 
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
-                osu_guild_channels::read(connection, guild_id.0.get() as i64)
+                osu_guild_channels::read(connection, guild_id.0.get() as i64).await
             {
                 if let Some(score_channel) = guild_channels.score_channel {
                     if let Ok(member) = guild_id.member(&self.ctx, linked_profile.id as u64).await {

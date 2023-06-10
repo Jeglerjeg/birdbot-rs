@@ -6,7 +6,7 @@ use crate::utils::osu::misc_format::{
 };
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
-use diesel::PgConnection;
+use diesel_async::AsyncPgConnection;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     CacheHttp, Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor,
@@ -122,7 +122,7 @@ pub async fn send_score_embed(
 pub async fn send_scores_embed(
     ctx: Context<'_>,
     discord_user: &serenity_prelude::User,
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     best_scores: &[(Score, usize)],
     user: &User,
     paginate: bool,
@@ -199,7 +199,7 @@ pub async fn send_scores_embed(
 
 async fn handle_top_score_interactions(
     ctx: Context<'_>,
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     reply: ReplyHandle<'_>,
     best_scores: &[(Score, usize)],
     color: Colour,
@@ -311,7 +311,7 @@ async fn handle_top_score_interactions(
 
 async fn remove_top_score_paginators(
     ctx: Context<'_>,
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     reply: ReplyHandle<'_>,
     best_scores: &[(Score, usize)],
     offset: usize,
@@ -352,7 +352,7 @@ async fn remove_top_score_paginators(
 
 async fn change_top_scores_page(
     ctx: Context<'_>,
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
     reply: &ReplyHandle<'_>,
     best_scores: &[(Score, usize)],
     offset: usize,

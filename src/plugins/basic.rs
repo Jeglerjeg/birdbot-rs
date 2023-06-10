@@ -281,7 +281,7 @@ pub async fn prefix(
     ctx: Context<'_>,
     #[description = "Prefix to use in guild"] new_prefix: String,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
     crate::utils::db::prefix::add_guild_prefix(
         connection,
         ctx.guild_id()
@@ -289,7 +289,8 @@ pub async fn prefix(
             .0
             .get() as i64,
         new_prefix.clone(),
-    )?;
+    )
+    .await?;
 
     ctx.say(format!("Set guild prefix to {new_prefix}")).await?;
 

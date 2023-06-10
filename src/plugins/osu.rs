@@ -40,8 +40,8 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
     )
 )]
 pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
+    let connection = &mut ctx.data().db_pool.get().await?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await;
     match profile {
         Ok(profile) => {
             let color: Colour;
@@ -114,11 +114,12 @@ pub async fn link(
     username: String,
 ) -> Result<(), Error> {
     let user = ctx.data().osu_client.user(username).await?;
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
 
-    if let Ok(profile) = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64) {
-        linked_osu_profiles::delete(connection, profile.id)?;
-        wipe_profile_data(connection, profile.osu_id)?;
+    if let Ok(profile) = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await
+    {
+        linked_osu_profiles::delete(connection, profile.id).await?;
+        wipe_profile_data(connection, profile.osu_id).await?;
     }
 
     let query_item = NewLinkedOsuProfile {
@@ -137,9 +138,9 @@ pub async fn link(
         last_pp: Utc::now(),
         last_event: Utc::now(),
     };
-    osu_notifications::create(connection, &notification_item)?;
+    osu_notifications::create(connection, &notification_item).await?;
 
-    linked_osu_profiles::create(connection, &query_item)?;
+    linked_osu_profiles::create(connection, &query_item).await?;
 
     ctx.say(format!(
         "Set your osu! profile to `{}`.",
@@ -159,13 +160,13 @@ pub async fn link(
     aliases("unset")
 )]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
+    let connection = &mut ctx.data().db_pool.get().await?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await;
 
     match profile {
         Ok(profile) => {
-            linked_osu_profiles::delete(connection, profile.id)?;
-            wipe_profile_data(connection, profile.osu_id)?;
+            linked_osu_profiles::delete(connection, profile.id).await?;
+            wipe_profile_data(connection, profile.osu_id).await?;
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {
@@ -211,8 +212,8 @@ pub async fn mode(
     ctx: Context<'_>,
     #[description = "Gamemode to switch to."] new_mode: GameModeChoices,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64);
+    let connection = &mut ctx.data().db_pool.get().await?;
+    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await;
 
     let mode = match new_mode {
         GameModeChoices::Standard => GameMode::Osu,
@@ -230,8 +231,8 @@ pub async fn mode(
                 mode: mode.to_string(),
             };
 
-            linked_osu_profiles::update(connection, profile.id, &query_item)?;
-            wipe_profile_data(connection, profile.osu_id)?;
+            linked_osu_profiles::update(connection, profile.id, &query_item).await?;
+            wipe_profile_data(connection, profile.osu_id).await?;
 
             ctx.say(format!("Updated your osu! mode to {mode}."))
                 .await?;
@@ -249,15 +250,15 @@ pub async fn mode(
 #[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
 pub async fn score(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for a score."]
-    beatmap_url: Option<url::Url>,
+    #[description = "Beatmap ID to check for a score."] beatmap_url: Option<url::Url>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
     #[rest]
-    #[description = "osu! user to see score for."] user: Option<String>,
+    #[description = "osu! user to see score for."]
+    user: Option<String>,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
@@ -345,7 +346,7 @@ pub async fn scores(
     #[description = "User to see scores for."]
     user: Option<String>,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
@@ -451,7 +452,7 @@ pub async fn recent(
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
@@ -547,7 +548,7 @@ pub async fn pins(
     #[description = "User to see pins for."]
     user: Option<String>,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
@@ -613,7 +614,7 @@ pub async fn firsts(
     #[description = "User to see firsts for."]
     user: Option<String>,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
@@ -679,7 +680,7 @@ pub async fn top(
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
+    let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
@@ -740,8 +741,8 @@ pub async fn score_notifications(
         .guild()
         .ok_or("Failed to get guild in score_notifications command")?
         .clone();
-    let connection = &mut ctx.data().db_pool.get()?;
-    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
+    let connection = &mut ctx.data().db_pool.get().await?;
+    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64).await {
         Ok(guild_config) => NewOsuGuildChannel {
             guild_id: guild_config.guild_id,
             score_channel: Some(scores_channel.id.0.get() as i64),
@@ -754,7 +755,7 @@ pub async fn score_notifications(
         },
     };
 
-    osu_guild_channels::create(connection, &new_item)?;
+    osu_guild_channels::create(connection, &new_item).await?;
 
     ctx.say("Updated your guild's score notification channel!")
         .await?;
@@ -771,8 +772,8 @@ pub async fn map_notifications(
         .guild()
         .ok_or("Failed to get guild in map_notifications command")?
         .clone();
-    let connection = &mut ctx.data().db_pool.get()?;
-    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
+    let connection = &mut ctx.data().db_pool.get().await?;
+    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64).await {
         Ok(guild_config) => NewOsuGuildChannel {
             guild_id: guild_config.guild_id,
             score_channel: guild_config.score_channel,
@@ -785,7 +786,7 @@ pub async fn map_notifications(
         },
     };
 
-    osu_guild_channels::create(connection, &new_item)?;
+    osu_guild_channels::create(connection, &new_item).await?;
 
     ctx.say("Updated your guild's map notification channel!")
         .await?;
@@ -799,10 +800,10 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
         .guild()
         .ok_or("Failed to get guild in delete_guild_config command")?
         .clone();
-    let connection = &mut ctx.data().db_pool.get()?;
-    match osu_guild_channels::read(connection, guild.id.0.get() as i64) {
+    let connection = &mut ctx.data().db_pool.get().await?;
+    match osu_guild_channels::read(connection, guild.id.0.get() as i64).await {
         Ok(guild_config) => {
-            osu_guild_channels::delete(connection, guild_config.guild_id)?;
+            osu_guild_channels::delete(connection, guild_config.guild_id).await?;
             ctx.say("Your guild's config has been deleted.").await?;
         }
         Err(_) => {
@@ -815,9 +816,9 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(prefix_command, category = "osu!", guild_only, owners_only)]
 pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
-    let connection = &mut ctx.data().db_pool.get()?;
-    let linked_profiles = linked_osu_profiles::get_all(connection)?;
-    let tracked_profiles = osu_users::get_all(connection)?;
+    let connection = &mut ctx.data().db_pool.get().await?;
+    let linked_profiles = linked_osu_profiles::get_all(connection).await?;
+    let tracked_profiles = osu_users::get_all(connection).await?;
 
     let mut playing_users: Vec<String> = Vec::new();
     for linked_profile in &linked_profiles {

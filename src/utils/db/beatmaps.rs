@@ -1,8 +1,9 @@
 use crate::models::beatmaps::{Beatmap, NewBeatmap};
 use crate::schema::beatmaps;
 use crate::Error;
-use diesel::prelude::*;
-use diesel::{insert_into, QueryResult, RunQueryDsl};
+use diesel::insert_into;
+use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
     NewBeatmap {
@@ -29,22 +30,29 @@ fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
     }
 }
 
-pub fn create(db: &mut PgConnection, beatmap: &rosu_v2::prelude::Beatmap) -> Result<(), Error> {
+pub async fn create(
+    db: &mut AsyncPgConnection,
+    beatmap: &rosu_v2::prelude::Beatmap,
+) -> Result<(), Error> {
     let item = to_insert_beatmap(beatmap);
 
-    insert_into(beatmaps::table).values(item).execute(db)?;
+    insert_into(beatmaps::table)
+        .values(item)
+        .execute(db)
+        .await?;
 
     Ok(())
 }
 
-pub fn get_single(db: &mut PgConnection, param_id: i64) -> QueryResult<Beatmap> {
+pub async fn get_single(db: &mut AsyncPgConnection, param_id: i64) -> QueryResult<Beatmap> {
     beatmaps::table
         .filter(beatmaps::id.eq(param_id))
         .first::<Beatmap>(db)
+        .await
 }
 
-pub fn update(
-    db: &mut PgConnection,
+pub async fn update(
+    db: &mut AsyncPgConnection,
     param_id: i64,
     beatmap: &rosu_v2::prelude::Beatmap,
 ) -> QueryResult<usize> {
@@ -53,4 +61,5 @@ pub fn update(
     diesel::update(beatmaps::table.find(param_id))
         .set(item)
         .execute(db)
+        .await
 }

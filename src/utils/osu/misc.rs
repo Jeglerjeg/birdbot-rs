@@ -4,7 +4,7 @@ use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 use crate::Error;
-use diesel::PgConnection;
+use diesel_async::AsyncPgConnection;
 use poise::serenity_prelude::{Context, Presence, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, User};
@@ -74,13 +74,13 @@ pub fn count_score_pages(score_count: usize, scores_per_page: usize) -> usize {
     (score_count + scores_per_page - 1) / scores_per_page
 }
 
-pub fn wipe_profile_data(db: &mut PgConnection, user_id: i64) -> Result<(), Error> {
-    if osu_users::read(db, user_id).is_ok() {
-        osu_users::delete(db, user_id)?;
+pub async fn wipe_profile_data(db: &mut AsyncPgConnection, user_id: i64) -> Result<(), Error> {
+    if osu_users::read(db, user_id).await.is_ok() {
+        osu_users::delete(db, user_id).await?;
     }
 
-    if osu_notifications::read(db, user_id).is_ok() {
-        osu_notifications::delete(db, user_id)?;
+    if osu_notifications::read(db, user_id).await.is_ok() {
+        osu_notifications::delete(db, user_id).await?;
     }
 
     Ok(())
@@ -157,7 +157,7 @@ pub async fn get_user(
     ctx: crate::Context<'_>,
     discord_user: &poise::serenity_prelude::User,
     user: Option<String>,
-    connection: &mut PgConnection,
+    connection: &mut AsyncPgConnection,
 ) -> Result<Option<User>, Error> {
     if let Some(user) = user {
         if let Ok(user) = ctx.data().osu_client.user(user).await {
@@ -167,7 +167,8 @@ pub async fn get_user(
             Ok(None)
         }
     } else {
-        let linked_profile = linked_osu_profiles::read(connection, discord_user.id.0.get() as i64);
+        let linked_profile =
+            linked_osu_profiles::read(connection, discord_user.id.0.get() as i64).await;
         if let Ok(linked_profile) = linked_profile {
             if let Ok(user) = ctx
                 .data()

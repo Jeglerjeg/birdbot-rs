@@ -1,8 +1,9 @@
 use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::Error;
 use chrono::Utc;
-use diesel::prelude::*;
-use diesel::{insert_into, QueryResult, RunQueryDsl};
+use diesel::insert_into;
+use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 pub fn rosu_user_to_db(
     user: rosu_v2::prelude::User,
@@ -28,7 +29,7 @@ pub fn rosu_user_to_db(
     })
 }
 
-pub fn create(db: &mut PgConnection, item: &NewOsuUser) -> Result<OsuUser, Error> {
+pub async fn create(db: &mut AsyncPgConnection, item: &NewOsuUser) -> Result<OsuUser, Error> {
     use crate::schema::osu_users::dsl::{id, osu_users};
 
     let user = insert_into(osu_users)
@@ -36,27 +37,30 @@ pub fn create(db: &mut PgConnection, item: &NewOsuUser) -> Result<OsuUser, Error
         .on_conflict(id)
         .do_update()
         .set(item)
-        .get_result(db)?;
+        .get_result(db)
+        .await?;
 
     Ok(user)
 }
 
-pub fn read(db: &mut PgConnection, param_id: i64) -> QueryResult<OsuUser> {
+pub async fn read(db: &mut AsyncPgConnection, param_id: i64) -> QueryResult<OsuUser> {
     use crate::schema::osu_users::dsl::{id, osu_users};
 
-    osu_users.filter(id.eq(param_id)).first::<OsuUser>(db)
+    osu_users.filter(id.eq(param_id)).first::<OsuUser>(db).await
 }
 
-pub fn delete(db: &mut PgConnection, param_id: i64) -> Result<(), Error> {
+pub async fn delete(db: &mut AsyncPgConnection, param_id: i64) -> Result<(), Error> {
     use crate::schema::osu_users::dsl::{id, osu_users};
 
-    diesel::delete(osu_users.filter(id.eq(param_id))).execute(db)?;
+    diesel::delete(osu_users.filter(id.eq(param_id)))
+        .execute(db)
+        .await?;
 
     Ok(())
 }
 
-pub fn get_all(db: &mut PgConnection) -> Result<Vec<OsuUser>, Error> {
+pub async fn get_all(db: &mut AsyncPgConnection) -> Result<Vec<OsuUser>, Error> {
     use crate::schema::osu_users::dsl::osu_users;
 
-    Ok(osu_users.load::<OsuUser>(db)?)
+    Ok(osu_users.load::<OsuUser>(db).await?)
 }

@@ -5,9 +5,11 @@ mod utils;
 
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
+use diesel::Connection;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::AsyncPgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use mobc::Pool;
 use poise::serenity_prelude::FullEvent;
 use rosu_v2::prelude::Osu;
 use songbird::SerenityInit;
@@ -20,7 +22,7 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 pub struct Data {
     time_started: DateTime<Utc>,
     osu_client: Arc<Osu>,
-    db_pool: Pool<ConnectionManager<PgConnection>>,
+    db_pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>>,
     http_client: reqwest::Client,
 }
 
@@ -119,9 +121,11 @@ async fn main() {
     // the CWD. See `./.env.example` for an example on how to structure this.
     dotenv::dotenv().expect("Failed to load .env file");
 
-    let connection = utils::db::establish_connection::establish_connection();
+    let db_pool = utils::db::establish_connection::establish_connection();
 
-    let mut migration_connection = match connection.get() {
+    let mut migration_connection = match diesel::PgConnection::establish(
+        &env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+    ) {
         Ok(connection) => connection,
         Err(why) => {
             panic!("Couldn't get db connection: {why:?}");
@@ -217,7 +221,7 @@ async fn main() {
             Ok(Data {
                 time_started: Utc::now(),
                 osu_client,
-                db_pool: connection,
+                db_pool,
                 http_client: reqwest::Client::new(),
             })
         })
