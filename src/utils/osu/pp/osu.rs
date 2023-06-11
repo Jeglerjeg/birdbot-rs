@@ -51,19 +51,24 @@ pub async fn calculate_std_pp(
         result = result.accuracy(acc);
     };
 
-    let mut potential_result = result.clone();
-    if let (Some(n300), Some(nmiss)) = (n300, nmiss) {
-        potential_result = potential_result.n_misses(0).n300(n300 + nmiss);
+    let potential_result;
+    if let (Some(n300), Some(n100), Some(n50), Some(nmiss)) = (n300, n100, n50, nmiss) {
+        potential_result = OsuPP::new(&map)
+            .mods(mods)
+            .mode(GameMode::Osu)
+            .n300(n300 + nmiss)
+            .n100(n100)
+            .n50(n50);
+    } else if let Some(potential_acc) = potential_acc {
+        potential_result = OsuPP::new(&map)
+            .mods(mods)
+            .mode(GameMode::Osu)
+            .accuracy(potential_acc);
     } else {
-        potential_result = potential_result.n_misses(0);
+        potential_result = OsuPP::new(&map).mods(mods).mode(GameMode::Osu);
     }
 
     let map_attributes = map.attributes().mods(mods).build();
-
-    let potential_result = match potential_acc {
-        Some(x) => potential_result.accuracy(x),
-        None => potential_result,
-    };
 
     let result = result.calculate();
 

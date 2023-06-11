@@ -43,8 +43,6 @@ pub fn format_footer(
                 let beatmap_objects = f64::from(
                     beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders,
                 );
-                info!("pp {}", pp.pp);
-                info!("max pp {}", max_pp);
                 if ((pp.pp / max_pp) * 100.0) < 99.0 {
                     Ok(format!(
                         "Potential: {}pp, completed {}%({}★)",
