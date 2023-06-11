@@ -32,12 +32,16 @@ fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
 
 pub async fn create(
     db: &mut AsyncPgConnection,
-    beatmap: &rosu_v2::prelude::Beatmap,
+    beatmaps: Vec<&rosu_v2::prelude::Beatmap>,
 ) -> Result<(), Error> {
-    let item = to_insert_beatmap(beatmap);
+    let mut items = Vec::new();
+
+    for beatmap in beatmaps {
+        items.push(to_insert_beatmap(beatmap));
+    }
 
     insert_into(beatmaps::table)
-        .values(item)
+        .values(items)
         .execute(db)
         .await?;
 

@@ -15,9 +15,11 @@ pub async fn cache_beatmapset(
 ) -> Result<(), Error> {
     let beatmapset = osu_client.beatmapset(id as u32).await?;
     if let Some(ref beatmaps) = beatmapset.maps {
+        let mut to_insert = Vec::new();
         for beatmap in beatmaps {
-            beatmaps::create(connection, beatmap).await?;
+            to_insert.push(beatmap);
         }
+        beatmaps::create(connection, to_insert).await?;
     }
 
     beatmapsets::create(connection, beatmapset).await?;
@@ -33,9 +35,11 @@ pub async fn cache_beatmapset_from_beatmap(
     let beatmapset = osu_client.beatmapset_from_map_id(id as u32).await?;
 
     if let Some(ref beatmaps) = beatmapset.maps {
+        let mut to_insert = Vec::new();
         for beatmap in beatmaps {
-            beatmaps::create(connection, beatmap).await?;
+            to_insert.push(beatmap);
         }
+        beatmaps::create(connection, to_insert).await?;
     }
 
     beatmapsets::create(connection, beatmapset).await?;
