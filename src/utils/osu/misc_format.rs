@@ -9,7 +9,6 @@ use poise::serenity_prelude::User;
 use rosu_v2::model::beatmap::RankStatus;
 use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::Score;
-use tracing::info;
 
 pub fn format_rank_status(status: RankStatus) -> String {
     match status {
