@@ -11,7 +11,7 @@ use crate::utils::osu::embeds::create_embed;
 use crate::utils::osu::misc::{
     calculate_potential_acc, gamemode_from_string, get_stat_diff, is_playing, DiffTypes,
 };
-use crate::utils::osu::misc_format::{format_diff, format_potential_string, format_user_link};
+use crate::utils::osu::misc_format::{format_diff, format_footer, format_user_link};
 use crate::utils::osu::regex::get_beatmap_info;
 use crate::utils::osu::score_format::{format_new_score, format_score_list};
 use crate::{Error, Pool};
@@ -292,12 +292,12 @@ impl OsuTracker {
             "{} set a new best score (#{}/{})",
             &new.username, score.1, 100
         );
-        let potential_string: String;
+        let footer: String;
         let pp = if let Ok(pp) = pp {
-            potential_string = format_potential_string(&pp)?;
+            footer = format_footer(&score.0, &beatmap, &pp)?;
             Some(pp)
         } else {
-            potential_string = String::new();
+            footer = String::new();
             None
         };
 
@@ -316,7 +316,7 @@ impl OsuTracker {
             linked_profile,
             &thumbnail,
             &formatted_score,
-            &potential_string,
+            &footer,
             &author_text,
             new,
         )
@@ -538,20 +538,18 @@ impl OsuTracker {
         )
         .await;
 
-        let potential_string: String;
+        let footer: String;
         let pp = if let Ok(pp) = pp {
-            potential_string = format_potential_string(&pp)?;
+            footer = format_footer(&score.score, &beatmap, &pp)?;
             Some(pp)
         } else {
-            potential_string = String::new();
+            footer = String::new();
             None
         };
 
         let author_text = &format!("{} set a new leaderboard score!", new.username);
 
         let thumbnail = &beatmapset.list_cover;
-
-        let footer = &potential_string;
 
         let formatted_score = &format!(
             "{}<t:{}:R>",
@@ -571,7 +569,7 @@ impl OsuTracker {
                             color,
                             thumbnail,
                             formatted_score,
-                            footer,
+                            &footer,
                             &new.avatar_url,
                             author_text,
                             &format_user_link(new.id),

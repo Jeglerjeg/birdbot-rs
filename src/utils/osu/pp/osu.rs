@@ -51,15 +51,11 @@ pub async fn calculate_std_pp(
         result = result.accuracy(acc);
     };
 
-    let potential_result;
+    let mut potential_result = result.clone();
     if let (Some(n300), Some(nmiss)) = (n300, nmiss) {
-        potential_result = OsuPP::new(&map)
-            .mods(mods)
-            .mode(GameMode::Osu)
-            .n_misses(0)
-            .n300(n300 + nmiss);
+        potential_result = potential_result.n_misses(0).n300(n300 + nmiss);
     } else {
-        potential_result = OsuPP::new(&map).mods(mods).mode(GameMode::Osu).n_misses(0);
+        potential_result = potential_result.n_misses(0);
     }
 
     let map_attributes = map.attributes().mods(mods).build();

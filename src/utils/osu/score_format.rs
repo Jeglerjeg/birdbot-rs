@@ -2,7 +2,7 @@ use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::calculate_potential_acc;
-use crate::utils::osu::misc_format::{format_beatmap_link, format_potential_string};
+use crate::utils::osu::misc_format::{format_beatmap_link, format_footer};
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
 use num_format::{Locale, ToFormattedString};
@@ -172,17 +172,17 @@ pub async fn format_score_list(
         )
         .await;
 
-        let potential_string: String;
+        let footer: String;
         let pp = if let Ok(pp) = pp {
-            let formatted_potential = format_potential_string(&pp)?;
-            if formatted_potential.is_empty() {
-                potential_string = String::new();
+            let formatted_footer = format_footer(&score.0, beatmap, &pp)?;
+            if formatted_footer.is_empty() {
+                footer = String::new();
             } else {
-                potential_string = format!("\n{formatted_potential}");
+                footer = format!("\n{formatted_footer}");
             }
             Some(pp)
         } else {
-            potential_string = String::new();
+            footer = String::new();
             None
         };
 
@@ -193,7 +193,7 @@ pub async fn format_score_list(
             score.1,
             formatted_score,
             score.0.ended_at.unix_timestamp(),
-            potential_string
+            footer
         ));
     }
 

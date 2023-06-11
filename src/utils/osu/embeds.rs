@@ -1,9 +1,7 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::utils::osu::misc::{calculate_potential_acc, count_score_pages};
-use crate::utils::osu::misc_format::{
-    format_completion_rate, format_potential_string, format_user_link,
-};
+use crate::utils::osu::misc_format::{format_footer, format_user_link};
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
@@ -12,7 +10,6 @@ use poise::serenity_prelude::{
     CreateEmbedFooter,
 };
 use poise::{serenity_prelude, CreateReply, ReplyHandle};
-use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{Score, User};
 use std::time::Duration;
 
@@ -56,23 +53,14 @@ pub async fn send_score_embed(
         crate::utils::osu::calculate::calculate(score, beatmap, calculate_potential_acc(score))
             .await;
 
-    let potential_string: String;
-    let completion_rate: String;
+    let footer: String;
     let pp = if let Ok(pp) = pp {
-        potential_string = format_potential_string(&pp)?;
-        if (score.grade == Grade::F || !score.passed) && score.mode != GameMode::Catch {
-            completion_rate = format!("\n{}", format_completion_rate(score, beatmap, &pp)?);
-        } else {
-            completion_rate = String::new();
-        }
+        footer = format_footer(score, beatmap, &pp)?;
         Some(pp)
     } else {
-        potential_string = String::new();
-        completion_rate = String::new();
+        footer = String::new();
         None
     };
-
-    let footer = format!("{potential_string}{completion_rate}");
 
     let formatted_score = crate::utils::osu::score_format::format_new_score(
         score,

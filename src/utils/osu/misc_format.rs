@@ -7,8 +7,9 @@ use crate::{Context, Error};
 use num_format::{Locale, ToFormattedString};
 use poise::serenity_prelude::User;
 use rosu_v2::model::beatmap::RankStatus;
-use rosu_v2::model::GameMode;
+use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::Score;
+use tracing::info;
 
 pub fn format_rank_status(status: RankStatus) -> String {
     match status {
@@ -31,10 +32,40 @@ pub fn format_mode_abbreviation(mode: GameMode) -> String {
     }
 }
 
-pub fn format_potential_string(pp: &CalculateResults) -> Result<String, Error> {
+pub fn format_footer(
+    score: &Score,
+    beatmap: &Beatmap,
+    pp: &CalculateResults,
+) -> Result<String, Error> {
     match pp.max_pp {
         Some(max_pp) => {
-            if ((pp.pp / max_pp) * 100.0) < 99.0 {
+            if (score.grade == Grade::F || !score.passed) && score.mode != GameMode::Catch {
+                let beatmap_objects = f64::from(
+                    beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders,
+                );
+                info!("pp {}", pp.pp);
+                info!("max pp {}", max_pp);
+                if ((pp.pp / max_pp) * 100.0) < 99.0 {
+                    Ok(format!(
+                        "Potential: {}pp, completed {}%({}★)",
+                        remove_trailing_zeros(max_pp, 2)?,
+                        remove_trailing_zeros(
+                            (f64::from(score.total_hits()) / beatmap_objects) * 100.0,
+                            2
+                        )?,
+                        remove_trailing_zeros(pp.partial_stars, 2)?
+                    ))
+                } else {
+                    Ok(format!(
+                        "Completion rate: {}%({}★)",
+                        remove_trailing_zeros(
+                            (f64::from(score.total_hits()) / beatmap_objects) * 100.0,
+                            2
+                        )?,
+                        remove_trailing_zeros(pp.partial_stars, 2)?
+                    ))
+                }
+            } else if ((pp.pp / max_pp) * 100.0) < 99.0 {
                 Ok(format!(
                     "Potential: {}pp, {:+}pp",
                     remove_trailing_zeros(max_pp, 2)?,
@@ -44,22 +75,24 @@ pub fn format_potential_string(pp: &CalculateResults) -> Result<String, Error> {
                 Ok(String::new())
             }
         }
-        _ => Ok(String::new()),
+        _ => {
+            if (score.grade == Grade::F || !score.passed) && score.mode != GameMode::Catch {
+                let beatmap_objects = f64::from(
+                    beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders,
+                );
+                Ok(format!(
+                    "Completion rate: {}%({}★)",
+                    remove_trailing_zeros(
+                        (f64::from(score.total_hits()) / beatmap_objects) * 100.0,
+                        2
+                    )?,
+                    remove_trailing_zeros(pp.partial_stars, 2)?
+                ))
+            } else {
+                Ok(String::new())
+            }
+        }
     }
-}
-
-pub fn format_completion_rate(
-    score: &Score,
-    beatmap: &Beatmap,
-    pp: &CalculateResults,
-) -> Result<String, Error> {
-    let beatmap_objects =
-        f64::from(beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders);
-    Ok(format!(
-        "Completion rate: {}%({}★)",
-        remove_trailing_zeros((f64::from(score.total_hits()) / beatmap_objects) * 100.0, 2)?,
-        remove_trailing_zeros(pp.partial_stars, 2)?
-    ))
 }
 
 pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<String, Error> {
