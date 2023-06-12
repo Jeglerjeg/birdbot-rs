@@ -8,6 +8,7 @@ use diesel_async::AsyncPgConnection;
 use rosu_v2::Osu;
 use std::sync::Arc;
 
+#[allow(dead_code)]
 pub async fn cache_beatmapset(
     connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
@@ -69,19 +70,20 @@ pub async fn get_beatmap(
     connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: u32,
-) -> Result<Beatmap, Error> {
+) -> Result<(Beatmap, Beatmapset), Error> {
     let query_beatmap = beatmaps::get_single(connection, i64::from(id)).await;
     if let Ok(beatmap) = query_beatmap {
-        if check_beatmap_valid_result(&beatmap) {
+        if check_beatmap_valid_result(&beatmap.0) {
             return Ok(beatmap);
         }
-        update_cache(connection, osu_client, beatmap.beatmapset_id).await?;
+        update_cache(connection, osu_client, beatmap.0.beatmapset_id).await?;
         return Ok(beatmaps::get_single(connection, i64::from(id)).await?);
     }
     cache_beatmapset_from_beatmap(connection, osu_client, i64::from(id)).await?;
     Ok(beatmaps::get_single(connection, i64::from(id)).await?)
 }
 
+#[allow(dead_code)]
 pub async fn get_beatmapset(
     connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
@@ -99,6 +101,7 @@ pub async fn get_beatmapset(
     Ok(beatmapsets::read(connection, i64::from(id)).await?)
 }
 
+#[allow(dead_code)]
 pub fn check_beatmapset_valid_result(beatmapset: &Beatmapset) -> bool {
     let current_time = Utc::now().naive_utc();
     match beatmapset.status.as_str() {

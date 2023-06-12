@@ -5,7 +5,7 @@ use crate::models::osu_notifications::NewOsuNotification;
 use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::utils::db::osu_users::rosu_user_to_db;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
-use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
+use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::embeds::create_embed;
 use crate::utils::osu::misc::{
@@ -213,14 +213,7 @@ impl OsuTracker {
 
             let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
-            let beatmapset = get_beatmapset(
-                connection,
-                self.osu_client.clone(),
-                beatmap.beatmapset_id as u32,
-            )
-            .await?;
-
-            to_notify.push((api_score.clone(), score.1, beatmap, beatmapset));
+            to_notify.push((api_score.clone(), score.1, beatmap.0, beatmap.1));
         }
 
         if to_notify.is_empty() {
@@ -280,21 +273,14 @@ impl OsuTracker {
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
-        let beatmapset = get_beatmapset(
-            connection,
-            self.osu_client.clone(),
-            beatmap.beatmapset_id as u32,
-        )
-        .await?;
-
-        let pp = calculate(&score.0, &beatmap, calculate_potential_acc(&score.0)).await;
+        let pp = calculate(&score.0, &beatmap.0, calculate_potential_acc(&score.0)).await;
         let author_text = format!(
             "{} set a new best score (#{}/{})",
             &new.username, score.1, 100
         );
         let footer: String;
         let pp = if let Ok(pp) = pp {
-            footer = format_footer(&score.0, &beatmap, &pp)?;
+            footer = format_footer(&score.0, &beatmap.0, &pp)?;
             Some(pp)
         } else {
             footer = String::new();
@@ -303,10 +289,10 @@ impl OsuTracker {
 
         let api_score = self.osu_client.score(score_id, gamemode).await?;
 
-        let thumbnail = beatmapset.list_cover.clone();
+        let thumbnail = beatmap.1.list_cover.clone();
         let formatted_score = format!(
             "{}{}\n<t:{}:R>",
-            format_new_score(&api_score, &beatmap, &beatmapset, &pp, None)?,
+            format_new_score(&api_score, &beatmap.0, &beatmap.1, &pp, None)?,
             format_diff(new, old, gamemode)?,
             score.0.ended_at.unix_timestamp()
         );
@@ -524,23 +510,16 @@ impl OsuTracker {
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), beatmap_id).await?;
 
-        let beatmapset = get_beatmapset(
-            connection,
-            self.osu_client.clone(),
-            beatmap.beatmapset_id as u32,
-        )
-        .await?;
-
         let pp = calculate(
             &score.score,
-            &beatmap,
+            &beatmap.0,
             calculate_potential_acc(&score.score),
         )
         .await;
 
         let footer: String;
         let pp = if let Ok(pp) = pp {
-            footer = format_footer(&score.score, &beatmap, &pp)?;
+            footer = format_footer(&score.score, &beatmap.0, &pp)?;
             Some(pp)
         } else {
             footer = String::new();
@@ -549,11 +528,11 @@ impl OsuTracker {
 
         let author_text = &format!("{} set a new leaderboard score!", new.username);
 
-        let thumbnail = &beatmapset.list_cover;
+        let thumbnail = &beatmap.1.list_cover;
 
         let formatted_score = &format!(
             "{}<t:{}:R>",
-            format_new_score(&score.score, &beatmap, &beatmapset, &pp, Some(&score.pos))?,
+            format_new_score(&score.score, &beatmap.0, &beatmap.1, &pp, Some(&score.pos))?,
             score.score.ended_at.unix_timestamp()
         );
 

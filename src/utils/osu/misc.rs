@@ -3,7 +3,7 @@ use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_users::OsuUser;
 use crate::plugins::osu::SortChoices;
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
-use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
+use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 use crate::Error;
@@ -169,14 +169,7 @@ pub async fn set_up_score_list(
     for (pos, score) in scores.iter().enumerate() {
         let beatmap = get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
-        let beatmapset = get_beatmapset(
-            connection,
-            ctx.data().osu_client.clone(),
-            beatmap.beatmapset_id as u32,
-        )
-        .await?;
-
-        score_list.push((score.clone(), pos + 1, beatmap, beatmapset));
+        score_list.push((score.clone(), pos + 1, beatmap.0, beatmap.1));
     }
     typing.stop();
 

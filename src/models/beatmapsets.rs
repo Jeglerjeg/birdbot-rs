@@ -1,8 +1,8 @@
 use crate::schema::beatmapsets;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Queryable, Identifiable)]
+#[derive(Debug, Serialize, Deserialize, Clone, Queryable, Identifiable, Selectable)]
 #[diesel(table_name=beatmapsets, primary_key(id))]
 pub struct Beatmapset {
     pub id: i64,

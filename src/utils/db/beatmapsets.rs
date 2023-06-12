@@ -35,6 +35,7 @@ pub async fn create(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn read(db: &mut AsyncPgConnection, param_id: i64) -> QueryResult<Beatmapset> {
     beatmapsets::table
         .filter(beatmapsets::id.eq(param_id))

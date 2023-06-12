@@ -1,5 +1,7 @@
 use crate::models::beatmaps::{Beatmap, NewBeatmap};
+use crate::models::beatmapsets::Beatmapset;
 use crate::schema::beatmaps;
+use crate::schema::beatmapsets;
 use crate::Error;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
@@ -48,10 +50,14 @@ pub async fn create(
     Ok(())
 }
 
-pub async fn get_single(db: &mut AsyncPgConnection, param_id: i64) -> QueryResult<Beatmap> {
+pub async fn get_single(
+    db: &mut AsyncPgConnection,
+    param_id: i64,
+) -> Result<(Beatmap, Beatmapset), diesel::result::Error> {
     beatmaps::table
+        .inner_join(beatmapsets::table)
         .filter(beatmaps::id.eq(param_id))
-        .first::<Beatmap>(db)
+        .first::<(Beatmap, Beatmapset)>(db)
         .await
 }
 

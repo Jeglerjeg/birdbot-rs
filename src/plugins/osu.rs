@@ -2,7 +2,7 @@ use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
-use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
+use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::misc::{
     find_beatmap_link, get_user, is_playing, set_up_score_list, sort_scores, wipe_profile_data,
 };
@@ -306,19 +306,12 @@ pub async fn score(
             )
             .await?;
 
-            let beatmapset = get_beatmapset(
-                connection,
-                ctx.data().osu_client.clone(),
-                beatmap.beatmapset_id as u32,
-            )
-            .await?;
-
             send_score_embed(
                 ctx,
                 ctx.author(),
                 &score.score,
-                &beatmap,
-                &beatmapset,
+                &beatmap.0,
+                &beatmap.1,
                 osu_user,
                 Some(&score.pos),
             )
@@ -398,20 +391,13 @@ pub async fn scores(
             let beatmap =
                 get_beatmap(connection, ctx.data().osu_client.clone(), beatmap_id as u32).await?;
 
-            let beatmapset = get_beatmapset(
-                connection,
-                ctx.data().osu_client.clone(),
-                beatmap.beatmapset_id as u32,
-            )
-            .await?;
-
             send_scores_embed(
                 ctx,
                 ctx.author(),
                 &beatmap_scores,
                 &osu_user,
                 beatmap_scores.len() > 5,
-                &beatmapset.list_cover,
+                &beatmap.1.list_cover,
             )
             .await?;
         }
@@ -479,19 +465,12 @@ pub async fn recent(
                 let beatmap =
                     get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
-                let beatmapset = get_beatmapset(
-                    connection,
-                    ctx.data().osu_client.clone(),
-                    beatmap.beatmapset_id as u32,
-                )
-                .await?;
-
                 send_score_embed(
                     ctx,
                     ctx.author(),
                     score,
-                    &beatmap,
-                    &beatmapset,
+                    &beatmap.0,
+                    &beatmap.1,
                     osu_user,
                     None,
                 )
@@ -558,19 +537,12 @@ pub async fn recent_best(
                 let beatmap =
                     get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
-                let beatmapset = get_beatmapset(
-                    connection,
-                    ctx.data().osu_client.clone(),
-                    beatmap.beatmapset_id as u32,
-                )
-                .await?;
-
                 send_score_embed(
                     ctx,
                     ctx.author(),
                     score,
-                    &beatmap,
-                    &beatmapset,
+                    &beatmap.0,
+                    &beatmap.1,
                     osu_user,
                     None,
                 )
