@@ -24,7 +24,7 @@ pub fn format_rank_status(status: RankStatus) -> String {
 
 pub fn format_mode_abbreviation(mode: GameMode) -> String {
     match mode {
-        GameMode::Osu => String::from("osu!"),
+        GameMode::Osu => String::from("o!s"),
         GameMode::Taiko => String::from("o!t"),
         GameMode::Catch => String::from("o!c"),
         GameMode::Mania => String::from("o!m"),
@@ -173,8 +173,16 @@ pub async fn format_missing_user_string(ctx: Context<'_>, user: &User) -> Result
                crate::utils::db::prefix::get_guild_prefix(ctx.into()).await?.ok_or("Failed to get guild prefix in format_missing_user function")?))
 }
 
-pub fn format_beatmap_link(beatmap_id: i64, beatmapset_id: i64, mode: &str) -> String {
-    format!("https://osu.ppy.sh/beatmapsets/{beatmapset_id}#{mode}/{beatmap_id}")
+pub fn format_beatmap_link(
+    beatmap_id: Option<i64>,
+    beatmapset_id: i64,
+    mode: Option<&str>,
+) -> String {
+    if let (Some(beatmap_id), Some(mode)) = (beatmap_id, mode) {
+        format!("https://osu.ppy.sh/beatmapsets/{beatmapset_id}#{mode}/{beatmap_id}")
+    } else {
+        format!("https://osu.ppy.sh/beatmapsets/{beatmapset_id}")
+    }
 }
 
 pub fn format_user_link(user_id: i64) -> String {

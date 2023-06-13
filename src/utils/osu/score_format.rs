@@ -120,7 +120,11 @@ pub fn format_score_info(
         beatmapset.artist,
         beatmapset.title,
         beatmap.version,
-        format_beatmap_link(beatmap.id, beatmapset.id, &score.mode.to_string()),
+        format_beatmap_link(
+            Some(beatmap.id),
+            beatmapset.id,
+            Some(&score.mode.to_string())
+        ),
         remove_trailing_zeros(score_pp, 2)?,
         remove_trailing_zeros(stars, 2)?,
         grade,
@@ -166,7 +170,7 @@ pub async fn format_score_list(
         let beatmapset = &score.3;
 
         let pp = crate::utils::osu::calculate::calculate(
-            &score.0,
+            Some(&score.0),
             beatmap,
             calculate_potential_acc(&score.0),
         )

@@ -1,10 +1,13 @@
 /* This file is generated and managed by dsync */
 
+use crate::models::beatmapsets::Beatmapset;
 use crate::schema::beatmaps;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Associations, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Queryable, Identifiable, Selectable)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, Queryable, Associations, Identifiable, Selectable,
+)]
 #[diesel(belongs_to(Beatmapset, foreign_key = beatmapset_id))]
 #[diesel(table_name=beatmaps, primary_key(id))]
 pub struct Beatmap {

@@ -2,7 +2,7 @@ use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
-use crate::utils::osu::caching::get_beatmap;
+use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
 use crate::utils::osu::misc::{
     find_beatmap_link, get_user, is_playing, set_up_score_list, sort_scores, wipe_profile_data,
 };
@@ -15,6 +15,7 @@ use poise::CreateReply;
 use rosu_v2::model::GameMode;
 
 use crate::utils::osu::embeds::{send_score_embed, send_scores_embed};
+use crate::utils::osu::map_format::format_map_status;
 use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 
 /// Display information about your osu! user.
@@ -24,6 +25,7 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
     category = "osu!",
     subcommands(
         "link",
+        "mapinfo",
         "score",
         "scores",
         "unlink",
@@ -242,6 +244,60 @@ pub async fn mode(
                 .await?;
         }
     }
+
+    Ok(())
+}
+
+/// Display your score on a beatmap.
+#[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
+pub async fn mapinfo(
+    ctx: Context<'_>,
+    #[description = "Beatmap ID to check for a score."] beatmap_url: Option<url::Url>,
+) -> Result<(), Error> {
+    let connection = &mut ctx.data().db_pool.get().await?;
+
+    let beatmap_info: BeatmapInfo;
+    if let Some(beatmap_url) = beatmap_url {
+        beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
+        let Some(_) = beatmap_info.beatmapset_id else {
+            ctx.say("Please link to a beatmapset.")
+                .await?;
+            return Ok(());
+        };
+    } else if let Some(found_info) = find_beatmap_link(ctx).await? {
+        beatmap_info = found_info;
+    } else {
+        ctx.say("No beatmap link found.").await?;
+        return Ok(());
+    }
+
+    let beatmapset = get_beatmapset(
+        connection,
+        ctx.data().osu_client.clone(),
+        beatmap_info
+            .beatmapset_id
+            .ok_or("Failed to get beatmapset id in mapinfo command")? as u32,
+    )
+    .await?;
+
+    let color;
+    if let Some(guild) = ctx.guild() {
+        color = ctx
+            .discord()
+            .cache
+            .member(guild.id, ctx.author())
+            .ok_or("Failed to get author member in mapinfo command")?
+            .colour(ctx.discord())
+            .unwrap_or(BLUE);
+    } else {
+        color = BLUE;
+    };
+
+    let embed = format_map_status(beatmapset, color).await?;
+
+    let builder = CreateReply::new().embed(embed);
+
+    ctx.send(builder).await?;
 
     Ok(())
 }

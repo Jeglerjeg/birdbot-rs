@@ -53,25 +53,40 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
         let info = BEATMAPSET_URL_PATTERN_V2.captures(url).ok_or(
             "Failed to get BEATMAPSET_URL_PATTERN_V2 captures in get_beatmap_info function",
         )?;
-        Ok(BeatmapInfo {
-            beatmapset_id: Some(
-                info.name("beatmapset_id")
-                    .ok_or(
-                        "Failed to get beatmapset_id in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function",
-                    )?
-                    .as_str()
-                    .parse::<i64>()?,
-            ),
-            beatmap_id: Some(
-                info.name("beatmap_id")
-                    .ok_or(
-                        "Failed to get beatmap_id in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function",
-                    )?
-                    .as_str()
-                    .parse::<i64>()?,
-            ),
-            mode: gamemode_from_string(info.name("mode").ok_or("Failed to get mode in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function")?.as_str()),
-        })
+        if let Some(mode) = info.name("mode") {
+            Ok(BeatmapInfo {
+                beatmapset_id: Some(
+                    info.name("beatmapset_id")
+                        .ok_or(
+                            "Failed to get beatmapset_id in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function",
+                        )?
+                        .as_str()
+                        .parse::<i64>()?,
+                ),
+                beatmap_id: Some(
+                    info.name("beatmap_id")
+                        .ok_or(
+                            "Failed to get beatmap_id in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function",
+                        )?
+                        .as_str()
+                        .parse::<i64>()?,
+                ),
+                mode: gamemode_from_string(mode.as_str()),
+            })
+        } else {
+            Ok(BeatmapInfo {
+                beatmapset_id: Some(
+                    info.name("beatmapset_id")
+                        .ok_or(
+                            "Failed to get beatmapset_id in BEATMAPSET_URL_PATTERN_V2 on get_beatmap_info function",
+                        )?
+                        .as_str()
+                        .parse::<i64>()?,
+                ),
+                beatmap_id: None,
+                mode: None,
+            })
+        }
     } else if BEATMAP_URL_PATTERN_V1.is_match(url) {
         let info = BEATMAP_URL_PATTERN_V1
             .captures(url)

@@ -49,9 +49,12 @@ pub async fn send_score_embed(
 ) -> Result<(), Error> {
     let color: Colour;
 
-    let pp =
-        crate::utils::osu::calculate::calculate(score, beatmap, calculate_potential_acc(score))
-            .await;
+    let pp = crate::utils::osu::calculate::calculate(
+        Some(score),
+        beatmap,
+        calculate_potential_acc(score),
+    )
+    .await;
 
     let footer: String;
     let pp = if let Ok(pp) = pp {

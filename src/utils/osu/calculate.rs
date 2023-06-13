@@ -1,4 +1,5 @@
 use crate::models::beatmaps::Beatmap;
+use crate::utils::osu::misc::gamemode_from_string;
 use crate::utils::osu::pp::catch::calculate_catch_pp;
 use crate::utils::osu::pp::mania::calculate_mania_pp;
 use crate::utils::osu::pp::osu::calculate_std_pp;
@@ -61,14 +62,14 @@ async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
 }
 
 pub async fn calculate(
-    score: &rosu_v2::prelude::Score,
+    score: Option<&rosu_v2::prelude::Score>,
     beatmap: &Beatmap,
     potential_acc: Option<f64>,
 ) -> Result<CalculateResults, Error> {
-    match score.mode {
-        GameMode::Osu => {
-            let path = get_beatmap_bath(beatmap).await?;
-            Ok(calculate_std_pp(
+    let path = get_beatmap_bath(beatmap).await?;
+    if let Some(score) = score {
+        return match score.mode {
+            GameMode::Osu => Ok(calculate_std_pp(
                 path,
                 score.mods.bits(),
                 Some(score.max_combo as usize),
@@ -81,11 +82,8 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await)
-        }
-        GameMode::Mania => {
-            let path = get_beatmap_bath(beatmap).await?;
-            Ok(calculate_mania_pp(
+            .await),
+            GameMode::Mania => Ok(calculate_mania_pp(
                 path,
                 score.mods.bits(),
                 Some(score.statistics.count_geki as usize),
@@ -97,11 +95,8 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await)
-        }
-        GameMode::Taiko => {
-            let path = get_beatmap_bath(beatmap).await?;
-            Ok(calculate_taiko_pp(
+            .await),
+            GameMode::Taiko => Ok(calculate_taiko_pp(
                 path,
                 score.mods.bits(),
                 Some(score.max_combo as usize),
@@ -112,11 +107,8 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await)
-        }
-        GameMode::Catch => {
-            let path = get_beatmap_bath(beatmap).await?;
-            Ok(calculate_catch_pp(
+            .await),
+            GameMode::Catch => Ok(calculate_catch_pp(
                 path,
                 score.mods.bits(),
                 Some(score.max_combo as usize),
@@ -128,7 +120,25 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await)
+            .await),
+        };
+    }
+
+    match gamemode_from_string(&beatmap.mode)
+        .ok_or("Failed to parse beatmap mode in calculate_pp")?
+    {
+        GameMode::Osu => Ok(calculate_std_pp(
+            path, 0, None, None, None, None, None, None, None, None, None,
+        )
+        .await),
+        GameMode::Mania => {
+            Ok(calculate_mania_pp(path, 0, None, None, None, None, None, None, None, None).await)
+        }
+        GameMode::Taiko => {
+            Ok(calculate_taiko_pp(path, 0, None, None, None, None, None, None, None).await)
+        }
+        GameMode::Catch => {
+            Ok(calculate_catch_pp(path, 0, None, None, None, None, None, None, None, None).await)
         }
     }
 }

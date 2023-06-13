@@ -8,7 +8,6 @@ use diesel_async::AsyncPgConnection;
 use rosu_v2::Osu;
 use std::sync::Arc;
 
-#[allow(dead_code)]
 pub async fn cache_beatmapset(
     connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
@@ -83,25 +82,27 @@ pub async fn get_beatmap(
     Ok(beatmaps::get_single(connection, i64::from(id)).await?)
 }
 
-#[allow(dead_code)]
 pub async fn get_beatmapset(
     connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: u32,
-) -> Result<Beatmapset, Error> {
-    let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await;
-    if let Ok(beatmapset) = query_beatmapset {
-        if check_beatmapset_valid_result(&beatmapset) {
+) -> Result<(Beatmapset, Vec<Beatmap>), Error> {
+    let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await?;
+    if let Some(beatmapset) = query_beatmapset {
+        if check_beatmapset_valid_result(&beatmapset.0) {
             return Ok(beatmapset);
         }
-        update_cache(connection, osu_client, beatmapset.id).await?;
-        return Ok(beatmapsets::read(connection, i64::from(id)).await?);
+        update_cache(connection, osu_client, beatmapset.0.id).await?;
+        return Ok(beatmapsets::read(connection, i64::from(id))
+            .await?
+            .ok_or("Failed to fetch beatmap in get_beatmapset")?);
     }
     cache_beatmapset(connection, osu_client, i64::from(id)).await?;
-    Ok(beatmapsets::read(connection, i64::from(id)).await?)
+    Ok(beatmapsets::read(connection, i64::from(id))
+        .await?
+        .ok_or("Failed to fetch beatmap in get_beatmapset")?)
 }
 
-#[allow(dead_code)]
 pub fn check_beatmapset_valid_result(beatmapset: &Beatmapset) -> bool {
     let current_time = Utc::now().naive_utc();
     match beatmapset.status.as_str() {

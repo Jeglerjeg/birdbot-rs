@@ -1,8 +1,9 @@
+use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::{Beatmapset, NewBeatmapset};
 use crate::schema::beatmapsets;
 use crate::Error;
-use diesel::insert_into;
-use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
+use diesel::prelude::{BelongingToDsl, ExpressionMethods, QueryDsl, QueryResult};
+use diesel::{insert_into, SelectableHelper};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 fn to_insert_beatmapset(beatmapset: rosu_v2::prelude::Beatmapset) -> NewBeatmapset {
@@ -35,12 +36,23 @@ pub async fn create(
     Ok(())
 }
 
-#[allow(dead_code)]
-pub async fn read(db: &mut AsyncPgConnection, param_id: i64) -> QueryResult<Beatmapset> {
-    beatmapsets::table
+pub async fn read(
+    db: &mut AsyncPgConnection,
+    param_id: i64,
+) -> Result<Option<(Beatmapset, Vec<Beatmap>)>, Error> {
+    let beatmapset = beatmapsets::table
         .filter(beatmapsets::id.eq(param_id))
         .first::<Beatmapset>(db)
-        .await
+        .await;
+
+    if let Ok(beatmapset) = beatmapset {
+        let beatmaps = Beatmap::belonging_to(&beatmapset)
+            .select(Beatmap::as_select())
+            .load(db)
+            .await?;
+        return Ok(Some((beatmapset, beatmaps)));
+    }
+    Ok(None)
 }
 
 pub async fn update(

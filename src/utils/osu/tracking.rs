@@ -273,7 +273,12 @@ impl OsuTracker {
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
-        let pp = calculate(&score.0, &beatmap.0, calculate_potential_acc(&score.0)).await;
+        let pp = calculate(
+            Some(&score.0),
+            &beatmap.0,
+            calculate_potential_acc(&score.0),
+        )
+        .await;
         let author_text = format!(
             "{} set a new best score (#{}/{})",
             &new.username, score.1, 100
@@ -511,7 +516,7 @@ impl OsuTracker {
         let beatmap = get_beatmap(connection, self.osu_client.clone(), beatmap_id).await?;
 
         let pp = calculate(
-            &score.score,
+            Some(&score.score),
             &beatmap.0,
             calculate_potential_acc(&score.score),
         )

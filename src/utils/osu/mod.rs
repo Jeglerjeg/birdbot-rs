@@ -1,6 +1,7 @@
 pub mod caching;
 pub mod calculate;
 pub mod embeds;
+pub mod map_format;
 pub mod misc;
 pub mod misc_format;
 pub mod pp;
