@@ -5,6 +5,7 @@ diesel::table! {
         id -> Int8,
         ar -> Float8,
         beatmapset_id -> Int8,
+        #[max_length = 32]
         checksum -> Nullable<Varchar>,
         max_combo -> Int4,
         bpm -> Float8,
@@ -15,12 +16,15 @@ diesel::table! {
         cs -> Float8,
         difficulty_rating -> Float8,
         drain -> Int4,
+        #[max_length = 7]
         mode -> Varchar,
         passcount -> Int4,
         playcount -> Int4,
+        #[max_length = 9]
         status -> Varchar,
         total_length -> Int4,
         user_id -> Int8,
+        #[max_length = 90]
         version -> Varchar,
         time_cached -> Timestamptz,
     }
@@ -29,14 +33,19 @@ diesel::table! {
 diesel::table! {
     beatmapsets (id) {
         id -> Int8,
+        #[max_length = 80]
         artist -> Varchar,
         bpm -> Float8,
         list_cover -> Text,
         cover -> Text,
+        #[max_length = 80]
         creator -> Varchar,
         play_count -> Int8,
+        #[max_length = 80]
         source -> Varchar,
+        #[max_length = 9]
         status -> Varchar,
+        #[max_length = 80]
         title -> Varchar,
         user_id -> Int8,
         time_cached -> Timestamptz,
@@ -48,6 +57,7 @@ diesel::table! {
         id -> Int8,
         osu_id -> Int8,
         home_guild -> Int8,
+        #[max_length = 7]
         mode -> Varchar,
     }
 }
@@ -73,7 +83,9 @@ diesel::table! {
         id -> Int8,
         username -> Text,
         avatar_url -> Text,
+        #[max_length = 2]
         country_code -> Varchar,
+        #[max_length = 7]
         mode -> Varchar,
         pp -> Float8,
         accuracy -> Float8,
@@ -89,6 +101,7 @@ diesel::table! {
 diesel::table! {
     prefix (guild_id) {
         guild_id -> Int8,
+        #[max_length = 1]
         guild_prefix -> Bpchar,
     }
 }
