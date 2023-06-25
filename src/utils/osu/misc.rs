@@ -92,7 +92,7 @@ pub async fn wipe_profile_data(db: &mut AsyncPgConnection, user_id: i64) -> Resu
 
 pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
     let mut presence: Option<Presence> = None;
-    let fetched_guild = ctx.cache.guild(home_guild as u64);
+    let fetched_guild = ctx.cache.guild(u64::try_from(home_guild)?);
     if let Some(guild_ref) = fetched_guild {
         let guild = Arc::from(guild_ref.clone());
         if guild.members.contains_key(&user_id) {
@@ -192,12 +192,12 @@ pub async fn get_user(
         }
     } else {
         let linked_profile =
-            linked_osu_profiles::read(connection, discord_user.id.0.get() as i64).await;
+            linked_osu_profiles::read(connection, i64::try_from(discord_user.id.0.get())?).await;
         if let Ok(linked_profile) = linked_profile {
             if let Ok(user) = ctx
                 .data()
                 .osu_client
-                .user(linked_profile.osu_id as u32)
+                .user(u32::try_from(linked_profile.osu_id)?)
                 .mode(
                     gamemode_from_string(&linked_profile.mode)
                         .ok_or("Failed to parse gamemode from string in get_user function")?,

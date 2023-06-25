@@ -8,29 +8,29 @@ use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
-fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
-    NewBeatmap {
+fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> Result<NewBeatmap, Error> {
+    Ok(NewBeatmap {
         id: i64::from(beatmap.map_id),
         ar: f64::from(beatmap.ar),
         beatmapset_id: i64::from(beatmap.mapset_id),
         checksum: beatmap.checksum.clone(),
-        max_combo: beatmap.max_combo.unwrap_or(0) as i32,
+        max_combo: i32::try_from(beatmap.max_combo.unwrap_or(0))?,
         bpm: f64::from(beatmap.bpm),
         convert: beatmap.convert,
-        count_circles: beatmap.count_circles as i32,
-        count_sliders: beatmap.count_sliders as i32,
-        count_spinners: beatmap.count_spinners as i32,
+        count_circles: i32::try_from(beatmap.count_circles)?,
+        count_sliders: i32::try_from(beatmap.count_sliders)?,
+        count_spinners: i32::try_from(beatmap.count_spinners)?,
         cs: f64::from(beatmap.cs),
         difficulty_rating: f64::from(beatmap.stars),
-        drain: beatmap.seconds_drain as i32,
+        drain: i32::try_from(beatmap.seconds_drain)?,
         mode: beatmap.mode.to_string(),
-        passcount: beatmap.passcount as i32,
-        playcount: beatmap.playcount as i32,
+        passcount: i32::try_from(beatmap.passcount)?,
+        playcount: i32::try_from(beatmap.playcount)?,
         status: crate::utils::osu::misc_format::format_rank_status(beatmap.status),
-        total_length: beatmap.seconds_total as i32,
+        total_length: i32::try_from(beatmap.seconds_total)?,
         user_id: i64::from(beatmap.creator_id),
         version: beatmap.version.clone(),
-    }
+    })
 }
 
 pub async fn create(
@@ -40,7 +40,7 @@ pub async fn create(
     let mut items = Vec::new();
 
     for beatmap in beatmaps {
-        items.push(to_insert_beatmap(beatmap));
+        items.push(to_insert_beatmap(beatmap)?);
     }
 
     insert_into(beatmaps::table)
@@ -68,7 +68,7 @@ pub async fn update(
     param_id: i64,
     beatmap: &rosu_v2::prelude::Beatmap,
 ) -> Result<(), Error> {
-    let item = to_insert_beatmap(beatmap);
+    let item = to_insert_beatmap(beatmap)?;
 
     diesel::update(beatmaps::table.find(param_id))
         .set(item)

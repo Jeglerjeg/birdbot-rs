@@ -34,7 +34,7 @@ pub async fn add_guild_prefix(
 
     GUILD_PREFIX
         .guild_prefix
-        .insert(GuildId::from(guild_id as u64), guild_prefix);
+        .insert(GuildId::from(u64::try_from(guild_id)?), guild_prefix);
 
     diesel::insert_into(prefix::table)
         .values(&new_prefix)
@@ -56,7 +56,7 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
             .entry(guild_id)
             .or_insert(
                 match prefix::table
-                    .find(guild_id.get() as i64)
+                    .find(i64::try_from(guild_id.get())?)
                     .limit(1)
                     .load::<Prefix>(&mut ctx.data.db_pool.get().await?)
                     .await?

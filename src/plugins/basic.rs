@@ -284,10 +284,12 @@ pub async fn prefix(
     let connection = &mut ctx.data().db_pool.get().await?;
     crate::utils::db::prefix::add_guild_prefix(
         connection,
-        ctx.guild_id()
-            .ok_or("Failed to get guild ID in prefix")?
-            .0
-            .get() as i64,
+        i64::try_from(
+            ctx.guild_id()
+                .ok_or("Failed to get guild ID in prefix")?
+                .0
+                .get(),
+        )?,
         new_prefix.clone(),
     )
     .await?;

@@ -43,7 +43,8 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 )]
 pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get().await?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await;
+    let profile =
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
     match profile {
         Ok(profile) => {
             let color: Colour;
@@ -118,20 +119,22 @@ pub async fn link(
     let user = ctx.data().osu_client.user(username).await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
-    if let Ok(profile) = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await
+    if let Ok(profile) =
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await
     {
         linked_osu_profiles::delete(connection, profile.id).await?;
         wipe_profile_data(connection, profile.osu_id).await?;
     }
 
     let query_item = NewLinkedOsuProfile {
-        id: ctx.author().id.0.get() as i64,
+        id: i64::try_from(ctx.author().id.0.get())?,
         osu_id: i64::from(user.user_id),
-        home_guild: ctx
-            .guild_id()
-            .ok_or("Failed to get guild ID in link command")?
-            .0
-            .get() as i64,
+        home_guild: i64::try_from(
+            ctx.guild_id()
+                .ok_or("Failed to get guild ID in link command")?
+                .0
+                .get(),
+        )?,
         mode: user.mode.to_string(),
     };
 
@@ -163,7 +166,8 @@ pub async fn link(
 )]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get().await?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await;
+    let profile =
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
 
     match profile {
         Ok(profile) => {
@@ -215,7 +219,8 @@ pub async fn mode(
     #[description = "Gamemode to switch to."] new_mode: GameModeChoices,
 ) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get().await?;
-    let profile = linked_osu_profiles::read(connection, ctx.author().id.0.get() as i64).await;
+    let profile =
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
 
     let mode = match new_mode {
         GameModeChoices::Standard => GameMode::Osu,
@@ -274,9 +279,11 @@ pub async fn mapinfo(
     let beatmapset = get_beatmapset(
         connection,
         ctx.data().osu_client.clone(),
-        beatmap_info
-            .beatmapset_id
-            .ok_or("Failed to get beatmapset id in mapinfo command")? as u32,
+        u32::try_from(
+            beatmap_info
+                .beatmapset_id
+                .ok_or("Failed to get beatmapset id in mapinfo command")?,
+        )?,
     )
     .await?;
 
@@ -345,9 +352,11 @@ pub async fn score(
         .data()
         .osu_client
         .beatmap_user_score(
-            beatmap_info
-                .beatmap_id
-                .ok_or("Failed to get beatmap ID in score command")? as u32,
+            u32::try_from(
+                beatmap_info
+                    .beatmap_id
+                    .ok_or("Failed to get beatmap ID in score command")?,
+            )?,
             osu_user.user_id,
         )
         .mode(mode)
@@ -424,7 +433,7 @@ pub async fn scores(
     let api_scores = ctx
         .data()
         .osu_client
-        .beatmap_user_scores(beatmap_id as u32, osu_user.user_id)
+        .beatmap_user_scores(u32::try_from(beatmap_id)?, osu_user.user_id)
         .mode(osu_user.mode)
         .await;
 
@@ -445,8 +454,12 @@ pub async fn scores(
                 beatmap_scores = sort_scores(beatmap_scores, &sort_type);
             }
 
-            let beatmap =
-                get_beatmap(connection, ctx.data().osu_client.clone(), beatmap_id as u32).await?;
+            let beatmap = get_beatmap(
+                connection,
+                ctx.data().osu_client.clone(),
+                u32::try_from(beatmap_id)?,
+            )
+            .await?;
 
             send_scores_embed(
                 ctx,
@@ -819,18 +832,19 @@ pub async fn score_notifications(
         .ok_or("Failed to get guild in score_notifications command")?
         .clone();
     let connection = &mut ctx.data().db_pool.get().await?;
-    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64).await {
-        Ok(guild_config) => NewOsuGuildChannel {
-            guild_id: guild_config.guild_id,
-            score_channel: Some(scores_channel.id.0.get() as i64),
-            map_channel: guild_config.map_channel,
-        },
-        Err(_) => NewOsuGuildChannel {
-            guild_id: guild.id.0.get() as i64,
-            score_channel: Some(scores_channel.id.0.get() as i64),
-            map_channel: None,
-        },
-    };
+    let new_item =
+        match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
+            Ok(guild_config) => NewOsuGuildChannel {
+                guild_id: guild_config.guild_id,
+                score_channel: Some(i64::try_from(scores_channel.id.0.get())?),
+                map_channel: guild_config.map_channel,
+            },
+            Err(_) => NewOsuGuildChannel {
+                guild_id: i64::try_from(guild.id.0.get())?,
+                score_channel: Some(i64::try_from(scores_channel.id.0.get())?),
+                map_channel: None,
+            },
+        };
 
     osu_guild_channels::create(connection, &new_item).await?;
 
@@ -850,18 +864,19 @@ pub async fn map_notifications(
         .ok_or("Failed to get guild in map_notifications command")?
         .clone();
     let connection = &mut ctx.data().db_pool.get().await?;
-    let new_item = match osu_guild_channels::read(connection, guild.id.0.get() as i64).await {
-        Ok(guild_config) => NewOsuGuildChannel {
-            guild_id: guild_config.guild_id,
-            score_channel: guild_config.score_channel,
-            map_channel: Some(map_channel.id.0.get() as i64),
-        },
-        Err(_) => NewOsuGuildChannel {
-            guild_id: guild.id.0.get() as i64,
-            score_channel: None,
-            map_channel: Some(map_channel.id.0.get() as i64),
-        },
-    };
+    let new_item =
+        match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
+            Ok(guild_config) => NewOsuGuildChannel {
+                guild_id: guild_config.guild_id,
+                score_channel: guild_config.score_channel,
+                map_channel: Some(i64::try_from(map_channel.id.0.get())?),
+            },
+            Err(_) => NewOsuGuildChannel {
+                guild_id: i64::try_from(guild.id.0.get())?,
+                score_channel: None,
+                map_channel: Some(i64::try_from(map_channel.id.0.get())?),
+            },
+        };
 
     osu_guild_channels::create(connection, &new_item).await?;
 
@@ -878,7 +893,7 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
         .ok_or("Failed to get guild in delete_guild_config command")?
         .clone();
     let connection = &mut ctx.data().db_pool.get().await?;
-    match osu_guild_channels::read(connection, guild.id.0.get() as i64).await {
+    match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
         Ok(guild_config) => {
             osu_guild_channels::delete(connection, guild_config.guild_id).await?;
             ctx.say("Your guild's config has been deleted.").await?;
@@ -904,7 +919,7 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
                 let user = ctx
                     .cache()
                     .ok_or("Failed to retrieve discord cache in debug command")?
-                    .user(linked_profile.id as u64);
+                    .user(u64::try_from(linked_profile.id)?);
                 if let Some(user) = user {
                     if is_playing(ctx.discord(), user.id, linked_profile.home_guild)? {
                         playing_users.push(format!("`{}`", user.name.clone()));

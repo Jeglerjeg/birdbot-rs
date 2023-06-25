@@ -91,7 +91,7 @@ impl OsuTracker {
         linked_profile: &LinkedOsuProfile,
         connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
-        let user = match self.ctx.cache.user(linked_profile.id as u64) {
+        let user = match self.ctx.cache.user(u64::try_from(linked_profile.id)?) {
             Some(user) => user.clone(),
             _ => return Ok(()),
         };
@@ -103,7 +103,7 @@ impl OsuTracker {
             {
                 let Ok(osu_profile) = self
                     .osu_client
-                    .user(linked_profile.osu_id as u32)
+                    .user(u32::try_from(linked_profile.osu_id)?)
                     .mode(gamemode_from_string(&linked_profile.mode).ok_or("Failed to parse gamemode in update_user_data function")?)
                     .await else { return Ok(()) };
                 let new = osu_users::create(
@@ -146,7 +146,7 @@ impl OsuTracker {
         } else {
             let Ok(osu_profile) = self
                 .osu_client
-                .user(linked_profile.osu_id as u32)
+                .user(u32::try_from(linked_profile.osu_id)?)
                 .mode(gamemode_from_string(&linked_profile.mode).ok_or("Failed to parse gamemode in update_user_data function")?)
                 .await else { return Ok(()) };
 
@@ -330,10 +330,13 @@ impl OsuTracker {
     ) -> Result<(), Error> {
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
-                osu_guild_channels::read(connection, guild_id.0.get() as i64).await
+                osu_guild_channels::read(connection, i64::try_from(guild_id.0.get())?).await
             {
                 if let Some(score_channel) = guild_channels.score_channel {
-                    if let Ok(member) = guild_id.member(&self.ctx, linked_profile.id as u64).await {
+                    if let Ok(member) = guild_id
+                        .member(&self.ctx, u64::try_from(linked_profile.id)?)
+                        .await
+                    {
                         let color = member.colour(&self.ctx).unwrap_or(BLUE);
 
                         let embed = create_embed(
@@ -348,7 +351,7 @@ impl OsuTracker {
 
                         let builder = CreateMessage::new().embed(embed);
 
-                        ChannelId(NonZeroU64::try_from(score_channel as u64)?)
+                        ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
                             .send_message(&self.ctx, builder)
                             .await?;
                     }
@@ -381,7 +384,7 @@ impl OsuTracker {
 
         let best_scores = self
             .osu_client
-            .user_scores(osu_id as u32)
+            .user_scores(u32::try_from(osu_id)?)
             .best()
             .mode(
                 gamemode_from_string(&linked_profile.mode)
@@ -433,7 +436,10 @@ impl OsuTracker {
                 osu_notifications::create(connection, &item).await?
             };
 
-        let mut recent_events = self.osu_client.recent_events(new.id as u32).await?;
+        let mut recent_events = self
+            .osu_client
+            .recent_events(u32::try_from(new.id)?)
+            .await?;
         recent_events.reverse();
 
         let mut notified = false;
@@ -493,14 +499,15 @@ impl OsuTracker {
 
         let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url))?;
 
-        let beatmap_id = beatmap_info
-            .beatmap_id
-            .ok_or("Failed to get beatmap ID in notify_leaderboard_score")?
-            as u32;
+        let beatmap_id = u32::try_from(
+            beatmap_info
+                .beatmap_id
+                .ok_or("Failed to get beatmap ID in notify_leaderboard_score")?,
+        )?;
 
         let score = self
             .osu_client
-            .beatmap_user_score(beatmap_id, new.id as u32)
+            .beatmap_user_score(beatmap_id, u32::try_from(new.id)?)
             .mode(*mode)
             .await?;
 
@@ -546,10 +553,13 @@ impl OsuTracker {
 
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
-                osu_guild_channels::read(connection, guild_id.0.get() as i64).await
+                osu_guild_channels::read(connection, i64::try_from(guild_id.0.get())?).await
             {
                 if let Some(score_channel) = guild_channels.score_channel {
-                    if let Ok(member) = guild_id.member(&self.ctx, linked_profile.id as u64).await {
+                    if let Ok(member) = guild_id
+                        .member(&self.ctx, u64::try_from(linked_profile.id)?)
+                        .await
+                    {
                         let color = member.colour(&self.ctx).unwrap_or(BLUE);
 
                         let embed = create_embed(
@@ -564,7 +574,7 @@ impl OsuTracker {
 
                         let builder = CreateMessage::new().embed(embed);
 
-                        ChannelId(NonZeroU64::try_from(score_channel as u64)?)
+                        ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
                             .send_message(&self.ctx, builder)
                             .await?;
                     }
