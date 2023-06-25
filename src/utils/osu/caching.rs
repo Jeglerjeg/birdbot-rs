@@ -1,7 +1,8 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
-use crate::utils::db::beatmaps;
+use crate::models::osu_files::OsuFile;
 use crate::utils::db::beatmapsets;
+use crate::utils::db::{beatmaps, osu_file};
 use crate::Error;
 use chrono::Utc;
 use diesel_async::AsyncPgConnection;
@@ -15,11 +16,27 @@ pub async fn cache_beatmapset(
 ) -> Result<(), Error> {
     let beatmapset = osu_client.beatmapset(id as u32).await?;
     if let Some(ref beatmaps) = beatmapset.maps {
-        let mut to_insert = Vec::new();
+        let mut beatmaps_to_insert = Vec::new();
+        let mut beatmap_ids = Vec::new();
+        let mut osu_files_to_insert = Vec::new();
         for beatmap in beatmaps {
-            to_insert.push(beatmap);
+            beatmaps_to_insert.push(beatmap);
+            beatmap_ids.push(i64::from(beatmap.map_id));
         }
-        beatmaps::create(connection, to_insert).await?;
+        let existing_osu_files = osu_file::get_files(connection, &beatmap_ids).await?;
+        for id in beatmap_ids {
+            if existing_osu_files.iter().any(|file| file.id == id) {
+                continue;
+            }
+            let response = reqwest::get(format!("https://osu.ppy.sh/osu/{id}"))
+                .await?
+                .bytes()
+                .await?;
+            let osu_file = response.to_vec();
+            osu_files_to_insert.push((id, osu_file));
+        }
+        beatmaps::create(connection, beatmaps_to_insert).await?;
+        osu_file::create(connection, osu_files_to_insert).await?;
     }
 
     beatmapsets::create(connection, beatmapset).await?;
@@ -35,11 +52,27 @@ pub async fn cache_beatmapset_from_beatmap(
     let beatmapset = osu_client.beatmapset_from_map_id(id as u32).await?;
 
     if let Some(ref beatmaps) = beatmapset.maps {
-        let mut to_insert = Vec::new();
+        let mut beatmaps_to_insert = Vec::new();
+        let mut beatmap_ids = Vec::new();
+        let mut osu_files_to_insert = Vec::new();
         for beatmap in beatmaps {
-            to_insert.push(beatmap);
+            beatmaps_to_insert.push(beatmap);
+            beatmap_ids.push(i64::from(beatmap.map_id));
         }
-        beatmaps::create(connection, to_insert).await?;
+        let existing_osu_files = osu_file::get_files(connection, &beatmap_ids).await?;
+        for id in beatmap_ids {
+            if existing_osu_files.iter().any(|file| file.id == id) {
+                continue;
+            }
+            let response = reqwest::get(format!("https://osu.ppy.sh/osu/{id}"))
+                .await?
+                .bytes()
+                .await?;
+            let osu_file = response.to_vec();
+            osu_files_to_insert.push((id, osu_file));
+        }
+        beatmaps::create(connection, beatmaps_to_insert).await?;
+        osu_file::create(connection, osu_files_to_insert).await?;
     }
 
     beatmapsets::create(connection, beatmapset).await?;
@@ -57,6 +90,12 @@ pub async fn update_cache(
     if let Some(ref beatmaps) = beatmapset.maps {
         for beatmap in beatmaps {
             beatmaps::update(connection, i64::from(beatmap.map_id), beatmap).await?;
+            let response = reqwest::get(format!("https://osu.ppy.sh/osu/{}", beatmap.map_id))
+                .await?
+                .bytes()
+                .await?;
+            let osu_file = response.to_vec();
+            osu_file::update(connection, i64::from(beatmap.map_id), osu_file).await?;
         }
     }
 
@@ -69,7 +108,7 @@ pub async fn get_beatmap(
     connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: u32,
-) -> Result<(Beatmap, Beatmapset), Error> {
+) -> Result<(Beatmap, Beatmapset, OsuFile), Error> {
     let query_beatmap = beatmaps::get_single(connection, i64::from(id)).await;
     if let Ok(beatmap) = query_beatmap {
         if check_beatmap_valid_result(&beatmap.0) {
@@ -86,7 +125,7 @@ pub async fn get_beatmapset(
     connection: &mut AsyncPgConnection,
     osu_client: Arc<Osu>,
     id: u32,
-) -> Result<(Beatmapset, Vec<Beatmap>), Error> {
+) -> Result<(Beatmapset, Vec<(Beatmap, OsuFile)>), Error> {
     let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await?;
     if let Some(beatmapset) = query_beatmapset {
         if check_beatmapset_valid_result(&beatmapset.0) {

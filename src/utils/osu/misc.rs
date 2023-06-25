@@ -1,5 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
+use crate::models::osu_files::OsuFile;
 use crate::models::osu_users::OsuUser;
 use crate::plugins::osu::SortChoices;
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
@@ -139,9 +140,9 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<boo
 }
 
 pub fn sort_scores(
-    mut scores: Vec<(Score, usize, Beatmap, Beatmapset)>,
+    mut scores: Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)>,
     sort_by: &SortChoices,
-) -> Vec<(Score, usize, Beatmap, Beatmapset)> {
+) -> Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)> {
     match sort_by {
         SortChoices::Recent => {
             scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
@@ -163,13 +164,13 @@ pub async fn set_up_score_list(
     ctx: &crate::Context<'_>,
     connection: &mut AsyncPgConnection,
     scores: Vec<Score>,
-) -> Result<Vec<(Score, usize, Beatmap, Beatmapset)>, Error> {
-    let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset)> = Vec::new();
+) -> Result<Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)>, Error> {
+    let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)> = Vec::new();
     let typing = ctx.channel_id().start_typing(&ctx.discord().http);
     for (pos, score) in scores.iter().enumerate() {
         let beatmap = get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
-        score_list.push((score.clone(), pos + 1, beatmap.0, beatmap.1));
+        score_list.push((score.clone(), pos + 1, beatmap.0, beatmap.1, beatmap.2));
     }
     typing.stop();
 

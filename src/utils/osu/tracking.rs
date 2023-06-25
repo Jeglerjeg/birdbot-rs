@@ -1,6 +1,7 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
+use crate::models::osu_files::OsuFile;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::utils::db::osu_users::rosu_user_to_db;
@@ -193,7 +194,7 @@ impl OsuTracker {
             .entry(linked_profile.osu_id)
             .or_default();
 
-        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset)> = Vec::new();
+        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)> = Vec::new();
 
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
@@ -213,7 +214,7 @@ impl OsuTracker {
 
             let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
-            to_notify.push((api_score.clone(), score.1, beatmap.0, beatmap.1));
+            to_notify.push((api_score.clone(), score.1, beatmap.0, beatmap.1, beatmap.2));
         }
 
         if to_notify.is_empty() {
@@ -276,6 +277,7 @@ impl OsuTracker {
         let pp = calculate(
             Some(&score.0),
             &beatmap.0,
+            &beatmap.2,
             calculate_potential_acc(&score.0),
         )
         .await;
@@ -518,6 +520,7 @@ impl OsuTracker {
         let pp = calculate(
             Some(&score.score),
             &beatmap.0,
+            &beatmap.2,
             calculate_potential_acc(&score.score),
         )
         .await;

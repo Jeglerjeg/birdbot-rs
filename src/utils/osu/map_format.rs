@@ -1,5 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
+use crate::models::osu_files::OsuFile;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::misc::gamemode_from_string;
@@ -18,14 +19,14 @@ lazy_static! {
         .expect("Failed to parse max queued songs.");
 }
 
-pub async fn format_beatmapset(mut beatmaps: Vec<Beatmap>) -> Result<String, Error> {
+pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String, Error> {
     let mut diff_length = 0;
     let mut calculated_beatmaps = HashMap::new();
-    for beatmap in beatmaps.clone() {
+    for (beatmap, osu_file) in &beatmaps {
         if beatmap.version.len() > diff_length {
             diff_length = beatmap.version.len();
         }
-        let difficulty_values = calculate(None, &beatmap, None).await?;
+        let difficulty_values = calculate(None, beatmap, osu_file, None).await?;
         calculated_beatmaps.insert(beatmap.id, difficulty_values);
     }
     if diff_length > *MAX_DIFF_LENGTH {
@@ -39,21 +40,21 @@ pub async fn format_beatmapset(mut beatmaps: Vec<Beatmap>) -> Result<String, Err
     );
 
     beatmaps.sort_by(|a, b| {
-        if let Some(difficulty_values) = calculated_beatmaps.get(&a.id) {
+        if let Some(difficulty_values) = calculated_beatmaps.get(&a.0.id) {
             &difficulty_values.total_stars
         } else {
-            &a.difficulty_rating
+            &a.0.difficulty_rating
         }
         .total_cmp(
-            if let Some(difficulty_values) = calculated_beatmaps.get(&b.id) {
+            if let Some(difficulty_values) = calculated_beatmaps.get(&b.0.id) {
                 &difficulty_values.total_stars
             } else {
-                &b.difficulty_rating
+                &b.0.difficulty_rating
             },
         )
     });
 
-    for beatmap in beatmaps {
+    for (beatmap, _) in beatmaps {
         let difficulty_values = calculated_beatmaps
             .get(&beatmap.id)
             .ok_or("Couldn't get beatmap difficulty values in format_beatmapset")?;
@@ -91,7 +92,7 @@ pub async fn format_beatmapset(mut beatmaps: Vec<Beatmap>) -> Result<String, Err
 }
 
 pub async fn format_map_status(
-    beatmapset_and_beatmap: (Beatmapset, Vec<Beatmap>),
+    beatmapset_and_beatmap: (Beatmapset, Vec<(Beatmap, OsuFile)>),
     color: Color,
 ) -> Result<CreateEmbed, Error> {
     let beatmapset = beatmapset_and_beatmap.0;

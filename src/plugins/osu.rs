@@ -368,6 +368,7 @@ pub async fn score(
                 &score.score,
                 &beatmap.0,
                 &beatmap.1,
+                &beatmap.2,
                 osu_user,
                 Some(&score.pos),
             )
@@ -527,6 +528,7 @@ pub async fn recent(
                     score,
                     &beatmap.0,
                     &beatmap.1,
+                    &beatmap.2,
                     osu_user,
                     None,
                 )
@@ -599,6 +601,7 @@ pub async fn recent_best(
                     score,
                     &beatmap.0,
                     &beatmap.1,
+                    &beatmap.2,
                     osu_user,
                     None,
                 )

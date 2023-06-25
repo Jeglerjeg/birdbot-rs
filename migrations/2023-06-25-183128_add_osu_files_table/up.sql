@@ -1,0 +1,6 @@
+ALTER TABLE beatmaps DROP COLUMN osu_file;
+
+CREATE TABLE IF NOT EXISTS osu_files (
+  id BIGINT NOT NULL PRIMARY KEY,
+  file BYTEA NOT NULL
+)

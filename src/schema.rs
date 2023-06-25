@@ -27,7 +27,6 @@ diesel::table! {
         #[max_length = 90]
         version -> Varchar,
         time_cached -> Timestamptz,
-        osu_file -> Bytea,
     }
 }
 
@@ -60,6 +59,13 @@ diesel::table! {
         home_guild -> Int8,
         #[max_length = 7]
         mode -> Varchar,
+    }
+}
+
+diesel::table! {
+    osu_files (id) {
+        id -> Int8,
+        file -> Bytea,
     }
 }
 
@@ -118,11 +124,13 @@ diesel::table! {
 }
 
 diesel::joinable!(beatmaps -> beatmapsets (beatmapset_id));
+diesel::joinable!(beatmaps -> osu_files (id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     beatmaps,
     beatmapsets,
     linked_osu_profiles,
+    osu_files,
     osu_guild_channels,
     osu_notifications,
     osu_users,

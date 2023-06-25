@@ -32,11 +32,22 @@ pub struct Beatmap {
     pub user_id: i64,
     pub version: String,
     pub time_cached: chrono::DateTime<chrono::Utc>,
-    pub osu_file: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
-#[diesel(table_name=beatmaps)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    Queryable,
+    Insertable,
+    Associations,
+    Identifiable,
+    Selectable,
+    AsChangeset,
+)]
+#[diesel(belongs_to(Beatmapset, foreign_key = beatmapset_id))]
+#[diesel(table_name=beatmaps, primary_key(id))]
 pub struct NewBeatmap {
     pub id: i64,
     pub ar: f64,
@@ -58,5 +69,4 @@ pub struct NewBeatmap {
     pub total_length: i32,
     pub user_id: i64,
     pub version: String,
-    pub osu_file: Vec<u8>,
 }

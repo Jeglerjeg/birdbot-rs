@@ -1,5 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
+use crate::models::osu_files::OsuFile;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::calculate_potential_acc;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_footer};
@@ -149,7 +150,7 @@ pub fn format_new_score(
 }
 
 pub async fn format_score_list(
-    scores: &[(Score, usize, Beatmap, Beatmapset)],
+    scores: &[(Score, usize, Beatmap, Beatmapset, OsuFile)],
     limit: Option<usize>,
     offset: Option<usize>,
 ) -> Result<String, Error> {
@@ -157,7 +158,7 @@ pub async fn format_score_list(
     let limit = limit.unwrap_or(5);
 
     let mut formatted_list: Vec<String> = Vec::new();
-    for (pos, score) in scores.iter().enumerate() {
+    for (pos, (score, position, beatmap, beatmapset, osu_file)) in scores.iter().enumerate() {
         if pos < offset {
             continue;
         }
@@ -165,20 +166,17 @@ pub async fn format_score_list(
             break;
         }
 
-        let beatmap = &score.2;
-
-        let beatmapset = &score.3;
-
         let pp = crate::utils::osu::calculate::calculate(
-            Some(&score.0),
+            Some(score),
             beatmap,
-            calculate_potential_acc(&score.0),
+            osu_file,
+            calculate_potential_acc(score),
         )
         .await;
 
         let footer: String;
         let pp = if let Ok(pp) = pp {
-            let formatted_footer = format_footer(&score.0, beatmap, &pp)?;
+            let formatted_footer = format_footer(score, beatmap, &pp)?;
             if formatted_footer.is_empty() {
                 footer = String::new();
             } else {
@@ -190,13 +188,13 @@ pub async fn format_score_list(
             None
         };
 
-        let formatted_score = format_new_score(&score.0, beatmap, beatmapset, &pp, None)?;
+        let formatted_score = format_new_score(score, beatmap, beatmapset, &pp, None)?;
 
         formatted_list.push(format!(
             "{}.\n{}<t:{}:R>{}\n",
-            score.1,
+            position,
             formatted_score,
-            score.0.ended_at.unix_timestamp(),
+            score.ended_at.unix_timestamp(),
             footer
         ));
     }

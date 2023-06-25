@@ -1,13 +1,14 @@
 use crate::models::beatmaps::{Beatmap, NewBeatmap};
 use crate::models::beatmapsets::Beatmapset;
-use crate::schema::beatmaps;
+use crate::models::osu_files::OsuFile;
 use crate::schema::beatmapsets;
+use crate::schema::{beatmaps, osu_files};
 use crate::Error;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
-fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap, osu_file: Vec<u8>) -> NewBeatmap {
+fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
     NewBeatmap {
         id: i64::from(beatmap.map_id),
         ar: f64::from(beatmap.ar),
@@ -29,7 +30,6 @@ fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap, osu_file: Vec<u8>) -> 
         total_length: beatmap.seconds_total as i32,
         user_id: i64::from(beatmap.creator_id),
         version: beatmap.version.clone(),
-        osu_file,
     }
 }
 
@@ -40,12 +40,7 @@ pub async fn create(
     let mut items = Vec::new();
 
     for beatmap in beatmaps {
-        let response = reqwest::get(format!("https://osu.ppy.sh/osu/{}", beatmap.map_id))
-            .await?
-            .bytes()
-            .await?;
-        let osu_file = response.to_vec();
-        items.push(to_insert_beatmap(beatmap, osu_file));
+        items.push(to_insert_beatmap(beatmap));
     }
 
     insert_into(beatmaps::table)
@@ -59,11 +54,12 @@ pub async fn create(
 pub async fn get_single(
     db: &mut AsyncPgConnection,
     param_id: i64,
-) -> Result<(Beatmap, Beatmapset), diesel::result::Error> {
+) -> Result<(Beatmap, Beatmapset, OsuFile), diesel::result::Error> {
     beatmaps::table
         .inner_join(beatmapsets::table)
+        .inner_join(osu_files::table)
         .filter(beatmaps::id.eq(param_id))
-        .first::<(Beatmap, Beatmapset)>(db)
+        .first::<(Beatmap, Beatmapset, OsuFile)>(db)
         .await
 }
 
@@ -72,12 +68,7 @@ pub async fn update(
     param_id: i64,
     beatmap: &rosu_v2::prelude::Beatmap,
 ) -> Result<(), Error> {
-    let response = reqwest::get(format!("https://osu.ppy.sh/osu/{param_id}"))
-        .await?
-        .bytes()
-        .await?;
-    let osu_file = response.to_vec();
-    let item = to_insert_beatmap(beatmap, osu_file);
+    let item = to_insert_beatmap(beatmap);
 
     diesel::update(beatmaps::table.find(param_id))
         .set(item)

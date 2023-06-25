@@ -1,6 +1,7 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::{Beatmapset, NewBeatmapset};
-use crate::schema::beatmapsets;
+use crate::models::osu_files::OsuFile;
+use crate::schema::{beatmapsets, osu_files};
 use crate::Error;
 use diesel::prelude::{BelongingToDsl, ExpressionMethods, QueryDsl, QueryResult};
 use diesel::{insert_into, SelectableHelper};
@@ -39,7 +40,7 @@ pub async fn create(
 pub async fn read(
     db: &mut AsyncPgConnection,
     param_id: i64,
-) -> Result<Option<(Beatmapset, Vec<Beatmap>)>, Error> {
+) -> Result<Option<(Beatmapset, Vec<(Beatmap, OsuFile)>)>, Error> {
     let beatmapset = beatmapsets::table
         .filter(beatmapsets::id.eq(param_id))
         .first::<Beatmapset>(db)
@@ -47,7 +48,8 @@ pub async fn read(
 
     if let Ok(beatmapset) = beatmapset {
         let beatmaps = Beatmap::belonging_to(&beatmapset)
-            .select(Beatmap::as_select())
+            .inner_join(osu_files::table)
+            .select((Beatmap::as_select(), OsuFile::as_select()))
             .load(db)
             .await?;
         return Ok(Some((beatmapset, beatmaps)));
