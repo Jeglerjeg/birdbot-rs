@@ -4,10 +4,10 @@ use crate::schema::beatmaps;
 use crate::schema::beatmapsets;
 use crate::Error;
 use diesel::insert_into;
-use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
+use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
-fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
+fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap, osu_file: Vec<u8>) -> NewBeatmap {
     NewBeatmap {
         id: i64::from(beatmap.map_id),
         ar: f64::from(beatmap.ar),
@@ -29,6 +29,7 @@ fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> NewBeatmap {
         total_length: beatmap.seconds_total as i32,
         user_id: i64::from(beatmap.creator_id),
         version: beatmap.version.clone(),
+        osu_file,
     }
 }
 
@@ -39,7 +40,12 @@ pub async fn create(
     let mut items = Vec::new();
 
     for beatmap in beatmaps {
-        items.push(to_insert_beatmap(beatmap));
+        let response = reqwest::get(format!("https://osu.ppy.sh/osu/{}", beatmap.map_id))
+            .await?
+            .bytes()
+            .await?;
+        let osu_file = response.to_vec();
+        items.push(to_insert_beatmap(beatmap, osu_file));
     }
 
     insert_into(beatmaps::table)
@@ -65,11 +71,18 @@ pub async fn update(
     db: &mut AsyncPgConnection,
     param_id: i64,
     beatmap: &rosu_v2::prelude::Beatmap,
-) -> QueryResult<usize> {
-    let item = to_insert_beatmap(beatmap);
+) -> Result<(), Error> {
+    let response = reqwest::get(format!("https://osu.ppy.sh/osu/{param_id}"))
+        .await?
+        .bytes()
+        .await?;
+    let osu_file = response.to_vec();
+    let item = to_insert_beatmap(beatmap, osu_file);
 
     diesel::update(beatmaps::table.find(param_id))
         .set(item)
         .execute(db)
-        .await
+        .await?;
+
+    Ok(())
 }

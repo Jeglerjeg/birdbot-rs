@@ -1,16 +1,15 @@
+use crate::Error;
 use rosu_pp::Beatmap;
-use std::path::PathBuf;
 
 pub mod catch;
 pub mod mania;
 pub mod osu;
 pub mod taiko;
 
-pub async fn parse_map(file_path: PathBuf) -> Beatmap {
-    match Beatmap::from_path(file_path).await {
-        Ok(map) => map,
-        Err(why) => panic!("Error while parsing map: {why}"),
-    }
+pub async fn parse_map(file: &[u8]) -> Result<Beatmap, Error> {
+    let beatmap = Beatmap::from_bytes(file).await?;
+
+    Ok(beatmap)
 }
 
 pub struct CalculateResults {

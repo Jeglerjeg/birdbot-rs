@@ -27,6 +27,7 @@ diesel::table! {
         #[max_length = 90]
         version -> Varchar,
         time_cached -> Timestamptz,
+        osu_file -> Bytea,
     }
 }
 

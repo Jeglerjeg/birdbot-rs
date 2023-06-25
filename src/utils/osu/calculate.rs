@@ -7,70 +7,16 @@ use crate::utils::osu::pp::taiko::calculate_taiko_pp;
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
 use rosu_v2::model::GameMode;
-use std::io::Cursor;
-use std::path::PathBuf;
-use std::time::SystemTime;
-use tokio::fs::create_dir_all;
-
-const CACHE_PATH: &str = "osu_files/";
-
-async fn download_beatmap(path: &PathBuf, map_id: i64) -> Result<(), Error> {
-    let response = reqwest::get(format!("https://osu.ppy.sh/osu/{map_id}")).await?;
-    let mut file = std::fs::File::create(path)?;
-    let mut content = Cursor::new(response.bytes().await?);
-    std::io::copy(&mut content, &mut file)?;
-
-    Ok(())
-}
-
-async fn get_beatmap_bath(beatmap: &Beatmap) -> Result<PathBuf, Error> {
-    let mut path = PathBuf::from(CACHE_PATH);
-    let mut loved_path = PathBuf::from(CACHE_PATH.to_string() + "loved/");
-    if !path.exists() | !loved_path.exists() {
-        create_dir_all(&loved_path).await?;
-    }
-    match beatmap.status.as_str() {
-        "Ranked" | "Approved" => {
-            path.push(format!("{}.osu", beatmap.id));
-            if !path.exists() {
-                download_beatmap(&path, beatmap.id).await?;
-            }
-        }
-        "Loved" => {
-            loved_path.push(format!("{}.osu", beatmap.id));
-            if !loved_path.exists() {
-                download_beatmap(&loved_path, beatmap.id).await?;
-            } else if (SystemTime::now()
-                .duration_since(loved_path.metadata()?.modified()?)?
-                .as_secs()
-                / 60
-                / 60
-                / 24)
-                > 30
-            {
-                download_beatmap(&loved_path, beatmap.id).await?;
-            }
-            return Ok(loved_path);
-        }
-        _ => {
-            path.push("temp.osu");
-            download_beatmap(&path, beatmap.id).await?;
-        }
-    };
-
-    Ok(path)
-}
 
 pub async fn calculate(
     score: Option<&rosu_v2::prelude::Score>,
     beatmap: &Beatmap,
     potential_acc: Option<f64>,
 ) -> Result<CalculateResults, Error> {
-    let path = get_beatmap_bath(beatmap).await?;
     if let Some(score) = score {
         return match score.mode {
             GameMode::Osu => Ok(calculate_std_pp(
-                path,
+                &beatmap.osu_file,
                 score.mods.bits(),
                 Some(score.max_combo as usize),
                 Some(f64::from(score.accuracy)),
@@ -82,9 +28,9 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await),
+            .await?),
             GameMode::Mania => Ok(calculate_mania_pp(
-                path,
+                &beatmap.osu_file,
                 score.mods.bits(),
                 Some(score.statistics.count_geki as usize),
                 Some(score.statistics.count_300 as usize),
@@ -95,9 +41,9 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await),
+            .await?),
             GameMode::Taiko => Ok(calculate_taiko_pp(
-                path,
+                &beatmap.osu_file,
                 score.mods.bits(),
                 Some(score.max_combo as usize),
                 Some(f64::from(score.accuracy)),
@@ -107,9 +53,9 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await),
+            .await?),
             GameMode::Catch => Ok(calculate_catch_pp(
-                path,
+                &beatmap.osu_file,
                 score.mods.bits(),
                 Some(score.max_combo as usize),
                 Some(score.statistics.count_300 as usize),
@@ -120,7 +66,7 @@ pub async fn calculate(
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
             )
-            .await),
+            .await?),
         };
     }
 
@@ -128,17 +74,56 @@ pub async fn calculate(
         .ok_or("Failed to parse beatmap mode in calculate_pp")?
     {
         GameMode::Osu => Ok(calculate_std_pp(
-            path, 0, None, None, None, None, None, None, None, None, None,
+            &beatmap.osu_file,
+            0,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
-        .await),
-        GameMode::Mania => {
-            Ok(calculate_mania_pp(path, 0, None, None, None, None, None, None, None, None).await)
-        }
-        GameMode::Taiko => {
-            Ok(calculate_taiko_pp(path, 0, None, None, None, None, None, None, None).await)
-        }
-        GameMode::Catch => {
-            Ok(calculate_catch_pp(path, 0, None, None, None, None, None, None, None, None).await)
-        }
+        .await?),
+        GameMode::Mania => Ok(calculate_mania_pp(
+            &beatmap.osu_file,
+            0,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await?),
+        GameMode::Taiko => Ok(calculate_taiko_pp(
+            &beatmap.osu_file,
+            0,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await?),
+        GameMode::Catch => Ok(calculate_catch_pp(
+            &beatmap.osu_file,
+            0,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await?),
     }
 }

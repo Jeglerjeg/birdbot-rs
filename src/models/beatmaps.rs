@@ -32,6 +32,7 @@ pub struct Beatmap {
     pub user_id: i64,
     pub version: String,
     pub time_cached: chrono::DateTime<chrono::Utc>,
+    pub osu_file: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
@@ -57,4 +58,5 @@ pub struct NewBeatmap {
     pub total_length: i32,
     pub user_id: i64,
     pub version: String,
+    pub osu_file: Vec<u8>,
 }
