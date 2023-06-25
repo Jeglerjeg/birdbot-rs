@@ -67,7 +67,7 @@ pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<
             substring + "..."
         };
 
-        let length = (beatmap.total_length / 60, beatmap.total_length % 60);
+        let length = (beatmap.drain / 60, beatmap.drain % 60);
         let formatted_length = format!("{}:{:02}", length.0, length.1);
         let formatted_stars = format!(
             "{}★",
