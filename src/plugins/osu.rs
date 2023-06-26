@@ -42,6 +42,7 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
     )
 )]
 pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
     let profile =
         linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
@@ -116,6 +117,7 @@ pub async fn link(
     #[description = "osu! username to link to"]
     username: String,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let user = ctx.data().osu_client.user(username).await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
@@ -165,6 +167,7 @@ pub async fn link(
     aliases("unset")
 )]
 pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
     let profile =
         linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
@@ -218,6 +221,7 @@ pub async fn mode(
     ctx: Context<'_>,
     #[description = "Gamemode to switch to."] new_mode: GameModeChoices,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
     let profile =
         linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
@@ -259,6 +263,7 @@ pub async fn mapinfo(
     ctx: Context<'_>,
     #[description = "Beatmap ID to check for a score."] beatmap_url: Option<url::Url>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let beatmap_info: BeatmapInfo;
@@ -321,6 +326,7 @@ pub async fn score(
     #[description = "osu! user to see score for."]
     user: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
@@ -405,6 +411,7 @@ pub async fn scores(
     #[description = "User to see scores for."]
     user: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
@@ -497,6 +504,7 @@ pub async fn recent(
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
@@ -569,6 +577,7 @@ pub async fn recent_best(
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
@@ -656,6 +665,7 @@ pub async fn pins(
     #[description = "User to see pins for."]
     user: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
@@ -716,6 +726,7 @@ pub async fn firsts(
     #[description = "User to see firsts for."]
     user: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
@@ -776,6 +787,7 @@ pub async fn top(
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
@@ -827,6 +839,7 @@ pub async fn score_notifications(
     ctx: Context<'_>,
     #[description = "Channel to notify scores in"] scores_channel: GuildChannel,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let guild = ctx
         .guild()
         .ok_or("Failed to get guild in score_notifications command")?
@@ -859,6 +872,7 @@ pub async fn map_notifications(
     ctx: Context<'_>,
     #[description = "Channel to notify maps in"] map_channel: GuildChannel,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     let guild = ctx
         .guild()
         .ok_or("Failed to get guild in map_notifications command")?
@@ -888,6 +902,7 @@ pub async fn map_notifications(
 
 #[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
 pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
     let guild = ctx
         .guild()
         .ok_or("Failed to get guild in delete_guild_config command")?
@@ -908,6 +923,7 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(prefix_command, category = "osu!", guild_only, owners_only)]
 pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
     let linked_profiles = linked_osu_profiles::get_all(connection).await?;
     let tracked_profiles = osu_users::get_all(connection).await?;
