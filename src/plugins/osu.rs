@@ -32,6 +32,7 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
         "mode",
         "recent",
         "recent_best",
+        "recent_list",
         "pins",
         "firsts",
         "top",
@@ -633,6 +634,66 @@ pub async fn recent_best(
         Err(why) => {
             ctx.say(format!("Failed to get recent scores. {why}"))
                 .await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Display a list of your recent scores.
+#[poise::command(prefix_command, slash_command, category = "osu!", aliases("rl"))]
+pub async fn recent_list(
+    ctx: Context<'_>,
+    #[description = "Sort your recent scores by something else."] sort_type: Option<SortChoices>,
+    #[description = "Discord user to see plays for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
+    #[rest]
+    #[description = "User to see plays for."]
+    user: Option<String>,
+) -> Result<(), Error> {
+    ctx.defer().await?;
+    let connection = &mut ctx.data().db_pool.get().await?;
+
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
+
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+
+    let recent_scores = ctx
+        .data()
+        .osu_client
+        .user_scores(osu_user.user_id)
+        .recent()
+        .include_fails(false)
+        .mode(osu_user.mode)
+        .limit(100)
+        .await;
+    match recent_scores {
+        Ok(api_scores) => {
+            if api_scores.is_empty() {
+                ctx.say(format!("No recent scores found for {}.", osu_user.username))
+                    .await?;
+                return Ok(());
+            }
+
+            let mut best_scores = set_up_score_list(&ctx, connection, api_scores).await?;
+
+            if let Some(sort_type) = sort_type {
+                best_scores = sort_scores(best_scores, &sort_type);
+            }
+
+            send_scores_embed(
+                ctx,
+                ctx.author(),
+                &best_scores,
+                &osu_user,
+                best_scores.len() > 5,
+                &osu_user.avatar_url,
+            )
+            .await?;
+        }
+        Err(why) => {
+            ctx.say(format!("Failed to get best scores. {why}")).await?;
         }
     }
 
