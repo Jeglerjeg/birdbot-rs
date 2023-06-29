@@ -5,7 +5,8 @@ use lazy_static::lazy_static;
 use std::env;
 
 lazy_static! {
-    static ref DATABASE_URL: String = env::var("DATABASE_URL").unwrap();
+    static ref DATABASE_URL: String =
+        env::var("DATABASE_URL").expect("DATABASE_URL env variable must be set.");
 }
 
 pub fn establish_connection() -> mobc::Pool<AsyncDieselConnectionManager<AsyncPgConnection>> {

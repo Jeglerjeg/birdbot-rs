@@ -1,7 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
-use crate::models::osu_files::OsuFile;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::utils::db::osu_users::rosu_user_to_db;
@@ -13,6 +12,7 @@ use crate::utils::osu::misc::{
     calculate_potential_acc, gamemode_from_string, get_stat_diff, is_playing, DiffTypes,
 };
 use crate::utils::osu::misc_format::{format_diff, format_footer, format_user_link};
+use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::regex::get_beatmap_info;
 use crate::utils::osu::score_format::{format_new_score, format_score_list};
 use crate::{Error, Pool};
@@ -194,7 +194,7 @@ impl OsuTracker {
             .entry(linked_profile.osu_id)
             .or_default();
 
-        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)> = Vec::new();
+        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> = Vec::new();
 
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
@@ -214,7 +214,21 @@ impl OsuTracker {
 
             let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
-            to_notify.push((api_score.clone(), score.1, beatmap.0, beatmap.1, beatmap.2));
+            let calculated_results = calculate(
+                Some(&api_score),
+                &beatmap.0,
+                &beatmap.2,
+                calculate_potential_acc(&api_score),
+            )
+            .await?;
+
+            to_notify.push((
+                api_score.clone(),
+                score.1,
+                beatmap.0,
+                beatmap.1,
+                calculated_results,
+            ));
         }
 
         if to_notify.is_empty() {
@@ -280,19 +294,12 @@ impl OsuTracker {
             &beatmap.2,
             calculate_potential_acc(&score.0),
         )
-        .await;
+        .await?;
         let author_text = format!(
             "{} set a new best score (#{}/{})",
             &new.username, score.1, 100
         );
-        let footer: String;
-        let pp = if let Ok(pp) = pp {
-            footer = format_footer(&score.0, &beatmap.0, &pp)?;
-            Some(pp)
-        } else {
-            footer = String::new();
-            None
-        };
+        let footer = format_footer(&score.0, &beatmap.0, &pp)?;
 
         let api_score = self.osu_client.score(score_id, gamemode).await?;
 
@@ -530,16 +537,9 @@ impl OsuTracker {
             &beatmap.2,
             calculate_potential_acc(&score.score),
         )
-        .await;
+        .await?;
 
-        let footer: String;
-        let pp = if let Ok(pp) = pp {
-            footer = format_footer(&score.score, &beatmap.0, &pp)?;
-            Some(pp)
-        } else {
-            footer = String::new();
-            None
-        };
+        let footer = format_footer(&score.score, &beatmap.0, &pp)?;
 
         let author_text = &format!("{} set a new leaderboard score!", new.username);
 

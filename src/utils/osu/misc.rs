@@ -1,11 +1,12 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
-use crate::models::osu_files::OsuFile;
 use crate::models::osu_users::OsuUser;
 use crate::plugins::osu::SortChoices;
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::caching::get_beatmap;
+use crate::utils::osu::calculate;
 use crate::utils::osu::misc_format::format_missing_user_string;
+use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 use crate::Error;
 use diesel_async::AsyncPgConnection;
@@ -140,9 +141,9 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<boo
 }
 
 pub fn sort_scores(
-    mut scores: Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)>,
+    mut scores: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>,
     sort_by: &SortChoices,
-) -> Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)> {
+) -> Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> {
     match sort_by {
         SortChoices::Recent => {
             scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
@@ -164,13 +165,27 @@ pub async fn set_up_score_list(
     ctx: &crate::Context<'_>,
     connection: &mut AsyncPgConnection,
     scores: Vec<Score>,
-) -> Result<Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)>, Error> {
-    let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset, OsuFile)> = Vec::new();
+) -> Result<Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>, Error> {
+    let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> = Vec::new();
     let typing = ctx.channel_id().start_typing(&ctx.discord().http);
     for (pos, score) in scores.iter().enumerate() {
         let beatmap = get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
-        score_list.push((score.clone(), pos + 1, beatmap.0, beatmap.1, beatmap.2));
+        let calculated_results = calculate::calculate(
+            Some(score),
+            &beatmap.0,
+            &beatmap.2,
+            calculate_potential_acc(score),
+        )
+        .await?;
+
+        score_list.push((
+            score.clone(),
+            pos + 1,
+            beatmap.0,
+            beatmap.1,
+            calculated_results,
+        ));
     }
     typing.stop();
 

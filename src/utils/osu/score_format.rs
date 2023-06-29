@@ -1,8 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
-use crate::models::osu_files::OsuFile;
 use crate::utils::misc::remove_trailing_zeros;
-use crate::utils::osu::misc::calculate_potential_acc;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_footer};
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
@@ -10,23 +8,14 @@ use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
 
-pub fn format_score_statistic(
-    score: &Score,
-    beatmap: &Beatmap,
-    pp: &Option<CalculateResults>,
-) -> Result<String, Error> {
+pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<String, Error> {
     let color = if score.perfect {
         "\u{001b}[0;32m"
     } else {
         "\u{001b}[0;31m"
     };
 
-    let max_combo: i64;
-    if let Some(pp) = pp {
-        max_combo = pp.max_combo as i64;
-    } else {
-        max_combo = i64::from(beatmap.max_combo);
-    }
+    let max_combo = pp.max_combo;
 
     match score.mode {
         GameMode::Osu => Ok(format!(
@@ -79,7 +68,7 @@ pub fn format_score_info(
     score: &Score,
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
-    pp: &Option<CalculateResults>,
+    pp: &CalculateResults,
     scoreboard_rank: Option<&usize>,
 ) -> Result<String, Error> {
     let italic = if beatmapset.artist.contains('*') {
@@ -88,18 +77,11 @@ pub fn format_score_info(
         "*"
     };
 
-    let stars: f64;
-    let score_pp: f64;
-    if let Some(pp) = pp {
-        stars = pp.total_stars;
-        score_pp = match score.pp {
-            Some(api_pp) => f64::from(api_pp),
-            _ => pp.pp,
-        }
-    } else {
-        stars = beatmap.difficulty_rating;
-        score_pp = f64::from(score.pp.unwrap_or(0.0));
-    }
+    let stars = pp.total_stars;
+    let score_pp = match score.pp {
+        Some(api_pp) => f64::from(api_pp),
+        _ => pp.pp,
+    };
 
     let scoreboard_rank = match score.rank_global {
         Some(rank) => format!("#{rank} "),
@@ -139,18 +121,18 @@ pub fn format_new_score(
     score: &Score,
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
-    pp: &Option<CalculateResults>,
+    pp: &CalculateResults,
     scoreboard_rank: Option<&usize>,
 ) -> Result<String, Error> {
     Ok(format!(
         "{}```ansi\n{}```",
         format_score_info(score, beatmap, beatmapset, pp, scoreboard_rank)?,
-        format_score_statistic(score, beatmap, pp)?
+        format_score_statistic(score, pp)?
     ))
 }
 
 pub async fn format_score_list(
-    scores: &[(Score, usize, Beatmap, Beatmapset, OsuFile)],
+    scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     limit: Option<usize>,
     offset: Option<usize>,
 ) -> Result<String, Error> {
@@ -158,7 +140,7 @@ pub async fn format_score_list(
     let limit = limit.unwrap_or(5);
 
     let mut formatted_list: Vec<String> = Vec::new();
-    for (pos, (score, position, beatmap, beatmapset, osu_file)) in scores.iter().enumerate() {
+    for (pos, (score, position, beatmap, beatmapset, pp)) in scores.iter().enumerate() {
         if pos < offset {
             continue;
         }
@@ -166,29 +148,14 @@ pub async fn format_score_list(
             break;
         }
 
-        let pp = crate::utils::osu::calculate::calculate(
-            Some(score),
-            beatmap,
-            osu_file,
-            calculate_potential_acc(score),
-        )
-        .await;
-
-        let footer: String;
-        let pp = if let Ok(pp) = pp {
-            let formatted_footer = format_footer(score, beatmap, &pp)?;
-            if formatted_footer.is_empty() {
-                footer = String::new();
-            } else {
-                footer = format!("\n{formatted_footer}");
-            }
-            Some(pp)
+        let formatted_footer = format_footer(score, beatmap, pp)?;
+        let footer = if formatted_footer.is_empty() {
+            String::new()
         } else {
-            footer = String::new();
-            None
+            format!("\n{formatted_footer}")
         };
 
-        let formatted_score = format_new_score(score, beatmap, beatmapset, &pp, None)?;
+        let formatted_score = format_new_score(score, beatmap, beatmapset, pp, None)?;
 
         formatted_list.push(format!(
             "{}.\n{}<t:{}:R>{}\n",

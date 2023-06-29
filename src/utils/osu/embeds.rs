@@ -3,6 +3,7 @@ use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_files::OsuFile;
 use crate::utils::osu::misc::{calculate_potential_acc, count_score_pages};
 use crate::utils::osu::misc_format::{format_footer, format_user_link};
+use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
@@ -57,16 +58,9 @@ pub async fn send_score_embed(
         osu_file,
         calculate_potential_acc(score),
     )
-    .await;
+    .await?;
 
-    let footer: String;
-    let pp = if let Ok(pp) = pp {
-        footer = format_footer(score, beatmap, &pp)?;
-        Some(pp)
-    } else {
-        footer = String::new();
-        None
-    };
+    let footer = format_footer(score, beatmap, &pp)?;
 
     let formatted_score = crate::utils::osu::score_format::format_new_score(
         score,
@@ -115,7 +109,7 @@ pub async fn send_score_embed(
 pub async fn send_scores_embed(
     ctx: Context<'_>,
     discord_user: &serenity_prelude::User,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, OsuFile)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     user: &User,
     paginate: bool,
     thumbnail: &str,
@@ -171,7 +165,7 @@ pub async fn send_scores_embed(
 async fn handle_top_score_interactions(
     ctx: Context<'_>,
     reply: ReplyHandle<'_>,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, OsuFile)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     color: Colour,
     user: &User,
 ) -> Result<(), Error> {
@@ -268,7 +262,7 @@ async fn handle_top_score_interactions(
 async fn remove_top_score_paginators(
     ctx: Context<'_>,
     reply: ReplyHandle<'_>,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, OsuFile)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     offset: usize,
     page: &usize,
     max_pages: &usize,
@@ -297,7 +291,7 @@ async fn remove_top_score_paginators(
 async fn change_top_scores_page(
     ctx: Context<'_>,
     reply: &ReplyHandle<'_>,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, OsuFile)],
+    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     offset: usize,
     page: &usize,
     max_pages: &usize,
