@@ -712,6 +712,12 @@ pub enum SortChoices {
     Combo,
     Score,
     PP,
+    BPM,
+    #[name = "Stars"]
+    #[name = "SR"]
+    Stars,
+    Length,
+    Misses,
 }
 
 /// Display a list of your pinned scores.

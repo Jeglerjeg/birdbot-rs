@@ -155,7 +155,24 @@ pub fn sort_scores(
         SortChoices::Combo => scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo)),
         SortChoices::Score => scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
         SortChoices::PP => {
-            scores.sort_by(|a, b| b.0.pp.unwrap_or(0.0).total_cmp(&a.0.pp.unwrap_or(0.0)));
+            scores.sort_by(|a, b| {
+                b.0.pp
+                    .unwrap_or(f32::try_from(b.4.pp)?)
+                    .total_cmp(&a.0.pp.unwrap_or(f32::try_from(a.4.pp)?))
+            });
+        }
+        SortChoices::Length => {
+            scores.sort_by(|a, b| b.2.drain.cmp(&a.2.drain));
+        }
+        SortChoices::Misses => {
+            scores.sort_by(|a, b| b.0.statistics.count_miss.cmp(&a.0.statistics.count_miss));
+        }
+        SortChoices::Stars => {
+            scores.sort_by(|a, b| b.4.total_stars.total_cmp(&a.4.total_stars));
+        }
+        SortChoices::BPM => {
+            scores
+                .sort_by(|a, b| (b.2.bpm * b.4.clock_rate).total_cmp(&(a.2.bpm * a.4.clock_rate)));
         }
     }
     scores
