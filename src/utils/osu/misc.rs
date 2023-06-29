@@ -157,8 +157,8 @@ pub fn sort_scores(
         SortChoices::PP => {
             scores.sort_by(|a, b| {
                 b.0.pp
-                    .unwrap_or(f32::try_from(b.4.pp)?)
-                    .total_cmp(&a.0.pp.unwrap_or(f32::try_from(a.4.pp)?))
+                    .unwrap_or(b.4.pp as f32)
+                    .total_cmp(&a.0.pp.unwrap_or(a.4.pp as f32))
             });
         }
         SortChoices::Length => {

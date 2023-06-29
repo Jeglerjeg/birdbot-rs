@@ -30,7 +30,10 @@ pub async fn create(
     let item = to_insert_beatmapset(beatmapset);
 
     insert_into(beatmapsets::table)
-        .values(item)
+        .values(&item)
+        .on_conflict(beatmapsets::id)
+        .do_update()
+        .set(&item)
         .execute(db)
         .await?;
 

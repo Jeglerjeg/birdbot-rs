@@ -3,6 +3,7 @@ use crate::schema::osu_files;
 use crate::schema::osu_files::id;
 use crate::Error;
 use diesel::prelude::QueryDsl;
+use diesel::upsert::excluded;
 use diesel::{insert_into, ExpressionMethods};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
@@ -21,6 +22,12 @@ pub async fn create(
 
     insert_into(osu_files::table)
         .values(items)
+        .on_conflict(osu_files::id)
+        .do_update()
+        .set((
+            osu_files::id.eq(excluded(osu_files::id)),
+            osu_files::file.eq(excluded(osu_files::file)),
+        ))
         .execute(db)
         .await?;
 
