@@ -170,7 +170,7 @@ pub fn sort_scores(
         SortChoices::Stars => {
             scores.sort_by(|a, b| b.4.total_stars.total_cmp(&a.4.total_stars));
         }
-        SortChoices::BPM => {
+        SortChoices::Bpm => {
             scores
                 .sort_by(|a, b| (b.2.bpm * b.4.clock_rate).total_cmp(&(a.2.bpm * a.4.clock_rate)));
         }

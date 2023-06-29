@@ -712,7 +712,8 @@ pub enum SortChoices {
     Combo,
     Score,
     PP,
-    BPM,
+    #[name = "BPM"]
+    Bpm,
     #[name = "Stars"]
     #[name = "SR"]
     Stars,
