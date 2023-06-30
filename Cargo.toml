@@ -15,7 +15,7 @@ chrono = { version = "0.4", features = ["rkyv"] }
 lazy_static = "1.4"
 diesel_migrations = "2.1"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "a237ead3327782d66d9335e0ca46112db86503bf", features = ["rkyv"] }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "765ab92d3a44f144eefd310805ae5a599ae65c1d", features = ["rkyv"] }
 num-format = "0.4"
 reqwest = "0.11"
 time = "0.3"
