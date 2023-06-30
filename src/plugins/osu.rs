@@ -565,7 +565,7 @@ pub async fn recent(
 #[poise::command(prefix_command, slash_command, category = "osu!", aliases("rb"))]
 pub async fn recent_best(
     ctx: Context<'_>,
-    #[description = "User to see profile for."] mode: Option<GameModeChoices>,
+    #[description = "Mode to get scores for."] mode: Option<GameModeChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
@@ -628,6 +628,7 @@ pub async fn recent_best(
 pub async fn recent_list(
     ctx: Context<'_>,
     #[description = "Sort your recent scores by something else."] sort_type: Option<SortChoices>,
+    #[description = "Mode to get scores for."] mode: Option<GameModeChoices>,
     #[description = "Discord user to see plays for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
@@ -640,7 +641,7 @@ pub async fn recent_list(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
 
     let recent_scores = ctx
         .data()
@@ -709,6 +710,7 @@ pub enum SortChoices {
 pub async fn pins(
     ctx: Context<'_>,
     #[description = "Sort your pins by something else."] sort_type: Option<SortChoices>,
+    #[description = "Mode to get scores for."] mode: Option<GameModeChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
@@ -721,7 +723,7 @@ pub async fn pins(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
 
     let pinned_scores = ctx
         .data()
@@ -770,6 +772,7 @@ pub async fn pins(
 pub async fn firsts(
     ctx: Context<'_>,
     #[description = "Sort your #1 scores by something else."] sort_type: Option<SortChoices>,
+    #[description = "Mode to get scores for."] mode: Option<GameModeChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
@@ -782,7 +785,7 @@ pub async fn firsts(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
 
     let first_scores = ctx
         .data()
@@ -831,6 +834,7 @@ pub async fn firsts(
 pub async fn top(
     ctx: Context<'_>,
     #[description = "Sort your top scores by something else."] sort_type: Option<SortChoices>,
+    #[description = "Mode to get scores for."] mode: Option<GameModeChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
@@ -843,7 +847,7 @@ pub async fn top(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
 
     let best_scores = ctx
         .data()
