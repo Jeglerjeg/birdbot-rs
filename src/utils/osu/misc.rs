@@ -1,7 +1,7 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_users::OsuUser;
-use crate::plugins::osu::SortChoices;
+use crate::plugins::osu::{GameModeChoices, SortChoices};
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate;
@@ -214,9 +214,19 @@ pub async fn get_user(
     discord_user: &poise::serenity_prelude::User,
     user: Option<String>,
     connection: &mut AsyncPgConnection,
+    mode: Option<GameModeChoices>,
 ) -> Result<Option<User>, Error> {
     if let Some(user) = user {
-        if let Ok(user) = ctx.data().osu_client.user(user).await {
+        if let Some(mode) = mode {
+            let gamemode: GameMode = mode.into();
+            if let Ok(mut user) = ctx.data().osu_client.user(user).mode(gamemode).await {
+                user.mode = gamemode;
+                Ok(Some(user))
+            } else {
+                ctx.say("Could not find user.").await?;
+                Ok(None)
+            }
+        } else if let Ok(user) = ctx.data().osu_client.user(user).await {
             Ok(Some(user))
         } else {
             ctx.say("Could not find user.").await?;
@@ -226,16 +236,22 @@ pub async fn get_user(
         let linked_profile =
             linked_osu_profiles::read(connection, i64::try_from(discord_user.id.0.get())?).await;
         if let Ok(linked_profile) = linked_profile {
-            if let Ok(user) = ctx
+            let mode: GameMode = if let Some(mode) = mode {
+                mode.into()
+            } else {
+                gamemode_from_string(&linked_profile.mode)
+                    .ok_or("Failed to parse gamemode from string in get_user function")?
+            };
+
+            let user = ctx
                 .data()
                 .osu_client
                 .user(u32::try_from(linked_profile.osu_id)?)
-                .mode(
-                    gamemode_from_string(&linked_profile.mode)
-                        .ok_or("Failed to parse gamemode from string in get_user function")?,
-                )
-                .await
-            {
+                .mode(mode)
+                .await;
+
+            if let Ok(mut user) = user {
+                user.mode = mode;
                 Ok(Some(user))
             } else {
                 ctx.say("Could not find user.").await?;

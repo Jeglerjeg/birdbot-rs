@@ -211,6 +211,17 @@ pub enum GameModeChoices {
     Taiko,
 }
 
+impl Into<GameMode> for GameModeChoices {
+    fn into(self) -> GameMode {
+        match self {
+            GameModeChoices::Standard => GameMode::Osu,
+            GameModeChoices::Taiko => GameMode::Taiko,
+            GameModeChoices::Catch => GameMode::Catch,
+            GameModeChoices::Mania => GameMode::Mania,
+        }
+    }
+}
+
 /// Changed your osu! mode.
 #[poise::command(
     prefix_command,
@@ -227,12 +238,7 @@ pub async fn mode(
     let profile =
         linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
 
-    let mode = match new_mode {
-        GameModeChoices::Standard => GameMode::Osu,
-        GameModeChoices::Taiko => GameMode::Taiko,
-        GameModeChoices::Catch => GameMode::Catch,
-        GameModeChoices::Mania => GameMode::Mania,
-    };
+    let mode: GameMode = new_mode.into();
 
     match profile {
         Ok(profile) => {
@@ -332,7 +338,7 @@ pub async fn score(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
@@ -417,7 +423,7 @@ pub async fn scores(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
@@ -510,25 +516,14 @@ pub async fn recent(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
-
-    let mode = if let Some(mode) = mode {
-        match mode {
-            GameModeChoices::Standard => GameMode::Osu,
-            GameModeChoices::Taiko => GameMode::Taiko,
-            GameModeChoices::Catch => GameMode::Catch,
-            GameModeChoices::Mania => GameMode::Mania,
-        }
-    } else {
-        osu_user.mode
-    };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
 
     let recent_score = ctx
         .data()
         .osu_client
         .user_scores(osu_user.user_id)
         .recent()
-        .mode(mode)
+        .mode(osu_user.mode)
         .include_fails(true)
         .limit(1)
         .await;
@@ -583,25 +578,13 @@ pub async fn recent_best(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
-
-    let mode = if let Some(mode) = mode {
-        match mode {
-            GameModeChoices::Standard => GameMode::Osu,
-            GameModeChoices::Taiko => GameMode::Taiko,
-            GameModeChoices::Catch => GameMode::Catch,
-            GameModeChoices::Mania => GameMode::Mania,
-        }
-    } else {
-        osu_user.mode
-    };
-
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
     let recent_score = ctx
         .data()
         .osu_client
         .user_scores(osu_user.user_id)
         .recent()
-        .mode(mode)
+        .mode(osu_user.mode)
         .include_fails(false)
         .limit(100)
         .await;
@@ -657,7 +640,7 @@ pub async fn recent_list(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
 
     let recent_scores = ctx
         .data()
@@ -738,7 +721,7 @@ pub async fn pins(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
 
     let pinned_scores = ctx
         .data()
@@ -799,7 +782,7 @@ pub async fn firsts(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
 
     let first_scores = ctx
         .data()
@@ -860,7 +843,7 @@ pub async fn top(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
 
     let best_scores = ctx
         .data()
