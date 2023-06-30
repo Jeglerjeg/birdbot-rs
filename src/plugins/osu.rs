@@ -905,24 +905,30 @@ pub async fn top(
 #[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
 pub async fn score_notifications(
     ctx: Context<'_>,
-    #[description = "Channel to notify scores in"] scores_channel: GuildChannel,
+    #[description = "Channel to notify scores in"] score_channels: Vec<GuildChannel>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let guild = ctx
         .guild()
         .ok_or("Failed to get guild in score_notifications command")?
         .clone();
+
+    let mut new_score_channels = Vec::new();
+    for score_channel in score_channels {
+        new_score_channels.push(Some(i64::try_from(score_channel.id.0.get())?));
+    }
+
     let connection = &mut ctx.data().db_pool.get().await?;
     let new_item =
         match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
             Ok(guild_config) => NewOsuGuildChannel {
                 guild_id: guild_config.guild_id,
-                score_channel: Some(i64::try_from(scores_channel.id.0.get())?),
+                score_channel: Some(new_score_channels),
                 map_channel: guild_config.map_channel,
             },
             Err(_) => NewOsuGuildChannel {
                 guild_id: i64::try_from(guild.id.0.get())?,
-                score_channel: Some(i64::try_from(scores_channel.id.0.get())?),
+                score_channel: Some(new_score_channels),
                 map_channel: None,
             },
         };
@@ -938,25 +944,30 @@ pub async fn score_notifications(
 #[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
 pub async fn map_notifications(
     ctx: Context<'_>,
-    #[description = "Channel to notify maps in"] map_channel: GuildChannel,
+    #[description = "Channel to notify maps in"] map_channels: Vec<GuildChannel>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let guild = ctx
         .guild()
         .ok_or("Failed to get guild in map_notifications command")?
         .clone();
+
+    let mut new_map_channels = Vec::new();
+    for map_channel in map_channels {
+        new_map_channels.push(Some(i64::try_from(map_channel.id.0.get())?));
+    }
     let connection = &mut ctx.data().db_pool.get().await?;
     let new_item =
         match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
             Ok(guild_config) => NewOsuGuildChannel {
                 guild_id: guild_config.guild_id,
                 score_channel: guild_config.score_channel,
-                map_channel: Some(i64::try_from(map_channel.id.0.get())?),
+                map_channel: Some(new_map_channels),
             },
             Err(_) => NewOsuGuildChannel {
                 guild_id: i64::try_from(guild.id.0.get())?,
                 score_channel: None,
-                map_channel: Some(i64::try_from(map_channel.id.0.get())?),
+                map_channel: Some(new_map_channels),
             },
         };
 

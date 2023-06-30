@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 #[diesel(table_name=osu_guild_channels, primary_key(guild_id))]
 pub struct OsuGuildChannel {
     pub guild_id: i64,
-    pub score_channel: Option<i64>,
-    pub map_channel: Option<i64>,
+    pub score_channel: Option<Vec<Option<i64>>>,
+    pub map_channel: Option<Vec<Option<i64>>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
 #[diesel(table_name=osu_guild_channels)]
 pub struct NewOsuGuildChannel {
     pub guild_id: i64,
-    pub score_channel: Option<i64>,
-    pub map_channel: Option<i64>,
+    pub score_channel: Option<Vec<Option<i64>>>,
+    pub map_channel: Option<Vec<Option<i64>>>,
 }

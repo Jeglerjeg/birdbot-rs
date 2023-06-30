@@ -339,28 +339,35 @@ impl OsuTracker {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.0.get())?).await
             {
-                if let Some(score_channel) = guild_channels.score_channel {
-                    if let Ok(member) = guild_id
-                        .member(&self.ctx, u64::try_from(linked_profile.id)?)
-                        .await
+                if let Some(score_channels) = guild_channels.score_channel {
+                    for score_channel in score_channels
+                        .iter()
+                        .flatten()
+                        .cloned()
+                        .collect::<Vec<i64>>()
                     {
-                        let color = member.colour(&self.ctx).unwrap_or(BLUE);
+                        if let Ok(member) = guild_id
+                            .member(&self.ctx, u64::try_from(linked_profile.id)?)
+                            .await
+                        {
+                            let color = member.colour(&self.ctx).unwrap_or(BLUE);
 
-                        let embed = create_embed(
-                            color,
-                            thumbnail,
-                            formatted_score,
-                            footer,
-                            &new.avatar_url,
-                            author_text,
-                            &format_user_link(new.id),
-                        );
+                            let embed = create_embed(
+                                color,
+                                thumbnail,
+                                formatted_score,
+                                footer,
+                                &new.avatar_url,
+                                author_text,
+                                &format_user_link(new.id),
+                            );
 
-                        let builder = CreateMessage::new().embed(embed);
+                            let builder = CreateMessage::new().embed(embed);
 
-                        ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
-                            .send_message(&self.ctx, builder)
-                            .await?;
+                            ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
+                                .send_message(&self.ctx, builder)
+                                .await?;
+                        }
                     }
                 }
             }
@@ -555,28 +562,35 @@ impl OsuTracker {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.0.get())?).await
             {
-                if let Some(score_channel) = guild_channels.score_channel {
-                    if let Ok(member) = guild_id
-                        .member(&self.ctx, u64::try_from(linked_profile.id)?)
-                        .await
+                if let Some(score_channels) = guild_channels.score_channel {
+                    for score_channel in score_channels
+                        .iter()
+                        .flatten()
+                        .cloned()
+                        .collect::<Vec<i64>>()
                     {
-                        let color = member.colour(&self.ctx).unwrap_or(BLUE);
+                        if let Ok(member) = guild_id
+                            .member(&self.ctx, u64::try_from(linked_profile.id)?)
+                            .await
+                        {
+                            let color = member.colour(&self.ctx).unwrap_or(BLUE);
 
-                        let embed = create_embed(
-                            color,
-                            thumbnail,
-                            formatted_score,
-                            &footer,
-                            &new.avatar_url,
-                            author_text,
-                            &format_user_link(new.id),
-                        );
+                            let embed = create_embed(
+                                color,
+                                thumbnail,
+                                formatted_score,
+                                &footer,
+                                &new.avatar_url,
+                                author_text,
+                                &format_user_link(new.id),
+                            );
 
-                        let builder = CreateMessage::new().embed(embed);
+                            let builder = CreateMessage::new().embed(embed);
 
-                        ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
-                            .send_message(&self.ctx, builder)
-                            .await?;
+                            ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
+                                .send_message(&self.ctx, builder)
+                                .await?;
+                        }
                     }
                 }
             }

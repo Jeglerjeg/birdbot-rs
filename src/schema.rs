@@ -41,7 +41,7 @@ diesel::table! {
         #[max_length = 80]
         creator -> Varchar,
         play_count -> Int8,
-        #[max_length = 80]
+        #[max_length = 200]
         source -> Varchar,
         #[max_length = 9]
         status -> Varchar,
@@ -72,8 +72,8 @@ diesel::table! {
 diesel::table! {
     osu_guild_channels (guild_id) {
         guild_id -> Int8,
-        score_channel -> Nullable<Int8>,
-        map_channel -> Nullable<Int8>,
+        score_channel -> Nullable<Array<Nullable<Int8>>>,
+        map_channel -> Nullable<Array<Nullable<Int8>>>,
     }
 }
 
