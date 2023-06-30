@@ -885,7 +885,13 @@ pub async fn top(
     Ok(())
 }
 
-#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    category = "osu!",
+    guild_only,
+    required_permissions = "MANAGE_GUILD"
+)]
 pub async fn score_notifications(
     ctx: Context<'_>,
     #[description = "Channel to notify scores in"] score_channels: Vec<GuildChannel>,
@@ -924,7 +930,13 @@ pub async fn score_notifications(
     Ok(())
 }
 
-#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    category = "osu!",
+    guild_only,
+    required_permissions = "MANAGE_GUILD"
+)]
 pub async fn map_notifications(
     ctx: Context<'_>,
     #[description = "Channel to notify maps in"] map_channels: Vec<GuildChannel>,
@@ -962,7 +974,13 @@ pub async fn map_notifications(
     Ok(())
 }
 
-#[poise::command(prefix_command, slash_command, category = "osu!", guild_only)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    category = "osu!",
+    guild_only,
+    required_permissions = "MANAGE_GUILD"
+)]
 pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let guild = ctx
@@ -983,7 +1001,7 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(prefix_command, category = "osu!", guild_only, owners_only)]
+#[poise::command(prefix_command, category = "osu!", owners_only)]
 pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
