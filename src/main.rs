@@ -39,11 +39,16 @@ async fn event_listener(
 ) -> Result<(), Error> {
     match event {
         FullEvent::Ready {
-            ctx,
+            ctx: _ctx,
             data_about_bot,
         } => {
             info!("{} is connected!", data_about_bot.user.name);
-
+        }
+        FullEvent::CacheReady {
+            ctx,
+            guilds
+        } => {
+            info!("Cache ready: {} guilds cached.", guilds.len());
             let mut osu_tracker = OsuTracker {
                 ctx: ctx.clone(),
                 osu_client: user_data.osu_client.clone(),
