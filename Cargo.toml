@@ -17,7 +17,7 @@ diesel_migrations = "2.1"
 serde = "1.0"
 rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "765ab92d3a44f144eefd310805ae5a599ae65c1d", features = ["rkyv"] }
 num-format = "0.4"
-reqwest = "0.11"
+reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli"]}
 time = "0.3"
 dashmap = "5.4"
 rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
