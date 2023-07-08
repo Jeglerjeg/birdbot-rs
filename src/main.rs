@@ -44,10 +44,7 @@ async fn event_listener(
         } => {
             info!("{} is connected!", data_about_bot.user.name);
         }
-        FullEvent::CacheReady {
-            ctx,
-            guilds
-        } => {
+        FullEvent::CacheReady { ctx, guilds } => {
             info!("Cache ready: {} guilds cached.", guilds.len());
             let mut osu_tracker = OsuTracker {
                 ctx: ctx.clone(),

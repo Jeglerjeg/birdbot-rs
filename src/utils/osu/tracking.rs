@@ -343,7 +343,7 @@ impl OsuTracker {
                     for score_channel in score_channels
                         .iter()
                         .flatten()
-                        .cloned()
+                        .copied()
                         .collect::<Vec<i64>>()
                     {
                         if let Ok(member) = guild_id
@@ -566,7 +566,7 @@ impl OsuTracker {
                     for score_channel in score_channels
                         .iter()
                         .flatten()
-                        .cloned()
+                        .copied()
                         .collect::<Vec<i64>>()
                     {
                         if let Ok(member) = guild_id

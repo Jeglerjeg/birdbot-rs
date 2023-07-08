@@ -211,9 +211,9 @@ pub enum GameModeChoices {
     Taiko,
 }
 
-impl Into<GameMode> for GameModeChoices {
-    fn into(self) -> GameMode {
-        match self {
+impl From<GameModeChoices> for GameMode {
+    fn from(gamemode: GameModeChoices) -> GameMode {
+        match gamemode {
             GameModeChoices::Standard => GameMode::Osu,
             GameModeChoices::Taiko => GameMode::Taiko,
             GameModeChoices::Catch => GameMode::Catch,
