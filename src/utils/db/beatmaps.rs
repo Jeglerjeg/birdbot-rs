@@ -9,29 +9,33 @@ use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel::upsert::excluded;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
-fn to_insert_beatmap(beatmap: &rosu_v2::prelude::Beatmap) -> Result<NewBeatmap, Error> {
-    Ok(NewBeatmap {
-        id: i64::from(beatmap.map_id),
-        ar: f64::from(beatmap.ar),
-        beatmapset_id: i64::from(beatmap.mapset_id),
-        checksum: beatmap.checksum.clone(),
-        max_combo: i32::try_from(beatmap.max_combo.unwrap_or(0))?,
-        bpm: f64::from(beatmap.bpm),
-        convert: beatmap.convert,
-        count_circles: i32::try_from(beatmap.count_circles)?,
-        count_sliders: i32::try_from(beatmap.count_sliders)?,
-        count_spinners: i32::try_from(beatmap.count_spinners)?,
-        cs: f64::from(beatmap.cs),
-        difficulty_rating: f64::from(beatmap.stars),
-        drain: i32::try_from(beatmap.seconds_drain)?,
-        mode: beatmap.mode.to_string(),
-        passcount: i32::try_from(beatmap.passcount)?,
-        playcount: i32::try_from(beatmap.playcount)?,
-        status: crate::utils::osu::misc_format::format_rank_status(beatmap.status),
-        total_length: i32::try_from(beatmap.seconds_total)?,
-        user_id: i64::from(beatmap.creator_id),
-        version: beatmap.version.clone(),
-    })
+impl TryFrom<&rosu_v2::prelude::Beatmap> for NewBeatmap {
+    type Error = Error;
+
+    fn try_from(beatmap: &rosu_v2::prelude::Beatmap) -> Result<Self, Self::Error> {
+        Ok(NewBeatmap {
+            id: i64::from(beatmap.map_id),
+            ar: f64::from(beatmap.ar),
+            beatmapset_id: i64::from(beatmap.mapset_id),
+            checksum: beatmap.checksum.clone(),
+            max_combo: i32::try_from(beatmap.max_combo.unwrap_or(0))?,
+            bpm: f64::from(beatmap.bpm),
+            convert: beatmap.convert,
+            count_circles: i32::try_from(beatmap.count_circles)?,
+            count_sliders: i32::try_from(beatmap.count_sliders)?,
+            count_spinners: i32::try_from(beatmap.count_spinners)?,
+            cs: f64::from(beatmap.cs),
+            difficulty_rating: f64::from(beatmap.stars),
+            drain: i32::try_from(beatmap.seconds_drain)?,
+            mode: beatmap.mode.to_string(),
+            passcount: i32::try_from(beatmap.passcount)?,
+            playcount: i32::try_from(beatmap.playcount)?,
+            status: crate::utils::osu::misc_format::format_rank_status(beatmap.status),
+            total_length: i32::try_from(beatmap.seconds_total)?,
+            user_id: i64::from(beatmap.creator_id),
+            version: beatmap.version.clone(),
+        })
+    }
 }
 
 pub async fn create(
@@ -41,7 +45,7 @@ pub async fn create(
     let mut items = Vec::new();
 
     for beatmap in beatmaps {
-        items.push(to_insert_beatmap(beatmap)?);
+        items.push(NewBeatmap::try_from(beatmap)?);
     }
 
     insert_into(beatmaps::table)
@@ -93,7 +97,7 @@ pub async fn update(
     param_id: i64,
     beatmap: &rosu_v2::prelude::Beatmap,
 ) -> Result<(), Error> {
-    let item = to_insert_beatmap(beatmap)?;
+    let item = NewBeatmap::try_from(beatmap)?;
 
     diesel::update(beatmaps::table.find(param_id))
         .set(item)
