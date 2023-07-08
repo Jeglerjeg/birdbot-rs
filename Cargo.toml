@@ -21,7 +21,7 @@ reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", 
 time = "0.3"
 dashmap = "5.4"
 rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
-regex = "1.8"
+regex = "1.9"
 url = "2.4"
 diesel = { version = "2.1", features = ["chrono", "postgres"]}
 diesel-async = { version = "0.3", features = ["postgres", "mobc"] }
