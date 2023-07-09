@@ -3,8 +3,10 @@ use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
 use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
+use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::misc::{
-    find_beatmap_link, get_user, is_playing, set_up_score_list, sort_scores, wipe_profile_data,
+    calculate_potential_acc, find_beatmap_link, get_user, is_playing, set_up_score_list,
+    sort_scores, wipe_profile_data,
 };
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::{Context, Error};
@@ -384,13 +386,18 @@ pub async fn score(
             )
             .await?;
 
+            let calculated_results = calculate(
+                Some(&score.score),
+                &beatmap.0,
+                &beatmap.2,
+                calculate_potential_acc(&score.score),
+            )
+            .await?;
+
             send_score_embed(
                 ctx,
                 ctx.author(),
-                &score.score,
-                &beatmap.0,
-                &beatmap.1,
-                &beatmap.2,
+                (&score.score, &beatmap.0, &beatmap.1, &calculated_results),
                 osu_user,
                 Some(&score.pos),
             )
@@ -539,13 +546,18 @@ pub async fn recent(
                 let beatmap =
                     get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
+                let calculated_results = calculate(
+                    Some(score),
+                    &beatmap.0,
+                    &beatmap.2,
+                    calculate_potential_acc(score),
+                )
+                .await?;
+
                 send_score_embed(
                     ctx,
                     ctx.author(),
-                    score,
-                    &beatmap.0,
-                    &beatmap.1,
-                    &beatmap.2,
+                    (score, &beatmap.0, &beatmap.1, &calculated_results),
                     osu_user,
                     None,
                 )
@@ -590,24 +602,20 @@ pub async fn recent_best(
         .await;
 
     match recent_score {
-        Ok(mut api_scores) => {
+        Ok(api_scores) => {
             if api_scores.is_empty() {
                 ctx.say(format!("No recent scores found for {}.", osu_user.username))
                     .await?;
             } else {
-                api_scores.sort_by(|a, b| b.pp.unwrap_or(0.0).total_cmp(&a.pp.unwrap_or(0.0)));
-                let score = &api_scores[0];
+                let mut recent_scores = set_up_score_list(&ctx, connection, api_scores).await?;
 
-                let beatmap =
-                    get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
+                recent_scores = sort_scores(recent_scores, &SortChoices::PP);
+                let score = &recent_scores[0];
 
                 send_score_embed(
                     ctx,
                     ctx.author(),
-                    score,
-                    &beatmap.0,
-                    &beatmap.1,
-                    &beatmap.2,
+                    (&score.0, &score.2, &score.3, &score.4),
                     osu_user,
                     None,
                 )

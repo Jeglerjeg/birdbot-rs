@@ -1,7 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
-use crate::models::osu_files::OsuFile;
-use crate::utils::osu::misc::{calculate_potential_acc, count_score_pages};
+use crate::utils::osu::misc::count_score_pages;
 use crate::utils::osu::misc_format::{format_footer, format_user_link};
 use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::score_format::format_score_list;
@@ -43,30 +42,19 @@ pub fn create_embed(
 pub async fn send_score_embed(
     ctx: Context<'_>,
     discord_user: &serenity_prelude::User,
-    score: &Score,
-    beatmap: &Beatmap,
-    beatmapset: &Beatmapset,
-    osu_file: &OsuFile,
+    score: (&Score, &Beatmap, &Beatmapset, &CalculateResults),
     user: User,
     scoreboard_rank: Option<&usize>,
 ) -> Result<(), Error> {
     let color: Colour;
 
-    let pp = crate::utils::osu::calculate::calculate(
-        Some(score),
-        beatmap,
-        osu_file,
-        calculate_potential_acc(score),
-    )
-    .await?;
-
-    let footer = format_footer(score, beatmap, &pp)?;
+    let footer = format_footer(score.0, score.1, score.3)?;
 
     let formatted_score = crate::utils::osu::score_format::format_new_score(
-        score,
-        beatmap,
-        beatmapset,
-        &pp,
+        score.0,
+        score.1,
+        score.2,
+        score.3,
         scoreboard_rank,
     )?;
 
@@ -87,11 +75,11 @@ pub async fn send_score_embed(
 
     let embed = create_embed(
         color,
-        &beatmapset.list_cover,
+        &score.2.list_cover,
         &format!(
             "{}<t:{}:R>",
             formatted_score,
-            score.ended_at.unix_timestamp()
+            score.0.ended_at.unix_timestamp()
         ),
         &footer,
         &user.avatar_url,
