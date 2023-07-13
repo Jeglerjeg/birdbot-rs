@@ -13,7 +13,6 @@ use diesel_async::AsyncPgConnection;
 use poise::serenity_prelude::{Context, Presence, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, User};
-use std::sync::Arc;
 
 pub enum DiffTypes {
     Pp,
@@ -91,34 +90,18 @@ pub async fn wipe_profile_data(db: &mut AsyncPgConnection, user_id: i64) -> Resu
     Ok(())
 }
 
-pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
+pub async fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
     let mut presence: Option<Presence> = None;
-    let fetched_guild = ctx.cache.guild(u64::try_from(home_guild)?);
-    if let Some(guild_ref) = fetched_guild {
-        let guild = Arc::from(guild_ref.clone());
-        if guild.members.contains_key(&user_id) {
-            let presences = &guild.presences;
+    if let Some(guild_ref) = ctx.cache.guild(u64::try_from(home_guild)?) {
+        if guild_ref.members.contains_key(&user_id) {
+            let presences = &guild_ref.presences;
             presence = presences.get(&user_id).cloned();
-        } else {
-            for guild in ctx.cache.guilds() {
-                let cached_guild = Arc::from(
-                    guild
-                        .to_guild_cached(ctx)
-                        .ok_or("Failed to get cached guild in is_playing function")?,
-                );
-                if let Some(_member) = ctx.cache.member(guild, user_id) {
-                    presence = cached_guild
-                        .clone()
-                        .presences
-                        .clone()
-                        .get(&user_id)
-                        .cloned();
-                }
-            }
         }
-    } else {
+    }
+
+    if presence.is_none() {
         for guild in ctx.cache.guilds() {
-            if let Some(_member) = ctx.cache.member(guild, user_id) {
+            if guild.member(ctx, user_id).await.is_ok() {
                 presence = guild
                     .to_guild_cached(&ctx.cache)
                     .ok_or("Failed to get user presences in is_playing function")?
