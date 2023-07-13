@@ -19,7 +19,7 @@ rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "765ab92d3a44f144ee
 num-format = "0.4"
 reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli"]}
 time = "0.3"
-dashmap = "5.4"
+dashmap = "5.5"
 rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
 regex = "1.9"
 url = "2.4"

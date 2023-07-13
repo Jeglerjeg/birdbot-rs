@@ -109,6 +109,14 @@ async fn handle_interaction_responses(
 
                 let builder = CreateReply::default().embed(embed);
 
+                crate::utils::db::questions::update_question_answers(
+                    connection,
+                    question.id,
+                    question.choice1_answers,
+                    question.choice2_answers,
+                )
+                .await?;
+
                 reply.edit(ctx, builder).await?;
             }
             "choice_2" => {
@@ -120,6 +128,14 @@ async fn handle_interaction_responses(
                 let embed = CreateEmbed::new().description(format_question(&question, &responses));
 
                 let builder = CreateReply::default().embed(embed);
+
+                crate::utils::db::questions::update_question_answers(
+                    connection,
+                    question.id,
+                    question.choice1_answers,
+                    question.choice2_answers,
+                )
+                .await?;
 
                 reply.edit(ctx, builder).await?;
             }
@@ -137,14 +153,6 @@ async fn handle_interaction_responses(
             }
         }
     }
-
-    crate::utils::db::questions::update_question_answers(
-        connection,
-        question.id,
-        question.choice1_answers,
-        question.choice2_answers,
-    )
-    .await?;
 
     let embed = CreateEmbed::new().description(format!(
         "{}\n\n{}",
