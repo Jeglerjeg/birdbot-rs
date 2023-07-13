@@ -241,7 +241,7 @@ impl OsuTracker {
 
         let formatted_score = format!(
             "{}\n{}",
-            format_score_list(&to_notify, None, None,).await?,
+            format_score_list(&to_notify, None, None,)?,
             format_diff(new, old, gamemode)?
         );
 

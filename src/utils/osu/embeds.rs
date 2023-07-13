@@ -117,7 +117,7 @@ pub async fn send_scores_embed(
         color = BLUE;
     };
 
-    let formatted_scores = format_score_list(best_scores, None, None).await?;
+    let formatted_scores = format_score_list(best_scores, None, None)?;
 
     let embed = create_embed(
         color,
@@ -257,7 +257,7 @@ async fn remove_top_score_paginators(
     color: Colour,
     user: &User,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(best_scores, None, Some(offset)).await?;
+    let formatted_scores = format_score_list(best_scores, None, Some(offset))?;
 
     let embed = create_embed(
         color,
@@ -286,7 +286,7 @@ async fn change_top_scores_page(
     color: Colour,
     user: &User,
 ) -> Result<(), Error> {
-    let formatted_scores = format_score_list(best_scores, None, Some(offset)).await?;
+    let formatted_scores = format_score_list(best_scores, None, Some(offset))?;
 
     let embed = create_embed(
         color,

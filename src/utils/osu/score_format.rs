@@ -131,7 +131,7 @@ pub fn format_new_score(
     ))
 }
 
-pub async fn format_score_list(
+pub fn format_score_list(
     scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     limit: Option<usize>,
     offset: Option<usize>,
