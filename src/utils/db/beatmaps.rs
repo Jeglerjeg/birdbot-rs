@@ -4,6 +4,7 @@ use crate::models::osu_files::OsuFile;
 use crate::schema::beatmapsets;
 use crate::schema::{beatmaps, osu_files};
 use crate::Error;
+use diesel::dsl::count;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel::upsert::excluded;
@@ -36,6 +37,13 @@ impl TryFrom<&rosu_v2::prelude::Beatmap> for NewBeatmap {
             version: beatmap.version.clone(),
         })
     }
+}
+
+pub async fn count_entries(db: &mut AsyncPgConnection) -> Result<i64, Error> {
+    Ok(beatmaps::table
+        .select(count(beatmaps::id))
+        .get_result(db)
+        .await?)
 }
 
 pub async fn create(

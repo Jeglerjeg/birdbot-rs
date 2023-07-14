@@ -3,6 +3,7 @@ use crate::models::beatmapsets::{Beatmapset, NewBeatmapset};
 use crate::models::osu_files::OsuFile;
 use crate::schema::{beatmapsets, osu_files};
 use crate::Error;
+use diesel::dsl::count;
 use diesel::prelude::{BelongingToDsl, ExpressionMethods, QueryDsl, QueryResult};
 use diesel::{insert_into, SelectableHelper};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
@@ -38,6 +39,13 @@ pub async fn create(
         .await?;
 
     Ok(())
+}
+
+pub async fn count_entries(db: &mut AsyncPgConnection) -> Result<i64, Error> {
+    Ok(beatmapsets::table
+        .select(count(beatmapsets::id))
+        .get_result(db)
+        .await?)
 }
 
 pub async fn read(

@@ -1,7 +1,10 @@
 use crate::models::linked_osu_profiles::NewLinkedOsuProfile;
 use crate::models::osu_guild_channels::NewOsuGuildChannel;
 use crate::models::osu_notifications::NewOsuNotification;
-use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
+use crate::utils::db::{
+    beatmaps, beatmapsets, linked_osu_profiles, osu_file, osu_guild_channels, osu_notifications,
+    osu_users,
+};
 use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::misc::{
@@ -1019,6 +1022,10 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get().await?;
     let linked_profiles = linked_osu_profiles::get_all(connection).await?;
     let tracked_profiles = osu_users::get_all(connection).await?;
+    let beatmaps_count = beatmaps::count_entries(connection).await?;
+    let beatmapsets_count = beatmapsets::count_entries(connection).await?;
+    let guild_channels_count = osu_guild_channels::count_entries(connection).await?;
+    let osu_file_count = osu_file::count_entries(connection).await?;
 
     let mut playing_users: Vec<String> = Vec::new();
     for linked_profile in &linked_profiles {
@@ -1045,9 +1052,19 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
 
     let formatted_message = format!(
         "Members registered as playing: {}\n\
-         Total members tracked: `{}`",
+         Total members tracked: `{}`\n\
+         Total linked profiles: `{}`\n\
+         Total beatmaps cached: `{}`\n\
+         Total beatmapsets cached: `{}`\n\
+         Total osu files cached: `{}`\n\
+         Total guilds with configs: `{}`",
         formatted_playing_members,
-        tracked_profiles.len()
+        tracked_profiles.len(),
+        linked_profiles.len(),
+        beatmaps_count,
+        beatmapsets_count,
+        osu_file_count,
+        guild_channels_count
     );
 
     ctx.say(formatted_message).await?;

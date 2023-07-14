@@ -2,6 +2,7 @@ use crate::models::osu_files::{NewOsuFile, OsuFile};
 use crate::schema::osu_files;
 use crate::schema::osu_files::id;
 use crate::Error;
+use diesel::dsl::count;
 use diesel::prelude::QueryDsl;
 use diesel::upsert::excluded;
 use diesel::{insert_into, ExpressionMethods};
@@ -32,6 +33,13 @@ pub async fn create(
         .await?;
 
     Ok(())
+}
+
+pub async fn count_entries(db: &mut AsyncPgConnection) -> Result<i64, Error> {
+    Ok(osu_files::table
+        .select(count(osu_files::id))
+        .get_result(db)
+        .await?)
 }
 
 pub async fn get_files(db: &mut AsyncPgConnection, ids: &[i64]) -> Result<Vec<OsuFile>, Error> {
