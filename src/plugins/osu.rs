@@ -12,9 +12,7 @@ use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::{Context, Error};
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{
-    CacheHttp, Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel, UserId,
-};
+use poise::serenity_prelude::{CacheHttp, Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel};
 use poise::CreateReply;
 use rosu_v2::model::GameMode;
 
@@ -1023,7 +1021,6 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
     let tracked_profiles = osu_users::get_all(connection).await?;
 
     let mut playing_users: Vec<String> = Vec::new();
-    let mut to_check_playing: Vec<(String, UserId, i64)> = Vec::new();
     for linked_profile in &linked_profiles {
         for osu_user in &tracked_profiles {
             if linked_profile.osu_id == osu_user.id {
@@ -1032,15 +1029,11 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
                     .ok_or("Failed to retrieve discord cache in debug command")?
                     .user(u64::try_from(linked_profile.id)?);
                 if let Some(user) = user {
-                    to_check_playing.push((user.name.clone(), user.id, linked_profile.home_guild));
+                    if is_playing(ctx.discord(), user.id, linked_profile.home_guild)? {
+                        playing_users.push(format!("`{}`", user.name));
+                    }
                 };
             }
-        }
-    }
-
-    for user in to_check_playing {
-        if is_playing(ctx.discord(), user.1, user.2).await? {
-            playing_users.push(format!("`{}`", user.0));
         }
     }
 
