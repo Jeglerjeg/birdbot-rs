@@ -54,3 +54,9 @@ features = ["builder", "framework", "cache", "client",  "gateway", "http", "mode
 lto = "fat"
 codegen-units = 1
 strip = "debuginfo"
+
+[profile.release.build-override]
+opt-level = 3
+[profile.release.package."*"]
+opt-level = 3
+
