@@ -50,6 +50,9 @@ branch = "next"
 default-features = false
 features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 
+[profile.dev]
+lto = "off"
+
 [profile.release]
 lto = "fat"
 codegen-units = 1
