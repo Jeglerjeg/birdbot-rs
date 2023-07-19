@@ -14,11 +14,10 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 use tracing::{error, info};
 
 pub struct PlayingGuilds {
-    pub guilds: DashMap<GuildId, Mutex<Guild>>,
+    pub guilds: DashMap<GuildId, Guild>,
 }
 
 pub struct Guild {
@@ -27,7 +26,7 @@ pub struct Guild {
 }
 
 pub struct Queue {
-    pub queue: HashMap<u128, Mutex<QueuedTrack>>,
+    pub queue: HashMap<u128, QueuedTrack>,
 }
 
 pub struct QueuedTrack {
@@ -280,17 +279,14 @@ impl VoiceEventHandler for TrackEndNotifier {
                         error!("Failed to leave voice channel: {}", why);
                     };
                 } else {
-                    let playing_guild = PLAYING_GUILDS.guilds.get(&self.guild_id).unwrap();
-
-                    let mut guild_lock = playing_guild.lock().await;
+                    let mut playing_guild = PLAYING_GUILDS.guilds.get_mut(&self.guild_id).unwrap();
 
                     for track in _track_list.iter() {
-                        guild_lock
+                        playing_guild
                             .queued_tracks
                             .queue
                             .remove(&(track).1.uuid().as_u128());
                     }
-                    drop(guild_lock);
                 }
             }
         }
@@ -321,12 +317,12 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         let mut handle = handle_lock.lock().await;
         PLAYING_GUILDS.guilds.insert(
             guild_id,
-            Mutex::from(Guild {
+            Guild {
                 queued_tracks: Queue {
                     queue: HashMap::new(),
                 },
                 volume: 0.6,
-            }),
+            },
         );
 
         let leave_context = ctx.discord().clone();
@@ -392,25 +388,20 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         .guild_id()
         .ok_or("Failed to get guild ID in queue function")?;
 
-    let playing_guild = PLAYING_GUILDS
+    let mut playing_guild = PLAYING_GUILDS
         .guilds
-        .get(guild_id)
+        .get_mut(guild_id)
         .ok_or("Failed to get playing guild in queue function")?;
-
-    let mut playing_guild_lock = playing_guild.lock().await;
 
     let mut requested: u16 = 0;
     if !handler_lock.queue().is_empty() {
-        for requester in &playing_guild_lock.queued_tracks.queue {
-            let request_lock = requester.1.lock().await;
-            if request_lock.requested.id == ctx.author().id {
+        for requester in &playing_guild.queued_tracks.queue {
+            if requester.1.requested.id == ctx.author().id {
                 requested += 1;
             }
-            drop(request_lock);
         }
         if requested >= *MAX_SONGS_QUEUED {
             drop(handler_lock);
-            drop(playing_guild_lock);
             ctx.say(format!(
                 "You have queued more than the maximum of {} songs.",
                 *MAX_SONGS_QUEUED
@@ -424,7 +415,6 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         if duration > *MAX_MUSIC_DURATION {
             let empty = handler_lock.queue().is_empty();
             drop(handler_lock);
-            drop(playing_guild_lock);
             ctx.say(format!(
                 "Song is longer than the max allowed duration of {}",
                 format_duration(*MAX_MUSIC_DURATION, None)
@@ -439,7 +429,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
 
     let mut track = Track::from(source);
 
-    track = track.volume(playing_guild_lock.volume);
+    track = track.volume(playing_guild.volume);
 
     let track = handler_lock.enqueue(track).await;
 
@@ -452,12 +442,10 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         skipped: Vec::new(),
     };
 
-    playing_guild_lock
+    playing_guild
         .queued_tracks
         .queue
-        .insert(track.uuid().as_u128(), Mutex::from(queued_track));
-
-    drop(playing_guild_lock);
+        .insert(track.uuid().as_u128(), queued_track);
 
     send_track_embed(ctx, &metadata, "Queued:", None).await?;
 
@@ -544,36 +532,30 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         let track = queue
             .current()
             .ok_or("Failed to get current track in skip function")?;
-        let playing_guild = PLAYING_GUILDS
+        let mut playing_guild = PLAYING_GUILDS
             .guilds
-            .get(&guild_id)
+            .get_mut(&guild_id)
             .ok_or("Failed to get playing guilds in skip function")?;
-        let current_guild_lock = playing_guild.lock().await;
 
-        let Some(queued_track) = current_guild_lock
+        let Some(queued_track) = playing_guild
             .queued_tracks
             .queue
-            .get(&track.uuid().as_u128()) else {
+            .get_mut(&track.uuid().as_u128()) else {
                 drop(handler);
-                drop(current_guild_lock);
                 ctx.say("Something went wrong while skipping the track.").await?;
                 return Ok(())
             };
 
-        let mut track_lock = queued_track.lock().await;
-
-        if track_lock.requested.id == ctx.author().id {
+        if queued_track.requested.id == ctx.author().id {
             drop(queue.skip());
-            let metadata = track_lock.metadata.clone();
+            let metadata = queued_track.metadata.clone();
             drop(handler);
-            drop(track_lock);
-            drop(current_guild_lock);
+            drop(playing_guild);
             send_track_embed(ctx, &metadata, "Skipped:", None).await?;
         } else {
-            if track_lock.skipped.contains(&ctx.author().id.0.get()) {
+            if queued_track.skipped.contains(&ctx.author().id.0.get()) {
                 drop(handler);
-                drop(track_lock);
-                drop(current_guild_lock);
+                drop(playing_guild);
                 ctx.say("You've already skipped this track").await?;
                 return Ok(());
             }
@@ -583,8 +565,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             let needed_to_skip = match guild_channels.get(&ChannelId::from(channel_id.0)) {
                 None => {
                     drop(handler);
-                    drop(track_lock);
-                    drop(current_guild_lock);
+                    drop(playing_guild);
                     ctx.say("Something went wrong while skipping the track.")
                         .await?;
                     return Ok(());
@@ -592,20 +573,18 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 Some(channel) => channel.members(ctx.discord())?.len() - 2,
             };
 
-            track_lock.skipped.push(ctx.author().id.0.get());
+            queued_track.skipped.push(ctx.author().id.0.get());
 
-            if track_lock.skipped.len() >= needed_to_skip {
+            if queued_track.skipped.len() >= needed_to_skip {
                 drop(queue.skip());
-                let metadata = track_lock.metadata.clone();
+                let metadata = queued_track.metadata.clone();
                 drop(handler);
-                drop(track_lock);
-                drop(current_guild_lock);
+                drop(playing_guild);
                 send_track_embed(ctx, &metadata, "Skipped:", None).await?;
             } else {
-                let skipped = track_lock.skipped.len();
+                let skipped = queued_track.skipped.len();
                 drop(handler);
-                drop(track_lock);
-                drop(current_guild_lock);
+                drop(playing_guild);
                 ctx.say(format!(
                     "Voted to skip the current song. `{skipped}/{needed_to_skip}`",
                 ))
@@ -645,25 +624,21 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
                 .guilds
                 .get(&guild_id)
                 .ok_or("Failed to get playing guild in undo function")?;
-            let current_guild_lock = playing_guild.lock().await;
 
-            let Some(queued_track) = current_guild_lock
+            let Some(queued_track) = playing_guild
                 .queued_tracks
                 .queue
                 .get(&removed_item.uuid().as_u128()) else {
                 drop(handler);
-                drop(current_guild_lock);
+                drop(playing_guild);
                 ctx.say("Something went wrong while skipping the track.").await?;
                 return Ok(())
             };
 
-            let track_lock = queued_track.lock().await;
-
-            let metadata = track_lock.metadata.clone();
+            let metadata = queued_track.metadata.clone();
 
             drop(handler);
-            drop(track_lock);
-            drop(current_guild_lock);
+            drop(playing_guild);
             send_track_embed(ctx, &metadata, "Undid:", None).await?;
         }
     } else {
@@ -708,13 +683,11 @@ pub async fn volume(
         }
 
         let adjusted_volume = f32::from(volume) / 100.0;
-        let playing_guild = PLAYING_GUILDS
+        let mut playing_guild = PLAYING_GUILDS
             .guilds
-            .get(&guild_id)
+            .get_mut(&guild_id)
             .ok_or("Failed to get playing guild in volume function.")?;
-        let mut playing_guild_lock = playing_guild.lock().await;
-        playing_guild_lock.volume = adjusted_volume;
-        drop(playing_guild_lock);
+        playing_guild.volume = adjusted_volume;
 
         let queue = handler_lock.queue();
         if queue.is_empty() {
@@ -845,23 +818,18 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
                 .get(&guild_id)
                 .ok_or("Failed to get playing guild in now_playing function.")?;
 
-            let current_guild_lock = playing_guilds.lock().await;
-
-            let Some(queued_track) = current_guild_lock
+            let Some(queued_track) = playing_guilds
                 .queued_tracks
                 .queue
                 .get(&track.uuid().as_u128()) else {
-                drop(current_guild_lock);
+                drop(playing_guilds);
                 ctx.say("Something went wrong while skipping the track.").await?;
                 return Ok(())
             };
 
-            let track_lock = queued_track.lock().await;
+            let metadata = queued_track.metadata.clone();
 
-            let metadata = track_lock.metadata.clone();
-
-            drop(track_lock);
-            drop(current_guild_lock);
+            drop(playing_guilds);
 
             send_track_embed(
                 ctx,
