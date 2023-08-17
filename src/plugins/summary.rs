@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use markov::Chain;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
-use tracing::log::{error, info};
+use tracing::log::error;
 
 pub struct SummaryEnabledGuilds {
     pub guilds: DashMap<i64, Vec<i64>>,
@@ -113,13 +113,11 @@ pub async fn get_filtered_messages(
 
 pub fn generate_message(chain: Chain<String>) -> Option<String> {
     let mut generated_string = chain.generate_str();
-    info!("{}", generated_string.chars().count());
     let mut tries = 0;
     while generated_string.chars().count() > 2000 {
         if tries == 1000 {
             return None;
         }
-        info!("{}", generated_string.chars().count());
         tries += 1;
         generated_string = chain.generate_str();
     }
