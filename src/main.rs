@@ -162,6 +162,7 @@ async fn main() {
             // command signature, for example by changing its name, adding or removing parameters, or
             // changing a parameter type, you should call this function.
             plugins::basic::register(),
+            plugins::summary::summary(),
         ],
         listener: |event, framework, user_data| {
             Box::pin(event_listener(event, framework, user_data))

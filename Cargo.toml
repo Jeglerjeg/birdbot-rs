@@ -26,6 +26,7 @@ url = "2.4"
 diesel = { version = "2.1", features = ["chrono", "postgres"]}
 diesel-async = { version = "0.3", features = ["postgres", "mobc"] }
 mobc = "0.8"
+markov = "1.1"
 
 [dependencies.tokio]
 version = "1.30"
