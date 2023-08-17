@@ -124,6 +124,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    summary_enabled_guilds (id) {
+        id -> Int8,
+        guild_id -> Int8,
+        channel_ids -> Array<Nullable<Int8>>,
+    }
+}
+
+diesel::table! {
     summary_messages (id) {
         id -> Int8,
         #[max_length = 4000]
@@ -132,6 +140,7 @@ diesel::table! {
         author_id -> Int8,
         channel_id -> Int8,
         is_bot -> Bool,
+        guild_id -> Int8,
     }
 }
 
@@ -148,5 +157,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     osu_users,
     prefix,
     questions,
+    summary_enabled_guilds,
     summary_messages,
 );

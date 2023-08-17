@@ -3,6 +3,7 @@ mod plugins;
 pub mod schema;
 mod utils;
 
+use crate::plugins::summary;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
 use diesel::Connection;
@@ -58,6 +59,10 @@ async fn event_listener(
 
                 Ok::<(), Error>(())
             });
+        }
+        FullEvent::Message { new_message, .. } => {
+            let mut connection = user_data.db_pool.get().await?;
+            summary::add_message(new_message, &mut connection).await?;
         }
         FullEvent::VoiceStateUpdate {
             ctx,
@@ -164,6 +169,7 @@ async fn main() {
             plugins::basic::register(),
             plugins::summary::summary(),
             plugins::summary::summary_enable(),
+            plugins::summary::summary_disable(),
         ],
         listener: |event, framework, user_data| {
             Box::pin(event_listener(event, framework, user_data))

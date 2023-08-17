@@ -1,0 +1,1 @@
+DROP TABLE summary_enabled_guilds

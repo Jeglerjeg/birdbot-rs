@@ -50,3 +50,11 @@ pub async fn count_entries(db: &mut AsyncPgConnection, channel_id: i64) -> Resul
         .get_result(db)
         .await?)
 }
+
+pub async fn delete(db: &mut AsyncPgConnection, param_guild_id: i64) -> Result<usize, Error> {
+    Ok(diesel::delete(
+        summary_messages::table.filter(summary_messages::guild_id.eq(param_guild_id)),
+    )
+    .execute(db)
+    .await?)
+}

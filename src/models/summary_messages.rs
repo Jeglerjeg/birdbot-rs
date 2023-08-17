@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct DbSummaryMessage {
     pub id: i64,
     pub content: String,
+    pub guild_id: i64,
     pub discord_id: i64,
     pub author_id: i64,
     pub channel_id: i64,
@@ -17,6 +18,7 @@ pub struct DbSummaryMessage {
 #[diesel(table_name=summary_messages, primary_key(id))]
 pub struct NewDbSummaryMessage {
     pub content: String,
+    pub guild_id: i64,
     pub discord_id: i64,
     pub author_id: i64,
     pub channel_id: i64,

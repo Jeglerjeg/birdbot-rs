@@ -1,16 +1,30 @@
+use crate::models::summary_enabled_guilds::NewSummaryEnabledGuild;
 use crate::models::summary_messages::NewDbSummaryMessage;
-use crate::utils::db::summary_messages;
+use crate::utils::db::{summary_enabled_guilds, summary_messages};
 use crate::{Context, Error};
+use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
+use lazy_static::lazy_static;
 use markov::Chain;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
 use tracing::log::{error, info};
 
+pub struct SummaryEnabledGuilds {
+    pub guilds: DashMap<i64, Vec<i64>>,
+}
+
+lazy_static! {
+    static ref SUMMARY_ENABLED_GUILDS: SummaryEnabledGuilds = SummaryEnabledGuilds {
+        guilds: DashMap::new(),
+    };
+}
+
 impl From<Message> for NewDbSummaryMessage {
     fn from(discord_message: Message) -> NewDbSummaryMessage {
         NewDbSummaryMessage {
             content: discord_message.content,
+            guild_id: i64::from(discord_message.guild_id.unwrap()),
             discord_id: i64::from(discord_message.id),
             is_bot: discord_message.author.bot,
             author_id: i64::from(discord_message.author.id),
@@ -41,6 +55,41 @@ pub async fn download_messages(
     Ok(())
 }
 
+pub async fn add_message(
+    message: &Message,
+    connection: &mut AsyncPgConnection,
+) -> Result<(), Error> {
+    let Some(guild_id) = message.guild_id else {
+        return Ok(());
+    };
+    let summary_enabled_guild = SUMMARY_ENABLED_GUILDS
+        .guilds
+        .entry(i64::from(guild_id))
+        .or_insert(
+            match summary_enabled_guilds::read(connection, i64::from(guild_id)).await {
+                Ok(guild) => guild
+                    .channel_ids
+                    .iter()
+                    .flatten()
+                    .copied()
+                    .collect::<Vec<i64>>(),
+                Err(_) => Vec::new(),
+            },
+        );
+    if summary_enabled_guild
+        .value()
+        .contains(&i64::from(message.channel_id))
+    {
+        summary_messages::create(
+            connection,
+            &vec![NewDbSummaryMessage::from(message.clone())],
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 pub async fn get_filtered_messages(
     connection: &mut AsyncPgConnection,
     include_bots: bool,
@@ -52,8 +101,8 @@ pub async fn get_filtered_messages(
         connection,
         include_bots,
         phrase,
-        users.into_iter().map(|x| i64::from(x)).collect(),
-        channel_ids.into_iter().map(|x| i64::from(x)).collect(),
+        users.into_iter().map(i64::from).collect(),
+        channel_ids.into_iter().map(i64::from).collect(),
     )
     .await?;
     Ok(messages)
@@ -73,21 +122,83 @@ pub fn generate_message(chain: Chain<String>) -> Option<String> {
     }
     Some(generated_string)
 }
-#[poise::command(prefix_command, slash_command, owners_only)]
-pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
+
+#[poise::command(prefix_command, owners_only, guild_only)]
+pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("Failed to get guild id in summary_enable")?;
     let mut connection = ctx.data().db_pool.get().await?;
-    ctx.say("Downloading messages, this may take a while.")
-        .await?;
-    download_messages(&ctx, &mut connection).await?;
-    let downloaded_messages =
-        summary_messages::count_entries(&mut connection, i64::from(ctx.channel_id())).await?;
-    ctx.say(format!("Downloaded {} messages", downloaded_messages))
-        .await?;
+    if summary_enabled_guilds::read(&mut connection, i64::from(guild_id))
+        .await
+        .is_ok()
+    {
+        summary_enabled_guilds::delete(&mut connection, i64::from(guild_id)).await?;
+        summary_messages::delete(&mut connection, i64::from(guild_id)).await?;
+    }
+    ctx.say("Disabled summaries in this channel").await?;
     Ok(())
 }
 
-#[poise::command(slash_command)]
+#[poise::command(prefix_command, owners_only, guild_only)]
+pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("Failed to get guild id in summary_enable")?;
+    let mut connection = ctx.data().db_pool.get().await?;
+    let enabled_guild = summary_enabled_guilds::read(&mut connection, i64::from(guild_id)).await;
+
+    match enabled_guild {
+        Ok(mut guild) => {
+            guild.channel_ids.push(Some(i64::from(ctx.channel_id())));
+            let new_guild = NewSummaryEnabledGuild {
+                guild_id: guild.id,
+                channel_ids: guild.channel_ids,
+            };
+            summary_enabled_guilds::update(&mut connection, guild.id, &new_guild).await?;
+
+            SUMMARY_ENABLED_GUILDS
+                .guilds
+                .entry(i64::from(guild_id))
+                .or_default()
+                .push(i64::from(ctx.channel_id()));
+        }
+        Err(_) => {
+            let new_guild = NewSummaryEnabledGuild {
+                guild_id: i64::from(guild_id),
+                channel_ids: vec![Some(i64::from(ctx.channel_id()))],
+            };
+            let inserted_guild =
+                summary_enabled_guilds::create(&mut connection, &new_guild).await?;
+
+            SUMMARY_ENABLED_GUILDS.guilds.insert(
+                inserted_guild.guild_id,
+                inserted_guild
+                    .channel_ids
+                    .iter()
+                    .flatten()
+                    .copied()
+                    .collect::<Vec<i64>>(),
+            );
+        }
+    }
+
+    ctx.say("Downloading messages, this may take a while.")
+        .await?;
+
+    download_messages(&ctx, &mut connection).await?;
+    let downloaded_messages =
+        summary_messages::count_entries(&mut connection, i64::from(ctx.channel_id())).await?;
+
+    ctx.say(format!("Downloaded {} messages", downloaded_messages))
+        .await?;
+
+    Ok(())
+}
+
+#[poise::command(slash_command, guild_only)]
 pub async fn summary(
     ctx: Context<'_>,
     phrase: Option<String>,
