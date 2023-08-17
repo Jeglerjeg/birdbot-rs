@@ -3,8 +3,9 @@ use crate::schema::summary_messages;
 use crate::Error;
 use diesel::dsl::count;
 use diesel::insert_into;
-use diesel::prelude::{ExpressionMethods, PgTextExpressionMethods, QueryDsl};
+use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
+use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions};
 
 pub async fn create(
     db: &mut AsyncPgConnection,
@@ -29,7 +30,8 @@ pub async fn read(
         .filter(summary_messages::channel_id.eq_any(channel_ids))
         .into_boxed();
     if let Some(phrase) = phrase {
-        query = query.filter(summary_messages::content.ilike(format!("%{}%", phrase)));
+        let ts_query = plainto_tsquery(phrase);
+        query = query.filter(summary_messages::ts.matches(ts_query));
     }
     if !include_bots {
         query = query.filter(summary_messages::is_bot.eq(false))

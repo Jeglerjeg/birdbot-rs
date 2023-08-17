@@ -132,6 +132,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::{Int8, Bpchar, Bool};
+    use diesel_full_text_search::TsVector;
+
     summary_messages (id) {
         id -> Int8,
         #[max_length = 4000]
@@ -141,6 +144,7 @@ diesel::table! {
         channel_id -> Int8,
         is_bot -> Bool,
         guild_id -> Int8,
+        ts -> TsVector,
     }
 }
 
