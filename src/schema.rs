@@ -123,6 +123,18 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    summary_messages (id) {
+        id -> Int8,
+        #[max_length = 4000]
+        content -> Bpchar,
+        discord_id -> Int8,
+        author_id -> Int8,
+        channel_id -> Int8,
+        is_bot -> Bool,
+    }
+}
+
 diesel::joinable!(beatmaps -> beatmapsets (beatmapset_id));
 diesel::joinable!(beatmaps -> osu_files (id));
 
@@ -136,4 +148,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     osu_users,
     prefix,
     questions,
+    summary_messages,
 );

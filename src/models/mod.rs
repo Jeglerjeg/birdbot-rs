@@ -7,3 +7,4 @@ pub mod osu_notifications;
 pub mod osu_users;
 pub mod prefix;
 pub mod questions;
+pub mod summary_messages;
