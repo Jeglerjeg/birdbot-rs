@@ -45,7 +45,10 @@ pub async fn download_messages(
             downloaded_messages.clear();
         }
         match message {
-            Ok(message) => downloaded_messages.push(message.into()),
+            Ok(mut message) => {
+                message.guild_id = ctx.guild_id();
+                downloaded_messages.push(message.into())
+            }
             Err(error) => error!("{error}"),
         }
     }
