@@ -61,8 +61,7 @@ async fn event_listener(
             });
         }
         FullEvent::Message { new_message, .. } => {
-            let mut connection = user_data.db_pool.get().await?;
-            summary::add_message(new_message, &mut connection).await?;
+            summary::add_message(new_message, user_data).await?;
         }
         FullEvent::VoiceStateUpdate {
             ctx,

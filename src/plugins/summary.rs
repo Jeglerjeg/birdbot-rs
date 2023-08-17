@@ -1,7 +1,7 @@
 use crate::models::summary_enabled_guilds::NewSummaryEnabledGuild;
 use crate::models::summary_messages::NewDbSummaryMessage;
 use crate::utils::db::{summary_enabled_guilds, summary_messages};
-use crate::{Context, Error};
+use crate::{Context, Data, Error};
 use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
 use lazy_static::lazy_static;
@@ -46,6 +46,9 @@ pub async fn download_messages(
         }
         match message {
             Ok(mut message) => {
+                if message.content.is_empty() {
+                    continue;
+                }
                 message.guild_id = ctx.guild_id();
                 downloaded_messages.push(message.into())
             }
@@ -58,17 +61,19 @@ pub async fn download_messages(
     Ok(())
 }
 
-pub async fn add_message(
-    message: &Message,
-    connection: &mut AsyncPgConnection,
-) -> Result<(), Error> {
+pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
     let Some(guild_id) = message.guild_id else {
         return Ok(());
     };
+    if message.content.is_empty() {
+        return Ok(());
+    }
+
     let summary_enabled_guild = SUMMARY_ENABLED_GUILDS
         .guilds
         .entry(i64::from(guild_id))
-        .or_insert(
+        .or_insert({
+            let connection = &mut data.db_pool.get().await?;
             match summary_enabled_guilds::read(connection, i64::from(guild_id)).await {
                 Ok(guild) => guild
                     .channel_ids
@@ -77,12 +82,14 @@ pub async fn add_message(
                     .copied()
                     .collect::<Vec<i64>>(),
                 Err(_) => Vec::new(),
-            },
-        );
+            }
+        });
+
     if summary_enabled_guild
         .value()
         .contains(&i64::from(message.channel_id))
     {
+        let connection = &mut data.db_pool.get().await?;
         summary_messages::create(
             connection,
             &vec![NewDbSummaryMessage::from(message.clone())],
