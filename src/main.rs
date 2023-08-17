@@ -63,7 +63,7 @@ async fn event_listener(
         FullEvent::Message { new_message, .. } => {
             match summary::add_message(new_message, user_data).await {
                 Ok(_) => {}
-                Err(e) => error!("{e}")
+                Err(e) => error!("{e}"),
             }
         }
         FullEvent::VoiceStateUpdate {
@@ -74,7 +74,7 @@ async fn event_listener(
             let Some(voice) = old else { return Ok(()) };
             match plugins::music::check_for_empty_channel(ctx, voice.guild_id).await {
                 Ok(_) => {}
-                Err(e) => error!("{e}")
+                Err(e) => error!("{e}"),
             }
         }
         _ => {}

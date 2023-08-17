@@ -119,14 +119,14 @@ pub async fn get_filtered_messages(
 }
 
 pub fn generate_message(chain: Chain<String>) -> Option<String> {
-    let mut generated_string = chain.generate_str();
+    let mut generated_string = chain.generate().join(" ");
     let mut tries = 0;
     while generated_string.chars().count() > 2000 {
         if tries == 1000 {
             return None;
         }
         tries += 1;
-        generated_string = chain.generate_str();
+        generated_string = chain.generate().join(" ");
     }
     Some(generated_string)
 }
@@ -233,7 +233,13 @@ pub async fn summary(
     } else {
         let mut chain = Chain::new();
         for message_string in filtered_messages {
-            chain.feed_str(&message_string);
+            chain.feed(
+                &message_string
+                    .split_whitespace()
+                    .filter(|word| !word.is_empty())
+                    .map(|s| s.to_owned())
+                    .collect::<Vec<_>>(),
+            );
         }
         let generated_message = generate_message(chain);
         if let Some(message) = generated_message {
