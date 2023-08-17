@@ -61,7 +61,10 @@ async fn event_listener(
             });
         }
         FullEvent::Message { new_message, .. } => {
-            summary::add_message(new_message, user_data).await?;
+            match summary::add_message(new_message, user_data).await {
+                Ok(_) => {}
+                Err(e) => error!("{e}")
+            }
         }
         FullEvent::VoiceStateUpdate {
             ctx,
@@ -69,7 +72,10 @@ async fn event_listener(
             new: _new,
         } => {
             let Some(voice) = old else { return Ok(()) };
-            plugins::music::check_for_empty_channel(ctx, voice.guild_id).await?;
+            match plugins::music::check_for_empty_channel(ctx, voice.guild_id).await {
+                Ok(_) => {}
+                Err(e) => error!("{e}")
+            }
         }
         _ => {}
     }
