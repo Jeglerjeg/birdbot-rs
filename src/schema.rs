@@ -1,5 +1,11 @@
 // @generated automatically by Diesel CLI.
 
+pub mod sql_types {
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "tsvector", schema = "pg_catalog"))]
+    pub struct Tsvector;
+}
+
 diesel::table! {
     beatmaps (id) {
         id -> Int8,
@@ -132,8 +138,8 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::{Int8, Bpchar, Bool};
-    use diesel_full_text_search::TsVector;
+    use diesel::sql_types::*;
+    use super::sql_types::Tsvector;
 
     summary_messages (id) {
         id -> Int8,
@@ -143,13 +149,9 @@ diesel::table! {
         author_id -> Int8,
         channel_id -> Int8,
         is_bot -> Bool,
-        guild_id -> Int8,
-        ts -> TsVector,
+        ts -> Tsvector,
     }
 }
-
-diesel::joinable!(beatmaps -> beatmapsets (beatmapset_id));
-diesel::joinable!(beatmaps -> osu_files (id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     beatmaps,

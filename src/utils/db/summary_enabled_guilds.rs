@@ -39,10 +39,15 @@ pub async fn update(
         .await
 }
 
-pub async fn delete(db: &mut AsyncPgConnection, param_guild_id: i64) -> Result<usize, Error> {
-    Ok(diesel::delete(
+pub async fn delete_channel(
+    db: &mut AsyncPgConnection,
+    param_guild_id: i64,
+    values: &NewSummaryEnabledGuild,
+) -> Result<usize, Error> {
+    Ok(diesel::update(
         summary_enabled_guilds::table.filter(summary_enabled_guilds::guild_id.eq(param_guild_id)),
     )
+    .set(values)
     .execute(db)
     .await?)
 }

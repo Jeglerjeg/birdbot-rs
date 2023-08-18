@@ -139,12 +139,31 @@ pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
         .guild_id()
         .ok_or("Failed to get guild id in summary_enable")?;
     let mut connection = ctx.data().db_pool.get().await?;
-    if summary_enabled_guilds::read(&mut connection, i64::from(guild_id))
-        .await
-        .is_ok()
-    {
-        summary_enabled_guilds::delete(&mut connection, i64::from(guild_id)).await?;
-        summary_messages::delete(&mut connection, i64::from(guild_id)).await?;
+    let summary_enabled_guild =
+        summary_enabled_guilds::read(&mut connection, i64::from(guild_id)).await;
+    if let Ok(mut summary_enabled_guild) = summary_enabled_guild {
+        let channels = summary_enabled_guild
+            .channel_ids
+            .iter()
+            .flatten()
+            .cloned()
+            .collect::<Vec<_>>();
+        if channels.contains(&i64::from(ctx.channel_id())) {
+            summary_enabled_guild
+                .channel_ids
+                .retain(|element| element != &Some(i64::from(ctx.channel_id())));
+            let new_guild = NewSummaryEnabledGuild {
+                guild_id: summary_enabled_guild.guild_id,
+                channel_ids: summary_enabled_guild.channel_ids,
+            };
+            summary_enabled_guilds::delete_channel(
+                &mut connection,
+                i64::from(guild_id),
+                &new_guild,
+            )
+            .await?;
+            summary_messages::delete(&mut connection, i64::from(ctx.channel_id())).await?;
+        }
     }
     ctx.say("Disabled summaries in this channel").await?;
     Ok(())
