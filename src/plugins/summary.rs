@@ -25,7 +25,6 @@ impl From<Message> for NewDbSummaryMessage {
     fn from(discord_message: Message) -> NewDbSummaryMessage {
         NewDbSummaryMessage {
             content: discord_message.content,
-            guild_id: i64::from(discord_message.guild_id.unwrap()),
             discord_id: i64::from(discord_message.id),
             is_bot: discord_message.author.bot,
             author_id: i64::from(discord_message.author.id),
@@ -46,11 +45,10 @@ pub async fn download_messages(
             downloaded_messages.clear();
         }
         match message {
-            Ok(mut message) => {
+            Ok(message) => {
                 if message.content.is_empty() {
                     continue;
                 }
-                message.guild_id = ctx.guild_id();
                 downloaded_messages.push(message.into())
             }
             Err(error) => error!("{error}"),
