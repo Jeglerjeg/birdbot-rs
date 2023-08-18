@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 use markov::Chain;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use tracing::log::error;
 
 pub struct SummaryEnabledGuilds {
@@ -232,14 +233,18 @@ pub async fn summary(
         ctx.say("No messages matching filters.").await?;
     } else {
         let mut chain = Chain::new();
-        for message_string in filtered_messages {
-            chain.feed(
-                &message_string
+        for value in filtered_messages
+            .into_par_iter()
+            .map(|message_string| {
+                message_string
                     .split_whitespace()
                     .filter(|word| !word.is_empty())
                     .map(|s| s.to_owned())
-                    .collect::<Vec<_>>(),
-            );
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+        {
+            chain.feed(value);
         }
         let generated_message = generate_message(chain);
         if let Some(message) = generated_message {
