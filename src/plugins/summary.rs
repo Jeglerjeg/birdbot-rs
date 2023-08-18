@@ -6,9 +6,9 @@ use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
 use lazy_static::lazy_static;
 use markov::Chain;
+use par_stream::ParStreamExt;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use tracing::log::error;
 
 pub struct SummaryEnabledGuilds {
@@ -233,17 +233,17 @@ pub async fn summary(
         ctx.say("No messages matching filters.").await?;
     } else {
         let mut chain = Chain::new();
-        for value in filtered_messages
-            .into_par_iter()
-            .map(|message_string| {
-                message_string
-                    .split_whitespace()
-                    .filter(|word| !word.is_empty())
-                    .map(|s| s.to_owned())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
-        {
+        let mut stream =
+            tokio_stream::iter(filtered_messages).par_map_unordered(None, move |value| {
+                move || {
+                    value
+                        .split_whitespace()
+                        .filter(|word| !word.is_empty())
+                        .map(|s| s.to_owned())
+                        .collect::<Vec<_>>()
+                }
+            });
+        while let Some(value) = stream.next().await {
             chain.feed(value);
         }
         let generated_message = generate_message(chain);
