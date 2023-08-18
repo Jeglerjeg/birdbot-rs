@@ -230,6 +230,9 @@ pub async fn summary(
     phrase: Option<String>,
     include_bots: Option<bool>,
     users: Vec<UserId>,
+    #[min = 1]
+    #[max = 10]
+    n_grams: Option<usize>,
     mut channels: Vec<ChannelId>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
@@ -249,7 +252,8 @@ pub async fn summary(
     if filtered_messages.is_empty() {
         ctx.say("No messages matching filters.").await?;
     } else {
-        let mut chain = Chain::new();
+        let n_grams = n_grams.unwrap_or(1);
+        let mut chain = Chain::of_order(n_grams);
         let mut stream =
             tokio_stream::iter(filtered_messages).par_map_unordered(None, move |value| {
                 move || {
