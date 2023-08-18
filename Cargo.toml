@@ -28,11 +28,11 @@ diesel-async = { version = "0.3", features = ["postgres", "mobc"] }
 mobc = "0.8"
 markov = "1.1"
 diesel_full_text_search = "2.1"
-tokio-stream = "0.1.14"
-par-stream ={ version = "0.10.2", features = ["runtime-tokio"]}
+tokio-stream = "0.1"
+par-stream ={ version = "0.10", features = ["runtime-tokio"]}
 
 [dependencies.tokio]
-version = "1.30"
+version = "1.32"
 features = ["full"]
 
 [dependencies.poise]
