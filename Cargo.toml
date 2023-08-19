@@ -30,6 +30,7 @@ markov = "1.1"
 diesel_full_text_search = "2.1"
 tokio-stream = "0.1"
 par-stream ={ version = "0.10", features = ["runtime-tokio"]}
+jemallocator = "0.5"
 
 [dependencies.tokio]
 version = "1.32"

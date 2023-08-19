@@ -127,6 +127,7 @@ pub fn generate_message(chain: Chain<String>) -> Option<String> {
         tries += 1;
         generated_string = chain.generate().join(" ");
     }
+    drop(chain);
     Some(generated_string)
 }
 
@@ -267,6 +268,7 @@ pub async fn summary(
         while let Some(value) = stream.next().await {
             chain.feed(value);
         }
+        drop(stream);
         let generated_message = generate_message(chain);
         if let Some(message) = generated_message {
             ctx.say(message).await?;

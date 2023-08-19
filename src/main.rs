@@ -3,6 +3,9 @@ mod plugins;
 pub mod schema;
 mod utils;
 
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use crate::plugins::summary;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
