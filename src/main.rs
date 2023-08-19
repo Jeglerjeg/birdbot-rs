@@ -4,9 +4,8 @@ pub mod schema;
 mod utils;
 
 #[global_allocator]
-static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-use crate::plugins::summary;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
 use diesel::Connection;
@@ -64,7 +63,7 @@ async fn event_listener(
             });
         }
         FullEvent::Message { new_message, .. } => {
-            match summary::add_message(new_message, user_data).await {
+            match plugins::summary::add_message(new_message, user_data).await {
                 Ok(_) => {}
                 Err(e) => error!("{e}"),
             }
