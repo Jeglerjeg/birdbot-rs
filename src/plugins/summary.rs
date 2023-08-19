@@ -68,32 +68,37 @@ pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
         return Ok(());
     }
 
-    let summary_enabled_guild = SUMMARY_ENABLED_GUILDS
-        .guilds
-        .entry(i64::from(guild_id))
-        .or_insert({
-            let connection = &mut data.db_pool.get().await?;
-            match summary_enabled_guilds::read(connection, i64::from(guild_id)).await {
-                Ok(guild) => guild
-                    .channel_ids
-                    .iter()
-                    .flatten()
-                    .copied()
-                    .collect::<Vec<i64>>(),
-                Err(_) => Vec::new(),
+    match SUMMARY_ENABLED_GUILDS.guilds.get(&i64::from(guild_id)) {
+        None => {
+            SUMMARY_ENABLED_GUILDS.guilds.insert(i64::from(guild_id), {
+                let connection = &mut data.db_pool.get().await?;
+                match summary_enabled_guilds::read(connection, i64::from(guild_id)).await {
+                    Ok(guild) => guild
+                        .channel_ids
+                        .iter()
+                        .flatten()
+                        .copied()
+                        .collect::<Vec<i64>>(),
+                    Err(_) => Vec::new(),
+                }
+            });
+        }
+        Some(summary_enabled_guild) => {
+            if summary_enabled_guild
+                .value()
+                .contains(&i64::from(message.channel_id))
+            {
+                drop(summary_enabled_guild);
+                let connection = &mut data.db_pool.get().await?;
+                summary_messages::create(
+                    connection,
+                    &vec![NewDbSummaryMessage::from(message.clone())],
+                )
+                .await?;
+            } else {
+                drop(summary_enabled_guild);
             }
-        });
-
-    if summary_enabled_guild
-        .value()
-        .contains(&i64::from(message.channel_id))
-    {
-        let connection = &mut data.db_pool.get().await?;
-        summary_messages::create(
-            connection,
-            &vec![NewDbSummaryMessage::from(message.clone())],
-        )
-        .await?;
+        }
     }
 
     Ok(())
