@@ -47,13 +47,13 @@ features = ["aac", "mp3", "isomp4", "alac"]
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
 rev = "4fe23788e859a44a3f29987bff26c2612e74dcc5"
-features = ["builtin-queue", "simd-json"]
+features = ["builtin-queue"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
 branch = "next"
 default-features = false
-features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
+features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice"]
 
 [profile.dev]
 lto = "off"
