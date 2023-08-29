@@ -42,11 +42,11 @@ rev = "50ddbbb85a66068e3de33a9ba3c6ff72e62596b6"
 
 [dependencies.symphonia]
 version = "0.5"
-features = ["aac", "mp3", "isomp4", "alac"]
+features = ["aac", "mpa", "isomp4", "alac"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "f79f62cc12bbb6c62e47e975735ef9003966bf39"
+rev = "efe2a0b6d5d0e01685334c0cac05bb4bbbf0c32d"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
