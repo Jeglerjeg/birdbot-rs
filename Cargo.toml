@@ -46,7 +46,7 @@ features = ["aac", "mp3", "isomp4", "alac"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "108fcc6dc075905c511e70671bd2f0d305186b92"
+rev = "f79f62cc12bbb6c62e47e975735ef9003966bf39"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
