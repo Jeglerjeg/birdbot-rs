@@ -175,8 +175,8 @@ pub async fn check_for_empty_channel(
     guild: Option<GuildId>,
 ) -> Result<(), Error> {
     let Some(guild_id) = guild else {
-            return Ok(());
-        };
+        return Ok(());
+    };
 
     let manager = get_manager(ctx).await;
 
@@ -540,11 +540,13 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         let Some(queued_track) = playing_guild
             .queued_tracks
             .queue
-            .get_mut(&track.uuid().as_u128()) else {
-                drop(handler);
-                ctx.say("Something went wrong while skipping the track.").await?;
-                return Ok(())
-            };
+            .get_mut(&track.uuid().as_u128())
+        else {
+            drop(handler);
+            ctx.say("Something went wrong while skipping the track.")
+                .await?;
+            return Ok(());
+        };
 
         if queued_track.requested.id == ctx.author().id {
             drop(queue.skip());
@@ -628,11 +630,13 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
             let Some(queued_track) = playing_guild
                 .queued_tracks
                 .queue
-                .get(&removed_item.uuid().as_u128()) else {
+                .get(&removed_item.uuid().as_u128())
+            else {
                 drop(handler);
                 drop(playing_guild);
-                ctx.say("Something went wrong while skipping the track.").await?;
-                return Ok(())
+                ctx.say("Something went wrong while skipping the track.")
+                    .await?;
+                return Ok(());
             };
 
             let metadata = queued_track.metadata.clone();
@@ -821,10 +825,12 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
             let Some(queued_track) = playing_guilds
                 .queued_tracks
                 .queue
-                .get(&track.uuid().as_u128()) else {
+                .get(&track.uuid().as_u128())
+            else {
                 drop(playing_guilds);
-                ctx.say("Something went wrong while skipping the track.").await?;
-                return Ok(())
+                ctx.say("Something went wrong while skipping the track.")
+                    .await?;
+                return Ok(());
             };
 
             let metadata = queued_track.metadata.clone();

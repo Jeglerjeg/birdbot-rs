@@ -104,8 +104,14 @@ impl OsuTracker {
                 let Ok(osu_profile) = self
                     .osu_client
                     .user(u32::try_from(linked_profile.osu_id)?)
-                    .mode(gamemode_from_string(&linked_profile.mode).ok_or("Failed to parse gamemode in update_user_data function")?)
-                    .await else { return Ok(()) };
+                    .mode(
+                        gamemode_from_string(&linked_profile.mode)
+                            .ok_or("Failed to parse gamemode in update_user_data function")?,
+                    )
+                    .await
+                else {
+                    return Ok(());
+                };
                 let new = osu_users::create(
                     connection,
                     &rosu_user_to_db(osu_profile, Some(profile.ticks))?,
@@ -147,8 +153,14 @@ impl OsuTracker {
             let Ok(osu_profile) = self
                 .osu_client
                 .user(u32::try_from(linked_profile.osu_id)?)
-                .mode(gamemode_from_string(&linked_profile.mode).ok_or("Failed to parse gamemode in update_user_data function")?)
-                .await else { return Ok(()) };
+                .mode(
+                    gamemode_from_string(&linked_profile.mode)
+                        .ok_or("Failed to parse gamemode in update_user_data function")?,
+                )
+                .await
+            else {
+                return Ok(());
+            };
 
             osu_users::create(connection, &rosu_user_to_db(osu_profile, None)?).await?;
         }

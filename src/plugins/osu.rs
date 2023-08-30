@@ -282,8 +282,7 @@ pub async fn mapinfo(
     if let Some(beatmap_url) = beatmap_url {
         beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
         let Some(_) = beatmap_info.beatmapset_id else {
-            ctx.say("Please link to a beatmapset.")
-                .await?;
+            ctx.say("Please link to a beatmapset.").await?;
             return Ok(());
         };
     } else if let Some(found_info) = find_beatmap_link(ctx).await? {
@@ -343,7 +342,9 @@ pub async fn score(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else {
+        return Ok(());
+    };
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
@@ -433,7 +434,9 @@ pub async fn scores(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, None).await? else {
+        return Ok(());
+    };
 
     let beatmap_info: BeatmapInfo;
     if let Some(beatmap_url) = beatmap_url {
@@ -526,7 +529,9 @@ pub async fn recent(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else {
+        return Ok(());
+    };
 
     let recent_score = ctx
         .data()
@@ -593,7 +598,9 @@ pub async fn recent_best(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else {
+        return Ok(());
+    };
     let recent_score = ctx
         .data()
         .osu_client
@@ -652,7 +659,9 @@ pub async fn recent_list(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else {
+        return Ok(());
+    };
 
     let recent_scores = ctx
         .data()
@@ -734,7 +743,9 @@ pub async fn pins(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else {
+        return Ok(());
+    };
 
     let pinned_scores = ctx
         .data()
@@ -796,7 +807,9 @@ pub async fn firsts(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else {
+        return Ok(());
+    };
 
     let first_scores = ctx
         .data()
@@ -858,7 +871,9 @@ pub async fn top(
 
     let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else { return Ok(()) };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else {
+        return Ok(());
+    };
 
     let best_scores = ctx
         .data()

@@ -48,7 +48,9 @@ pub async fn add_guild_prefix(
 }
 
 pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>, Error> {
-    let Some(guild_id) = ctx.guild_id else { return Ok(Some(DEFAULT_PREFIX.clone())) };
+    let Some(guild_id) = ctx.guild_id else {
+        return Ok(Some(DEFAULT_PREFIX.clone()));
+    };
 
     Ok(Some(
         GUILD_PREFIX
