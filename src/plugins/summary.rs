@@ -49,7 +49,7 @@ pub async fn download_messages(
                 if message.content.is_empty() {
                     continue;
                 }
-                downloaded_messages.push(message.into())
+                downloaded_messages.push(message.into());
             }
             Err(error) => error!("{error}"),
         }
@@ -150,7 +150,7 @@ pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
             .channel_ids
             .iter()
             .flatten()
-            .cloned()
+            .copied()
             .collect::<Vec<_>>();
         if channels.contains(&i64::from(ctx.channel_id())) {
             summary_enabled_guild
@@ -182,39 +182,35 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
     let mut connection = ctx.data().db_pool.get().await?;
     let enabled_guild = summary_enabled_guilds::read(&mut connection, i64::from(guild_id)).await;
 
-    match enabled_guild {
-        Ok(mut guild) => {
-            guild.channel_ids.push(Some(i64::from(ctx.channel_id())));
-            let new_guild = NewSummaryEnabledGuild {
-                guild_id: guild.id,
-                channel_ids: guild.channel_ids,
-            };
-            summary_enabled_guilds::update(&mut connection, guild.id, &new_guild).await?;
+    if let Ok(mut guild) = enabled_guild {
+        guild.channel_ids.push(Some(i64::from(ctx.channel_id())));
+        let new_guild = NewSummaryEnabledGuild {
+            guild_id: guild.id,
+            channel_ids: guild.channel_ids,
+        };
+        summary_enabled_guilds::update(&mut connection, guild.id, &new_guild).await?;
 
-            SUMMARY_ENABLED_GUILDS
-                .guilds
-                .entry(i64::from(guild_id))
-                .or_default()
-                .push(i64::from(ctx.channel_id()));
-        }
-        Err(_) => {
-            let new_guild = NewSummaryEnabledGuild {
-                guild_id: i64::from(guild_id),
-                channel_ids: vec![Some(i64::from(ctx.channel_id()))],
-            };
-            let inserted_guild =
-                summary_enabled_guilds::create(&mut connection, &new_guild).await?;
+        SUMMARY_ENABLED_GUILDS
+            .guilds
+            .entry(i64::from(guild_id))
+            .or_default()
+            .push(i64::from(ctx.channel_id()));
+    } else {
+        let new_guild = NewSummaryEnabledGuild {
+            guild_id: i64::from(guild_id),
+            channel_ids: vec![Some(i64::from(ctx.channel_id()))],
+        };
+        let inserted_guild = summary_enabled_guilds::create(&mut connection, &new_guild).await?;
 
-            SUMMARY_ENABLED_GUILDS.guilds.insert(
-                inserted_guild.guild_id,
-                inserted_guild
-                    .channel_ids
-                    .iter()
-                    .flatten()
-                    .copied()
-                    .collect::<Vec<i64>>(),
-            );
-        }
+        SUMMARY_ENABLED_GUILDS.guilds.insert(
+            inserted_guild.guild_id,
+            inserted_guild
+                .channel_ids
+                .iter()
+                .flatten()
+                .copied()
+                .collect::<Vec<i64>>(),
+        );
     }
 
     ctx.say("Downloading messages, this may take a while.")
@@ -224,7 +220,7 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
     let downloaded_messages =
         summary_messages::count_entries(&mut connection, i64::from(ctx.channel_id())).await?;
 
-    ctx.say(format!("Downloaded {} messages", downloaded_messages))
+    ctx.say(format!("Downloaded {downloaded_messages} messages"))
         .await?;
 
     Ok(())
@@ -244,7 +240,7 @@ pub async fn summary(
     ctx.defer().await?;
     let mut connection = ctx.data().db_pool.get().await?;
     if channels.is_empty() {
-        channels.push(ctx.channel_id())
+        channels.push(ctx.channel_id());
     }
     let filtered_messages = get_filtered_messages(
         &mut connection,
@@ -266,7 +262,7 @@ pub async fn summary(
                     value
                         .split_whitespace()
                         .filter(|word| !word.is_empty())
-                        .map(|s| s.to_owned())
+                        .map(std::borrow::ToOwned::to_owned)
                         .collect::<Vec<_>>()
                 }
             });

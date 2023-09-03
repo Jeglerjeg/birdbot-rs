@@ -211,7 +211,7 @@ impl OsuTracker {
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
 
-        for score in new_scores.iter() {
+        for score in new_scores {
             let score_id = score
                 .0
                 .score_id

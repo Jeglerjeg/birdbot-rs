@@ -268,7 +268,7 @@ struct TrackEndNotifier {
 #[async_trait]
 impl VoiceEventHandler for TrackEndNotifier {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
-        if let EventContext::Track(_track_list) = ctx {
+        if let EventContext::Track(track_list) = ctx {
             let manager = get_manager(&self.ctx).await;
 
             if let Some(handler_lock) = manager.get(self.guild_id) {
@@ -281,7 +281,7 @@ impl VoiceEventHandler for TrackEndNotifier {
                 } else {
                     let mut playing_guild = PLAYING_GUILDS.guilds.get_mut(&self.guild_id).unwrap();
 
-                    for track in _track_list.iter() {
+                    for track in *track_list {
                         playing_guild
                             .queued_tracks
                             .queue

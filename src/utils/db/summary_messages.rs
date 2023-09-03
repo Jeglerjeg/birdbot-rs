@@ -34,10 +34,10 @@ pub async fn read(
         query = query.filter(summary_messages::ts.matches(ts_query));
     }
     if !include_bots {
-        query = query.filter(summary_messages::is_bot.eq(false))
+        query = query.filter(summary_messages::is_bot.eq(false));
     }
     if !author_ids.is_empty() {
-        query = query.filter(summary_messages::author_id.eq_any(author_ids))
+        query = query.filter(summary_messages::author_id.eq_any(author_ids));
     }
     Ok(query
         .select(summary_messages::content)
