@@ -9,6 +9,7 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
 use diesel::Connection;
+use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -133,16 +134,18 @@ async fn main() {
 
     let db_pool = utils::db::establish_connection::establish_connection();
 
-    let mut migration_connection = match diesel::PgConnection::establish(
-        &env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
-    ) {
-        Ok(connection) => connection,
-        Err(why) => {
-            panic!("Couldn't get db connection: {why:?}");
-        }
-    };
+    let res = tokio::task::spawn_blocking(move || {
+        let mut migration_connection = AsyncConnectionWrapper::<AsyncPgConnection>::establish(
+            &env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+        )?;
 
-    if let Err(why) = migration_connection.run_pending_migrations(MIGRATIONS) {
+        migration_connection.run_pending_migrations(MIGRATIONS)?;
+
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await;
+
+    if let Err(why) = res {
         panic!("Couldn't run migrations: {why:?}");
     }
 
@@ -193,11 +196,6 @@ async fn main() {
         },
         ..Default::default()
     };
-
-    // Initialize the logger to use environment variables.
-    //
-    // In this case, a good default is setting the environment variable
-    // `RUST_LOG` to `debug`.
 
     let file_appender = tracing_appender::rolling::daily("logs", "info.log");
 

@@ -23,8 +23,8 @@ dashmap = "5.5"
 rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
 regex = "1.9"
 url = "2.4"
-diesel = { version = "2.1", features = ["chrono", "postgres"]}
-diesel-async = { version = "0.3", features = ["postgres", "mobc"] }
+diesel = { version = "2.1", features = ["chrono"]}
+diesel-async = { version = "0.4", features = ["postgres", "mobc", "async-connection-wrapper"] }
 mobc = "0.8"
 markov = "1.1"
 diesel_full_text_search = "2.1"
@@ -38,7 +38,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "4de6f52be57c15ce79effd466ff2758e26f9954a"
+rev = "88c10cc92f45071a7234dbdc98633ead1e16d732"
 
 [dependencies.symphonia]
 version = "0.5"
@@ -47,13 +47,13 @@ features = ["aac", "mpa", "isomp4", "alac"]
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
 rev = "efe2a0b6d5d0e01685334c0cac05bb4bbbf0c32d"
-features = ["builtin-queue"]
+features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
 branch = "next"
 default-features = false
-features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice"]
+features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 
 [profile.dev]
 lto = "off"
