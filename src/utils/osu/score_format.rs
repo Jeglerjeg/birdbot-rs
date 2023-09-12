@@ -7,6 +7,7 @@ use crate::Error;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;
+use std::cmp;
 
 pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<String, Error> {
     let color = if score.perfect {
@@ -16,12 +17,24 @@ pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<St
     };
 
     let max_combo = pp.max_combo;
+    let accuracy_string = format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?);
+    let gap = if accuracy_string.len() < 6 {
+        " ".repeat(cmp::max(accuracy_string.len() - 3 + 1, 2))
+    } else {
+        " ".repeat(4)
+    };
+
+    let stat_gap = if accuracy_string.len() > 3 {
+        " ".repeat(gap.len() - (accuracy_string.len() - 3))
+    } else {
+        " ".repeat(gap.len())
+    };
 
     match score.mode {
         GameMode::Osu => Ok(format!(
-            "acc    300s  100s  50s  miss  combo\
-                \n{color}{:<7}{:<6}{:<6}{:<5}{:<6}{}/{}",
-            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
+            "acc{gap}300s  100s  50s  miss  combo\
+                \n{color}{}{stat_gap}{:<6}{:<6}{:<5}{:<6}{}/{}",
+            accuracy_string,
             score.statistics.count_300,
             score.statistics.count_100,
             score.statistics.count_50,
@@ -30,9 +43,9 @@ pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<St
             max_combo
         )),
         GameMode::Taiko => Ok(format!(
-            "acc    great  good  miss  combo\
-            \n{color}{:<7}{:<7}{:<6}{:<6}{}/{}",
-            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
+            "acc{gap}great  good  miss  combo\
+            \n{color}{}{stat_gap}{:<7}{:<6}{:<6}{}/{}",
+            accuracy_string,
             score.statistics.count_300,
             score.statistics.count_100,
             score.statistics.count_miss,
@@ -40,9 +53,9 @@ pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<St
             max_combo
         )),
         GameMode::Mania => Ok(format!(
-            "acc    max   300s  200s  100s  50s  miss\
-        \n{color}{:<7}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
-            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
+            "acc{gap}max   300s  200s  100s  50s  miss\
+        \n{color}{}{stat_gap}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
+            accuracy_string,
             score.statistics.count_geki,
             score.statistics.count_300,
             score.statistics.count_katu,
@@ -51,9 +64,9 @@ pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<St
             score.statistics.count_miss
         )),
         GameMode::Catch => Ok(format!(
-            "acc    fruits ticks drpm miss combo\
-           \n{color}{:<7}{:<7}{:<6}{:<5}{:<5}{}/{}",
-            format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?),
+            "acc{gap}fruits ticks drpm miss combo\
+           \n{color}{}{stat_gap}{:<7}{:<6}{:<5}{:<5}{}/{}",
+            accuracy_string,
             score.statistics.count_300,
             score.statistics.count_100,
             score.statistics.count_katu,
