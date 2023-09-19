@@ -2,7 +2,7 @@ use crate::{Context, Error};
 use poise::builtins::HelpConfiguration;
 
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{CacheHttp, Colour, CreateEmbed, User};
+use poise::serenity_prelude::{Colour, CreateEmbed, User};
 use poise::{Command, ContextMenuCommandAction, CreateReply, PartialContext};
 use rand::Rng;
 use std::fmt::Write;
@@ -50,7 +50,7 @@ async fn help_single_command<U, E>(
         if command.name.eq_ignore_ascii_case(command_name) {
             return true;
         }
-        if let Some(context_menu_name) = command.context_menu_name {
+        if let Some(context_menu_name) = &command.context_menu_name {
             if context_menu_name.eq_ignore_ascii_case(command_name) {
                 return true;
             }
@@ -60,16 +60,15 @@ async fn help_single_command<U, E>(
     });
 
     let reply = if let Some(command) = command {
-        match command.help_text {
-            Some(f) => f(),
+        match &command.help_text {
+            Some(f) => f,
             None => command
                 .description
                 .as_deref()
-                .unwrap_or("No help available")
-                .to_owned(),
+                .unwrap_or("No help available"),
         }
     } else {
-        format!("No such command `{command_name}`")
+        "Command not found."
     };
 
     ctx.say(reply).await?;
@@ -79,9 +78,9 @@ async fn help_single_command<U, E>(
 fn format_args<U, E>(arguments: &[poise::CommandParameter<U, E>]) -> String {
     return arguments.iter().fold(String::new(), |acc, arg| {
         acc + &*if arg.required {
-            format!("{} ", arg.name)
+            format!("{} ", arg.name.as_ref().unwrap_or(&String::new()))
         } else {
-            format!("<{}> ", arg.name)
+            format!("<{}> ", arg.name.as_ref().unwrap_or(&String::new()))
         }
     });
 }
@@ -133,16 +132,16 @@ async fn help_all_commands<U, E>(
     ctx: poise::Context<'_, U, E>,
     config: HelpConfiguration<'_>,
 ) -> Result<(), Error> {
-    let mut categories = OrderedMap::<Option<&str>, Vec<&Command<U, E>>>::new();
+    let mut categories = OrderedMap::<&Option<String>, Vec<&Command<U, E>>>::new();
     for cmd in &ctx.framework().options().commands {
         categories
-            .get_or_insert_with(cmd.category, Vec::new)
+            .get_or_insert_with(&cmd.category, Vec::new)
             .push(cmd);
     }
 
     let mut menu = String::from("```\n");
     for (category_name, commands) in categories {
-        menu += category_name.unwrap_or("Commands");
+        menu += category_name.as_ref().unwrap_or(&"Commands".to_string());
         menu += ":\n";
         for command in commands {
             if command.hide_in_help {
@@ -171,9 +170,9 @@ async fn help_all_commands<U, E>(
             let kind = match command.context_menu_action {
                 Some(ContextMenuCommandAction::User(_)) => "user",
                 Some(ContextMenuCommandAction::Message(_)) => "message",
-                None => continue,
+                _ => continue,
             };
-            let name = command.context_menu_name.unwrap_or(&command.name);
+            let name = command.context_menu_name.as_ref().unwrap_or(&command.name);
             writeln!(menu, "  {name} (on {kind})")?;
         }
     }
@@ -182,7 +181,7 @@ async fn help_all_commands<U, E>(
     menu += config.extra_text_at_bottom;
 
     let color = match ctx.author_member().await {
-        Some(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
+        Some(member) => member.colour(ctx).unwrap_or(BLUE),
         _ => BLUE,
     };
 
@@ -208,7 +207,7 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
 /// Displays basic information about the bot
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
-    let information = ctx.discord().http.get_current_application_info().await?;
+    let information = ctx.http().get_current_application_info().await?;
     let owner = information.owner.ok_or("No application owner registered")?;
     let username = if let Some(discriminator) = owner.discriminator {
         format!("@{}#{}", owner.name, discriminator)
@@ -225,18 +224,14 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         {}",
         username,
         ctx.data().time_started.format("%d-%m-%Y %H:%M:%S"),
-        ctx.discord().cache.users().len(),
-        ctx.discord().cache.guilds().len(),
+        ctx.cache().users().len(),
+        ctx.cache().guilds().len(),
         information.description
     );
 
     let color = match ctx.guild() {
-        Some(guild) => match ctx
-            .cache()
-            .ok_or("Failed to get discord cache in info")?
-            .member(guild.id, ctx.framework().bot_id)
-        {
-            Some(member) => member.colour(ctx.discord()).unwrap_or(BLUE),
+        Some(guild) => match ctx.cache().member(guild.id, ctx.framework().bot_id) {
+            Some(member) => member.colour(ctx).unwrap_or(BLUE),
             _ => BLUE,
         },
         _ => BLUE,
@@ -352,10 +347,9 @@ pub async fn avatar(
     if let Some(guild) = ctx.guild() {
         if let Some(member) = ctx
             .cache()
-            .ok_or("Failed to get discord cache in avatar")?
             .member(guild.id, user.as_ref().unwrap_or_else(|| ctx.author()).id)
         {
-            color = member.colour(ctx.discord()).unwrap_or(BLUE);
+            color = member.colour(ctx).unwrap_or(BLUE);
             name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
             avatar = member.face();
         } else {

@@ -173,7 +173,7 @@ pub async fn set_up_score_list(
     scores: Vec<Score>,
 ) -> Result<Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>, Error> {
     let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> = Vec::new();
-    let typing = ctx.channel_id().start_typing(&ctx.discord().http);
+    let typing = ctx.channel_id().start_typing(&ctx.serenity_context().http);
     for (pos, score) in scores.iter().enumerate() {
         let beatmap = get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
@@ -256,7 +256,7 @@ pub async fn get_user(
 
 pub async fn find_beatmap_link(ctx: crate::Context<'_>) -> Result<Option<BeatmapInfo>, Error> {
     let builder = poise::serenity_prelude::GetMessages::new().limit(100);
-    for message in ctx.channel_id().messages(ctx.discord(), builder).await? {
+    for message in ctx.channel_id().messages(ctx, builder).await? {
         let mut to_search = message.content;
         for embed in message.embeds {
             if let Some(description) = embed.description {

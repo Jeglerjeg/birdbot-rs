@@ -98,7 +98,7 @@ async fn pre_command(ctx: Context<'_>) {
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     match error {
-        poise::FrameworkError::Command { error, ctx } => {
+        poise::FrameworkError::Command { error, ctx, .. } => {
             error!(
                 "Command '{}' returned error {:?}",
                 ctx.command().name,
@@ -111,7 +111,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
                 error!("Error while handling error: {}", why);
             }
         }
-        poise::FrameworkError::Listener { error, event, .. } => {
+        poise::FrameworkError::EventHandler { error, event, .. } => {
             error!(
                 "Listener returned error during {:?} event: {:?}",
                 event.snake_case_name(),
@@ -177,7 +177,7 @@ async fn main() {
             plugins::summary::summary_enable(),
             plugins::summary::summary_disable(),
         ],
-        listener: |event, framework, user_data| {
+        event_handler: |event, framework, user_data| {
             Box::pin(event_listener(event, framework, user_data))
         },
         on_error: |error| Box::pin(on_error(error)),

@@ -78,7 +78,7 @@ async fn handle_interaction_responses(
     let mut interaction_stream = reply
         .message()
         .await?
-        .await_component_interaction(&ctx.discord().shard)
+        .await_component_interaction(&ctx)
         .timeout(Duration::from_secs(30))
         .stream();
 
@@ -86,7 +86,7 @@ async fn handle_interaction_responses(
         if replies.contains(&interaction.user.id.0.get()) {
             interaction
                 .create_response(
-                    ctx.discord(),
+                    ctx,
                     CreateInteractionResponse::Message(
                         CreateInteractionResponseMessage::default()
                             .ephemeral(true)
@@ -100,7 +100,7 @@ async fn handle_interaction_responses(
         let choice = &interaction.data.custom_id;
         match choice.as_str() {
             "choice_1" => {
-                interaction.defer(ctx.discord()).await?;
+                interaction.defer(ctx).await?;
                 replies.push(interaction.user.id.0.get());
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
@@ -120,7 +120,7 @@ async fn handle_interaction_responses(
                 reply.edit(ctx, builder).await?;
             }
             "choice_2" => {
-                interaction.defer(ctx.discord()).await?;
+                interaction.defer(ctx).await?;
                 replies.push(interaction.user.id.0.get());
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
@@ -142,7 +142,7 @@ async fn handle_interaction_responses(
             _ => {
                 interaction
                     .create_response(
-                        ctx.discord(),
+                        ctx,
                         CreateInteractionResponse::Message(
                             CreateInteractionResponseMessage::default()
                                 .ephemeral(true)

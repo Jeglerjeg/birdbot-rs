@@ -7,8 +7,7 @@ use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
-    CacheHttp, Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor,
-    CreateEmbedFooter,
+    Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
 };
 use poise::{serenity_prelude, CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, User};
@@ -60,12 +59,8 @@ pub async fn send_score_embed(
 
     if let Some(guild_ref) = ctx.guild() {
         let guild = guild_ref.clone();
-        if let Some(member) = ctx
-            .cache()
-            .ok_or("Failed to get discord cache in send_score_embed function")?
-            .member(guild.id, discord_user.id)
-        {
-            color = member.colour(ctx.discord()).unwrap_or(BLUE);
+        if let Some(member) = ctx.cache().member(guild.id, discord_user.id) {
+            color = member.colour(ctx).unwrap_or(BLUE);
         } else {
             color = BLUE;
         }
@@ -104,12 +99,8 @@ pub async fn send_scores_embed(
 ) -> Result<(), Error> {
     let color: Colour;
     if let Some(guild) = ctx.guild() {
-        if let Some(member) = ctx
-            .cache()
-            .ok_or("Failed to get discord cache in send_scores_embed function")?
-            .member(guild.id, discord_user.id)
-        {
-            color = member.colour(ctx.discord()).unwrap_or(BLUE);
+        if let Some(member) = ctx.cache().member(guild.id, discord_user.id) {
+            color = member.colour(ctx).unwrap_or(BLUE);
         } else {
             color = BLUE;
         }
@@ -164,14 +155,14 @@ async fn handle_top_score_interactions(
     while let Some(interaction) = reply
         .message()
         .await?
-        .await_component_interaction(&ctx.discord().shard)
+        .await_component_interaction(&ctx)
         .timeout(Duration::from_secs(15))
         .await
     {
         let choice = &interaction.data.custom_id;
         match choice.as_str() {
             "last_page" => {
-                interaction.defer(ctx.discord()).await?;
+                interaction.defer(ctx).await?;
                 if page == 1 {
                     page = max_pages;
                     offset = (max_pages - 1) * 5;
@@ -192,7 +183,7 @@ async fn handle_top_score_interactions(
                 .await?;
             }
             "next_page" => {
-                interaction.defer(ctx.discord()).await?;
+                interaction.defer(ctx).await?;
                 if page == max_pages {
                     page = 1;
                     offset = 0;
@@ -213,7 +204,7 @@ async fn handle_top_score_interactions(
                 .await?;
             }
             "reset" => {
-                interaction.defer(ctx.discord()).await?;
+                interaction.defer(ctx).await?;
                 page = 1;
                 offset = 0;
                 change_top_scores_page(

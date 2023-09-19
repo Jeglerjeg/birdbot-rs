@@ -20,7 +20,7 @@ num-format = "0.4"
 reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli"]}
 time = "0.3"
 dashmap = "5.5"
-rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "8492d91a617ca5f26d40195d952cde12c792b154", features = ["async_tokio"] }
+rosu-pp = { version = "0.9", features = ["async_tokio"] }
 regex = "1.9"
 url = "2.4"
 diesel = { version = "2.1", features = ["chrono"]}
@@ -38,7 +38,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "88c10cc92f45071a7234dbdc98633ead1e16d732"
+rev = "2fcf9546e77408c2bea3c1a7c365369d5c93513d"
 
 [dependencies.symphonia]
 version = "0.5"

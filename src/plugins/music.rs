@@ -150,7 +150,7 @@ async fn send_track_embed(
         .author_member()
         .await
         .ok_or("Failed to get author member in send_track_embed")?
-        .colour(ctx.discord())
+        .colour(ctx)
         .unwrap_or(BLUE);
 
     let thumbnail_url = match &metadata.thumbnail {
@@ -311,7 +311,7 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         return Ok(false);
     };
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     if let Ok(handle_lock) = manager.join(guild_id, connect_to).await {
         let mut handle = handle_lock.lock().await;
@@ -325,7 +325,7 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
             },
         );
 
-        let leave_context = ctx.discord().clone();
+        let leave_context = ctx.serenity_context().clone();
         handle.add_global_event(
             Event::Track(TrackEvent::End),
             TrackEndNotifier {
@@ -376,7 +376,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         }
     };
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     let Some(handler) = manager.get(guild_id) else {
         return Ok(());
@@ -421,7 +421,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
             ))
             .await?;
             if empty {
-                leave(ctx.discord(), ctx.guild_id()).await?;
+                leave(ctx.serenity_context(), ctx.guild_id()).await?;
             }
             return Ok(());
         }
@@ -473,7 +473,7 @@ pub async fn play(
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     if manager.get(guild_id).is_some() {
         queue(ctx, url_or_name, guild_id).await?;
@@ -514,7 +514,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -562,7 +562,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 return Ok(());
             }
 
-            let guild_channels = guild.channels(ctx.discord()).await?;
+            let guild_channels = guild.channels(ctx).await?;
 
             let needed_to_skip = match guild_channels.get(&ChannelId::from(channel_id.0)) {
                 None => {
@@ -572,7 +572,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                         .await?;
                     return Ok(());
                 }
-                Some(channel) => channel.members(ctx.discord())?.len() - 2,
+                Some(channel) => channel.members(ctx)?.len() - 2,
             };
 
             queued_track.skipped.push(ctx.author().id.0.get());
@@ -609,7 +609,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -673,7 +673,7 @@ pub async fn volume(
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     let Some(handler) = manager.get(guild_id) else {
         ctx.say("Not in a voice channel.").await?;
@@ -731,7 +731,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -767,7 +767,7 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -809,7 +809,7 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.discord()).await;
+    let manager = get_manager(ctx.serenity_context()).await;
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;

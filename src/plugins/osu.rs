@@ -15,7 +15,7 @@ use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::{Context, Error};
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{CacheHttp, Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel};
+use poise::serenity_prelude::{Colour, CreateEmbed, CreateEmbedAuthor, GuildChannel};
 use poise::CreateReply;
 use rosu_v2::model::GameMode;
 
@@ -56,12 +56,8 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
         Ok(profile) => {
             let color: Colour;
             if let Some(guild) = ctx.guild() {
-                if let Some(member) = ctx
-                    .cache()
-                    .ok_or("Failed to get discord cache in osu command")?
-                    .member(guild.id, ctx.author().id)
-                {
-                    color = member.colour(ctx.discord()).unwrap_or(BLUE);
+                if let Some(member) = ctx.cache().member(guild.id, ctx.author().id) {
+                    color = member.colour(ctx).unwrap_or(BLUE);
                 } else {
                     color = BLUE;
                 }
@@ -306,11 +302,10 @@ pub async fn mapinfo(
     let color;
     if let Some(guild) = ctx.guild() {
         color = ctx
-            .discord()
-            .cache
+            .cache()
             .member(guild.id, ctx.author())
             .ok_or("Failed to get author member in mapinfo command")?
-            .colour(ctx.discord())
+            .colour(ctx)
             .unwrap_or(BLUE);
     } else {
         color = BLUE;
@@ -1046,12 +1041,9 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
     for linked_profile in &linked_profiles {
         for osu_user in &tracked_profiles {
             if linked_profile.osu_id == osu_user.id {
-                let user = ctx
-                    .cache()
-                    .ok_or("Failed to retrieve discord cache in debug command")?
-                    .user(u64::try_from(linked_profile.id)?);
+                let user = ctx.cache().user(u64::try_from(linked_profile.id)?);
                 if let Some(user) = user {
-                    if is_playing(ctx.discord(), user.id, linked_profile.home_guild)? {
+                    if is_playing(ctx.serenity_context(), user.id, linked_profile.home_guild)? {
                         playing_users.push(format!("`{}`", user.name));
                     }
                 };
