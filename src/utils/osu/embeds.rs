@@ -155,7 +155,7 @@ async fn handle_top_score_interactions(
     while let Some(interaction) = reply
         .message()
         .await?
-        .await_component_interaction(&ctx)
+        .await_component_interaction(ctx)
         .timeout(Duration::from_secs(15))
         .await
     {
