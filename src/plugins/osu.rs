@@ -51,7 +51,7 @@ pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
     let profile =
-        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await;
     match profile {
         Ok(profile) => {
             let color: Colour;
@@ -124,19 +124,18 @@ pub async fn link(
     let connection = &mut ctx.data().db_pool.get().await?;
 
     if let Ok(profile) =
-        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await
     {
         linked_osu_profiles::delete(connection, profile.id).await?;
         wipe_profile_data(connection, profile.osu_id).await?;
     }
 
     let query_item = NewLinkedOsuProfile {
-        id: i64::try_from(ctx.author().id.0.get())?,
+        id: i64::try_from(ctx.author().id.get())?,
         osu_id: i64::from(user.user_id),
         home_guild: i64::try_from(
             ctx.guild_id()
                 .ok_or("Failed to get guild ID in link command")?
-                .0
                 .get(),
         )?,
         mode: user.mode.to_string(),
@@ -172,7 +171,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
     let profile =
-        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await;
 
     match profile {
         Ok(profile) => {
@@ -237,7 +236,7 @@ pub async fn mode(
     ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
     let profile =
-        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.0.get())?).await;
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await;
 
     let mode: GameMode = new_mode.into();
 
@@ -929,23 +928,23 @@ pub async fn score_notifications(
 
     let mut new_score_channels = Vec::new();
     for score_channel in score_channels {
-        new_score_channels.push(Some(i64::try_from(score_channel.id.0.get())?));
+        new_score_channels.push(Some(i64::try_from(score_channel.id.get())?));
     }
 
     let connection = &mut ctx.data().db_pool.get().await?;
-    let new_item =
-        match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
-            Ok(guild_config) => NewOsuGuildChannel {
-                guild_id: guild_config.guild_id,
-                score_channel: Some(new_score_channels),
-                map_channel: guild_config.map_channel,
-            },
-            Err(_) => NewOsuGuildChannel {
-                guild_id: i64::try_from(guild.id.0.get())?,
-                score_channel: Some(new_score_channels),
-                map_channel: None,
-            },
-        };
+    let new_item = match osu_guild_channels::read(connection, i64::try_from(guild.id.get())?).await
+    {
+        Ok(guild_config) => NewOsuGuildChannel {
+            guild_id: guild_config.guild_id,
+            score_channel: Some(new_score_channels),
+            map_channel: guild_config.map_channel,
+        },
+        Err(_) => NewOsuGuildChannel {
+            guild_id: i64::try_from(guild.id.get())?,
+            score_channel: Some(new_score_channels),
+            map_channel: None,
+        },
+    };
 
     osu_guild_channels::create(connection, &new_item).await?;
 
@@ -974,22 +973,22 @@ pub async fn map_notifications(
 
     let mut new_map_channels = Vec::new();
     for map_channel in map_channels {
-        new_map_channels.push(Some(i64::try_from(map_channel.id.0.get())?));
+        new_map_channels.push(Some(i64::try_from(map_channel.id.get())?));
     }
     let connection = &mut ctx.data().db_pool.get().await?;
-    let new_item =
-        match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
-            Ok(guild_config) => NewOsuGuildChannel {
-                guild_id: guild_config.guild_id,
-                score_channel: guild_config.score_channel,
-                map_channel: Some(new_map_channels),
-            },
-            Err(_) => NewOsuGuildChannel {
-                guild_id: i64::try_from(guild.id.0.get())?,
-                score_channel: None,
-                map_channel: Some(new_map_channels),
-            },
-        };
+    let new_item = match osu_guild_channels::read(connection, i64::try_from(guild.id.get())?).await
+    {
+        Ok(guild_config) => NewOsuGuildChannel {
+            guild_id: guild_config.guild_id,
+            score_channel: guild_config.score_channel,
+            map_channel: Some(new_map_channels),
+        },
+        Err(_) => NewOsuGuildChannel {
+            guild_id: i64::try_from(guild.id.get())?,
+            score_channel: None,
+            map_channel: Some(new_map_channels),
+        },
+    };
 
     osu_guild_channels::create(connection, &new_item).await?;
 
@@ -1013,7 +1012,7 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
         .ok_or("Failed to get guild in delete_guild_config command")?
         .clone();
     let connection = &mut ctx.data().db_pool.get().await?;
-    match osu_guild_channels::read(connection, i64::try_from(guild.id.0.get())?).await {
+    match osu_guild_channels::read(connection, i64::try_from(guild.id.get())?).await {
         Ok(guild_config) => {
             osu_guild_channels::delete(connection, guild_config.guild_id).await?;
             ctx.say("Your guild's config has been deleted.").await?;

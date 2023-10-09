@@ -522,7 +522,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         let channel_id = handler
             .current_channel()
             .ok_or("Failed to get current playing channel in skip function")?;
-        if user_channel.0 != channel_id.0 {
+        if user_channel.get() != channel_id.0.get() {
             ctx.say("Not connected to the voice channel").await?;
             return Ok(());
         }
@@ -555,7 +555,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             drop(playing_guild);
             send_track_embed(ctx, &metadata, "Skipped:", None).await?;
         } else {
-            if queued_track.skipped.contains(&ctx.author().id.0.get()) {
+            if queued_track.skipped.contains(&ctx.author().id.get()) {
                 drop(handler);
                 drop(playing_guild);
                 ctx.say("You've already skipped this track").await?;
@@ -575,7 +575,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 Some(channel) => channel.members(ctx)?.len() - 2,
             };
 
-            queued_track.skipped.push(ctx.author().id.0.get());
+            queued_track.skipped.push(ctx.author().id.get());
 
             if queued_track.skipped.len() >= needed_to_skip {
                 drop(queue.skip());

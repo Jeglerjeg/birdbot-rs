@@ -27,7 +27,6 @@ use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, Score};
 use rosu_v2::Osu;
 use std::env;
-use std::num::NonZeroU64;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -349,7 +348,7 @@ impl OsuTracker {
     ) -> Result<(), Error> {
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
-                osu_guild_channels::read(connection, i64::try_from(guild_id.0.get())?).await
+                osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
             {
                 if let Some(score_channels) = guild_channels.score_channel {
                     for score_channel in score_channels
@@ -376,7 +375,7 @@ impl OsuTracker {
 
                             let builder = CreateMessage::new().embed(embed);
 
-                            ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
+                            ChannelId::from(u64::try_from(score_channel)?)
                                 .send_message(&self.ctx, builder)
                                 .await?;
                         }
@@ -572,7 +571,7 @@ impl OsuTracker {
 
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
-                osu_guild_channels::read(connection, i64::try_from(guild_id.0.get())?).await
+                osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
             {
                 if let Some(score_channels) = guild_channels.score_channel {
                     for score_channel in score_channels
@@ -599,7 +598,7 @@ impl OsuTracker {
 
                             let builder = CreateMessage::new().embed(embed);
 
-                            ChannelId(NonZeroU64::try_from(u64::try_from(score_channel)?)?)
+                            ChannelId::from(u64::try_from(score_channel)?)
                                 .send_message(&self.ctx, builder)
                                 .await?;
                         }

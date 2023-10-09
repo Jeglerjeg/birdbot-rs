@@ -282,7 +282,6 @@ pub async fn prefix(
         i64::try_from(
             ctx.guild_id()
                 .ok_or("Failed to get guild ID in prefix")?
-                .0
                 .get(),
         )?,
         new_prefix.clone(),

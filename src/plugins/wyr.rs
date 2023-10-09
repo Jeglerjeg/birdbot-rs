@@ -83,7 +83,7 @@ async fn handle_interaction_responses(
         .stream();
 
     while let Some(interaction) = interaction_stream.next().await {
-        if replies.contains(&interaction.user.id.0.get()) {
+        if replies.contains(&interaction.user.id.get()) {
             interaction
                 .create_response(
                     ctx,
@@ -101,7 +101,7 @@ async fn handle_interaction_responses(
         match choice.as_str() {
             "choice_1" => {
                 interaction.defer(ctx).await?;
-                replies.push(interaction.user.id.0.get());
+                replies.push(interaction.user.id.get());
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
 
@@ -121,7 +121,7 @@ async fn handle_interaction_responses(
             }
             "choice_2" => {
                 interaction.defer(ctx).await?;
-                replies.push(interaction.user.id.0.get());
+                replies.push(interaction.user.id.get());
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
 

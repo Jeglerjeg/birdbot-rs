@@ -223,7 +223,7 @@ pub async fn get_user(
         }
     } else {
         let linked_profile =
-            linked_osu_profiles::read(connection, i64::try_from(discord_user.id.0.get())?).await;
+            linked_osu_profiles::read(connection, i64::try_from(discord_user.id.get())?).await;
         if let Ok(linked_profile) = linked_profile {
             let mode: GameMode = if let Some(mode) = mode {
                 mode.into()
