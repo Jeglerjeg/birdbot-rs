@@ -15,13 +15,13 @@ chrono = { version = "0.4", features = ["rkyv"] }
 lazy_static = "1.4"
 diesel_migrations = "2.1"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "765ab92d3a44f144eefd310805ae5a599ae65c1d", features = ["rkyv"] }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "ba8576a770496b755064ae0c75d6ead6f98b7590"}
 num-format = "0.4"
 reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli"]}
 time = "0.3"
 dashmap = "5.5"
 rosu-pp = { version = "0.9", features = ["async_tokio"] }
-regex = "1.9"
+regex = "1.10"
 url = "2.4"
 diesel = { version = "2.1", features = ["chrono"]}
 diesel-async = { version = "0.4", features = ["postgres", "mobc", "async-connection-wrapper"] }

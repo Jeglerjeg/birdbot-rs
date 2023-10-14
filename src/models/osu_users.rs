@@ -37,3 +37,9 @@ pub struct NewOsuUser {
     pub ranked_score: i64,
     pub time_cached: chrono::DateTime<chrono::Utc>,
 }
+
+impl NewOsuUser {
+    pub fn add_ticks(&mut self, ticks: i32) {
+        self.ticks = ticks;
+    }
+}

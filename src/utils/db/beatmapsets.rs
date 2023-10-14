@@ -7,28 +7,31 @@ use diesel::dsl::count;
 use diesel::prelude::{BelongingToDsl, ExpressionMethods, QueryDsl, QueryResult};
 use diesel::{insert_into, SelectableHelper};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
+use rosu_v2::prelude::BeatmapsetExtended;
 
-fn to_insert_beatmapset(beatmapset: rosu_v2::prelude::Beatmapset) -> NewBeatmapset {
-    NewBeatmapset {
-        id: i64::from(beatmapset.mapset_id),
-        artist: beatmapset.artist,
-        bpm: f64::from(beatmapset.bpm),
-        list_cover: beatmapset.covers.list_2x,
-        cover: beatmapset.covers.cover_2x,
-        creator: beatmapset.creator_name.into_string(),
-        play_count: i64::from(beatmapset.playcount),
-        source: beatmapset.source,
-        status: crate::utils::osu::misc_format::format_rank_status(beatmapset.status),
-        title: beatmapset.title,
-        user_id: i64::from(beatmapset.creator_id),
+impl From<BeatmapsetExtended> for NewBeatmapset {
+    fn from(beatmapset: BeatmapsetExtended) -> NewBeatmapset {
+        NewBeatmapset {
+            id: i64::from(beatmapset.mapset_id),
+            artist: beatmapset.artist,
+            bpm: f64::from(beatmapset.bpm),
+            list_cover: beatmapset.covers.list_2x,
+            cover: beatmapset.covers.cover_2x,
+            creator: beatmapset.creator_name.into_string(),
+            play_count: i64::from(beatmapset.playcount),
+            source: beatmapset.source,
+            status: crate::utils::osu::misc_format::format_rank_status(beatmapset.status),
+            title: beatmapset.title,
+            user_id: i64::from(beatmapset.creator_id),
+        }
     }
 }
 
 pub async fn create(
     db: &mut AsyncPgConnection,
-    beatmapset: rosu_v2::prelude::Beatmapset,
+    beatmapset: BeatmapsetExtended,
 ) -> Result<(), Error> {
-    let item = to_insert_beatmapset(beatmapset);
+    let item = NewBeatmapset::from(beatmapset);
 
     insert_into(beatmapsets::table)
         .values(&item)
@@ -71,12 +74,10 @@ pub async fn read(
 pub async fn update(
     db: &mut AsyncPgConnection,
     param_id: i64,
-    beatmapset: rosu_v2::prelude::Beatmapset,
+    beatmapset: BeatmapsetExtended,
 ) -> QueryResult<usize> {
-    let item = to_insert_beatmapset(beatmapset);
-
     diesel::update(beatmapsets::table.find(param_id))
-        .set(item)
+        .set(NewBeatmapset::from(beatmapset))
         .execute(db)
         .await
 }

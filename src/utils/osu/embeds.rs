@@ -10,7 +10,7 @@ use poise::serenity_prelude::{
     Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
 };
 use poise::{serenity_prelude, CreateReply, ReplyHandle};
-use rosu_v2::prelude::{Score, User};
+use rosu_v2::prelude::{Score, UserExtended};
 use std::time::Duration;
 
 pub fn create_embed(
@@ -42,7 +42,7 @@ pub async fn send_score_embed(
     ctx: Context<'_>,
     discord_user: &serenity_prelude::User,
     score: (&Score, &Beatmap, &Beatmapset, &CalculateResults),
-    user: User,
+    user: UserExtended,
     scoreboard_rank: Option<&usize>,
 ) -> Result<(), Error> {
     let color: Colour;
@@ -93,7 +93,7 @@ pub async fn send_scores_embed(
     ctx: Context<'_>,
     discord_user: &serenity_prelude::User,
     best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
-    user: &User,
+    user: &UserExtended,
     paginate: bool,
     thumbnail: &str,
 ) -> Result<(), Error> {
@@ -146,7 +146,7 @@ async fn handle_top_score_interactions(
     reply: ReplyHandle<'_>,
     best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     color: Colour,
-    user: &User,
+    user: &UserExtended,
 ) -> Result<(), Error> {
     let mut offset: usize = 0;
     let mut page = 1;
@@ -246,7 +246,7 @@ async fn remove_top_score_paginators(
     page: &usize,
     max_pages: &usize,
     color: Colour,
-    user: &User,
+    user: &UserExtended,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(best_scores, None, Some(offset))?;
 
@@ -275,7 +275,7 @@ async fn change_top_scores_page(
     page: &usize,
     max_pages: &usize,
     color: Colour,
-    user: &User,
+    user: &UserExtended,
 ) -> Result<(), Error> {
     let formatted_scores = format_score_list(best_scores, None, Some(offset))?;
 

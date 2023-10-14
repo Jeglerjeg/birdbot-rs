@@ -10,10 +10,10 @@ use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel::upsert::excluded;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
-impl TryFrom<&rosu_v2::prelude::Beatmap> for NewBeatmap {
+impl TryFrom<&rosu_v2::prelude::BeatmapExtended> for NewBeatmap {
     type Error = Error;
 
-    fn try_from(beatmap: &rosu_v2::prelude::Beatmap) -> Result<Self, Self::Error> {
+    fn try_from(beatmap: &rosu_v2::prelude::BeatmapExtended) -> Result<Self, Self::Error> {
         Ok(NewBeatmap {
             id: i64::from(beatmap.map_id),
             ar: f64::from(beatmap.ar),
@@ -48,7 +48,7 @@ pub async fn count_entries(db: &mut AsyncPgConnection) -> Result<i64, Error> {
 
 pub async fn create(
     db: &mut AsyncPgConnection,
-    beatmaps: Vec<&rosu_v2::prelude::Beatmap>,
+    beatmaps: Vec<&rosu_v2::prelude::BeatmapExtended>,
 ) -> Result<(), Error> {
     let mut items = Vec::new();
 
@@ -103,7 +103,7 @@ pub async fn get_single(
 pub async fn update(
     db: &mut AsyncPgConnection,
     param_id: i64,
-    beatmap: &rosu_v2::prelude::Beatmap,
+    beatmap: &rosu_v2::prelude::BeatmapExtended,
 ) -> Result<(), Error> {
     let item = NewBeatmap::try_from(beatmap)?;
 

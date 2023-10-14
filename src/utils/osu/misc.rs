@@ -12,7 +12,7 @@ use crate::Error;
 use diesel_async::AsyncPgConnection;
 use poise::serenity_prelude::{Context, Presence, UserId};
 use rosu_v2::model::GameMode;
-use rosu_v2::prelude::{Score, User};
+use rosu_v2::prelude::{Score, UserExtended};
 
 pub enum DiffTypes {
     Pp,
@@ -204,7 +204,7 @@ pub async fn get_user(
     user: Option<String>,
     connection: &mut AsyncPgConnection,
     mode: Option<GameModeChoices>,
-) -> Result<Option<User>, Error> {
+) -> Result<Option<UserExtended>, Error> {
     if let Some(user) = user {
         if let Some(mode) = mode {
             let gamemode: GameMode = mode.into();

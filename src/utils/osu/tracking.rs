@@ -3,7 +3,6 @@ use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
 use crate::models::osu_notifications::NewOsuNotification;
 use crate::models::osu_users::{NewOsuUser, OsuUser};
-use crate::utils::db::osu_users::rosu_user_to_db;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
 use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate::calculate;
@@ -111,11 +110,9 @@ impl OsuTracker {
                 else {
                     return Ok(());
                 };
-                let new = osu_users::create(
-                    connection,
-                    &rosu_user_to_db(osu_profile, Some(profile.ticks))?,
-                )
-                .await?;
+                let mut db_profile = NewOsuUser::try_from(osu_profile)?;
+                db_profile.add_ticks(profile.ticks);
+                let new = osu_users::create(connection, &db_profile).await?;
 
                 if let Err(why) = self
                     .notify_pp(&profile, &new, connection, linked_profile)
@@ -161,7 +158,7 @@ impl OsuTracker {
                 return Ok(());
             };
 
-            osu_users::create(connection, &rosu_user_to_db(osu_profile, None)?).await?;
+            osu_users::create(connection, &NewOsuUser::try_from(osu_profile)?).await?;
         }
 
         Ok(())

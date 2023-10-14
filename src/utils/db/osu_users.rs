@@ -4,29 +4,31 @@ use chrono::Utc;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
+use rosu_v2::prelude::UserExtended;
 
-pub fn rosu_user_to_db(
-    user: rosu_v2::prelude::User,
-    ticks: Option<i32>,
-) -> Result<NewOsuUser, Error> {
-    let statistic = user
-        .statistics
-        .ok_or("Failed to get user statistic in rosu_user_to_db function")?;
-    Ok(NewOsuUser {
-        id: i64::from(user.user_id),
-        username: user.username.to_string(),
-        avatar_url: user.avatar_url,
-        country_code: user.country_code.into_string(),
-        mode: user.mode.to_string(),
-        pp: f64::from(statistic.pp),
-        accuracy: f64::from(statistic.accuracy),
-        country_rank: i32::try_from(statistic.country_rank.unwrap_or(0))?,
-        global_rank: i32::try_from(statistic.global_rank.unwrap_or(0))?,
-        max_combo: i32::try_from(statistic.max_combo)?,
-        ranked_score: i64::try_from(statistic.ranked_score)?,
-        ticks: ticks.unwrap_or(0),
-        time_cached: Utc::now(),
-    })
+impl TryFrom<UserExtended> for NewOsuUser {
+    type Error = Error;
+
+    fn try_from(user: UserExtended) -> Result<Self, Self::Error> {
+        let statistic = user
+            .statistics
+            .ok_or("Failed to get user statistic in rosu_user_to_db function")?;
+        Ok(NewOsuUser {
+            id: i64::from(user.user_id),
+            username: user.username.to_string(),
+            avatar_url: user.avatar_url,
+            country_code: user.country_code.into_string(),
+            mode: user.mode.to_string(),
+            pp: f64::from(statistic.pp),
+            accuracy: f64::from(statistic.accuracy),
+            country_rank: i32::try_from(statistic.country_rank.unwrap_or(0))?,
+            global_rank: i32::try_from(statistic.global_rank.unwrap_or(0))?,
+            max_combo: i32::try_from(statistic.max_combo)?,
+            ticks: 0,
+            ranked_score: i64::try_from(statistic.ranked_score)?,
+            time_cached: Utc::now(),
+        })
+    }
 }
 
 pub async fn create(db: &mut AsyncPgConnection, item: &NewOsuUser) -> Result<OsuUser, Error> {
