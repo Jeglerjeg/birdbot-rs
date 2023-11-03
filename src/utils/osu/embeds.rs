@@ -9,7 +9,7 @@ use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
 };
-use poise::{serenity_prelude, CreateReply, ReplyHandle};
+use poise::{CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, UserExtended};
 use std::time::Duration;
 
@@ -40,13 +40,10 @@ pub fn create_embed(
 
 pub async fn send_score_embed(
     ctx: Context<'_>,
-    discord_user: &serenity_prelude::User,
     score: (&Score, &Beatmap, &Beatmapset, &CalculateResults),
     user: UserExtended,
     scoreboard_rank: Option<&usize>,
 ) -> Result<(), Error> {
-    let color: Colour;
-
     let footer = format_footer(score.0, score.1, score.3)?;
 
     let formatted_score = crate::utils::osu::score_format::format_new_score(
@@ -57,15 +54,9 @@ pub async fn send_score_embed(
         scoreboard_rank,
     )?;
 
-    if let Some(guild_ref) = ctx.guild() {
-        let guild = guild_ref.clone();
-        if let Some(member) = ctx.cache().member(guild.id, discord_user.id) {
-            color = member.colour(ctx).unwrap_or(BLUE);
-        } else {
-            color = BLUE;
-        }
-    } else {
-        color = BLUE;
+    let color = match ctx.author_member().await {
+        None => BLUE,
+        Some(member) => member.colour(ctx).unwrap_or(BLUE),
     };
 
     let embed = create_embed(
@@ -91,21 +82,14 @@ pub async fn send_score_embed(
 
 pub async fn send_scores_embed(
     ctx: Context<'_>,
-    discord_user: &serenity_prelude::User,
     best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     user: &UserExtended,
     paginate: bool,
     thumbnail: &str,
 ) -> Result<(), Error> {
-    let color: Colour;
-    if let Some(guild) = ctx.guild() {
-        if let Some(member) = ctx.cache().member(guild.id, discord_user.id) {
-            color = member.colour(ctx).unwrap_or(BLUE);
-        } else {
-            color = BLUE;
-        }
-    } else {
-        color = BLUE;
+    let color = match ctx.author_member().await {
+        None => BLUE,
+        Some(member) => member.colour(ctx).unwrap_or(BLUE),
     };
 
     let formatted_scores = format_score_list(best_scores, None, None)?;

@@ -38,20 +38,20 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "928d777635c61dbbcd8ed291c772708ead7e43e6"
+rev = "b1d6bf643e877b5d689207d275a3b75363b0784b"
 
 [dependencies.symphonia]
 version = "0.5"
 features = ["aac", "mpa", "isomp4", "alac"]
 
 [dependencies.songbird]
-git = "https://github.com/serenity-rs/songbird"
-rev = "87bd3abaf336d623ce596c8007ae006ad51a810e"
+git = "https://github.com/Jeglerjeg/songbird"
+rev = "43b2da1b06cf67eaa1b09f02cff936734638274f"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
-branch = "next"
+rev = "a0c102f9acfd8d7184650815e06e0301954cb9e7"
 default-features = false
 features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 

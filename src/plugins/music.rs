@@ -146,12 +146,10 @@ async fn send_track_embed(
     action: &str,
     play_time: Option<Duration>,
 ) -> Result<(), Error> {
-    let color = ctx
-        .author_member()
-        .await
-        .ok_or("Failed to get author member in send_track_embed")?
-        .colour(ctx)
-        .unwrap_or(BLUE);
+    let color = match ctx.author_member().await {
+        None => BLUE,
+        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+    };
 
     let thumbnail_url = match &metadata.thumbnail {
         Some(thumbnail) => thumbnail,
