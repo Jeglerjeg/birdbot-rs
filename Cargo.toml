@@ -33,25 +33,25 @@ par-stream ={ version = "0.10", features = ["runtime-tokio"]}
 tikv-jemallocator = "0.5"
 
 [dependencies.tokio]
-version = "1.33"
+version = "1.34"
 features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "b1d6bf643e877b5d689207d275a3b75363b0784b"
+rev = "557c4cf39eaf22c7e929e5a0a208651395783aa5"
 
 [dependencies.symphonia]
 version = "0.5"
 features = ["aac", "mpa", "isomp4", "alac"]
 
 [dependencies.songbird]
-git = "https://github.com/Jeglerjeg/songbird"
-rev = "43b2da1b06cf67eaa1b09f02cff936734638274f"
+git = "https://github.com/serenity-rs/songbird"
+rev = "3ac17b62a66d22089d822962a53970bd4731ac09"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
-rev = "a0c102f9acfd8d7184650815e06e0301954cb9e7"
+branch = "next"
 default-features = false
 features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 
