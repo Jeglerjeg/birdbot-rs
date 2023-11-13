@@ -468,14 +468,7 @@ pub async fn scores(
             )
             .await?;
 
-            send_scores_embed(
-                ctx,
-                &beatmap_scores,
-                &osu_user,
-                beatmap_scores.len() > 5,
-                &beatmap.1.list_cover,
-            )
-            .await?;
+            send_scores_embed(ctx, beatmap_scores, &osu_user, &beatmap.1.list_cover).await?;
         }
         Err(why) => {
             ctx.say(format!("Failed to get beatmap scores. {why}"))
@@ -663,14 +656,7 @@ pub async fn recent_list(
                 best_scores = sort_scores(best_scores, &sort_type);
             }
 
-            send_scores_embed(
-                ctx,
-                &best_scores,
-                &osu_user,
-                best_scores.len() > 5,
-                &osu_user.avatar_url,
-            )
-            .await?;
+            send_scores_embed(ctx, best_scores, &osu_user, &osu_user.avatar_url).await?;
         }
         Err(why) => {
             ctx.say(format!("Failed to get best scores. {why}")).await?;
@@ -746,14 +732,7 @@ pub async fn pins(
                 pinned_scores = sort_scores(pinned_scores, &sort_type);
             }
 
-            send_scores_embed(
-                ctx,
-                &pinned_scores,
-                &osu_user,
-                pinned_scores.len() > 5,
-                &osu_user.avatar_url,
-            )
-            .await?;
+            send_scores_embed(ctx, pinned_scores, &osu_user, &osu_user.avatar_url).await?;
         }
         Err(why) => {
             ctx.say(format!("Failed to get pinned scores. {why}"))
@@ -809,14 +788,7 @@ pub async fn firsts(
                 first_scores = sort_scores(first_scores, &sort_type);
             }
 
-            send_scores_embed(
-                ctx,
-                &first_scores,
-                &osu_user,
-                first_scores.len() > 5,
-                &osu_user.avatar_url,
-            )
-            .await?;
+            send_scores_embed(ctx, first_scores, &osu_user, &osu_user.avatar_url).await?;
         }
         Err(why) => {
             ctx.say(format!("Failed to get first scores. {why}"))
@@ -871,14 +843,7 @@ pub async fn top(
                 best_scores = sort_scores(best_scores, &sort_type);
             }
 
-            send_scores_embed(
-                ctx,
-                &best_scores,
-                &osu_user,
-                best_scores.len() > 5,
-                &osu_user.avatar_url,
-            )
-            .await?;
+            send_scores_embed(ctx, best_scores, &osu_user, &osu_user.avatar_url).await?;
         }
         Err(why) => {
             ctx.say(format!("Failed to get best scores. {why}")).await?;

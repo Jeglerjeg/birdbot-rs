@@ -82,9 +82,8 @@ pub async fn send_score_embed(
 
 pub async fn send_scores_embed(
     ctx: Context<'_>,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
+    best_scores: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>,
     user: &UserExtended,
-    paginate: bool,
     thumbnail: &str,
 ) -> Result<(), Error> {
     let color = match ctx.author_member().await {
@@ -92,7 +91,7 @@ pub async fn send_scores_embed(
         Some(member) => member.colour(ctx).unwrap_or(BLUE),
     };
 
-    let formatted_scores = format_score_list(best_scores, None, None)?;
+    let formatted_scores = format_score_list(&best_scores, None, None)?;
 
     let embed = create_embed(
         color,
@@ -100,11 +99,11 @@ pub async fn send_scores_embed(
         &formatted_scores,
         &format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5)),
         &user.avatar_url,
-        user.username.as_str(),
+        &user.username,
         &format_user_link(i64::from(user.user_id)),
     );
 
-    if paginate {
+    if best_scores.len() > 5 {
         let components = vec![CreateActionRow::Buttons(vec![
             CreateButton::new("last_page").label("<"),
             CreateButton::new("next_page").label(">"),
@@ -115,7 +114,9 @@ pub async fn send_scores_embed(
 
         let reply = ctx.send(builder).await?;
 
-        handle_top_score_interactions(ctx, reply, best_scores, color, user).await?;
+        TopScorePaginator::new(ctx, reply, best_scores, color, user.clone())
+            .handle_interactions()
+            .await?;
     } else {
         let builder = CreateReply::new().embed(embed);
 
@@ -125,157 +126,115 @@ pub async fn send_scores_embed(
     Ok(())
 }
 
-async fn handle_top_score_interactions(
-    ctx: Context<'_>,
-    reply: ReplyHandle<'_>,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
+struct TopScorePaginator<'a> {
+    ctx: Context<'a>,
+    reply: ReplyHandle<'a>,
+    best_scores: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>,
     color: Colour,
-    user: &UserExtended,
-) -> Result<(), Error> {
-    let mut offset: usize = 0;
-    let mut page = 1;
-    let max_pages = count_score_pages(best_scores.len(), 5);
+    user: UserExtended,
+    page: usize,
+    offset: usize,
+    max_pages: usize,
+}
 
-    while let Some(interaction) = reply
-        .message()
-        .await?
-        .await_component_interaction(ctx)
-        .timeout(Duration::from_secs(15))
-        .await
-    {
-        let choice = &interaction.data.custom_id;
-        match choice.as_str() {
-            "last_page" => {
-                interaction.defer(ctx).await?;
-                if page == 1 {
-                    page = max_pages;
-                    offset = (max_pages - 1) * 5;
-                } else {
-                    page -= 1;
-                    offset -= 5;
-                }
-                change_top_scores_page(
-                    ctx,
-                    &reply,
-                    best_scores,
-                    offset,
-                    &page,
-                    &max_pages,
-                    color,
-                    user,
-                )
-                .await?;
-            }
-            "next_page" => {
-                interaction.defer(ctx).await?;
-                if page == max_pages {
-                    page = 1;
-                    offset = 0;
-                } else {
-                    page += 1;
-                    offset += 5;
-                }
-                change_top_scores_page(
-                    ctx,
-                    &reply,
-                    best_scores,
-                    offset,
-                    &page,
-                    &max_pages,
-                    color,
-                    user,
-                )
-                .await?;
-            }
-            "reset" => {
-                interaction.defer(ctx).await?;
-                page = 1;
-                offset = 0;
-                change_top_scores_page(
-                    ctx,
-                    &reply,
-                    best_scores,
-                    offset,
-                    &page,
-                    &max_pages,
-                    color,
-                    user,
-                )
-                .await?;
-            }
-            _ => {}
-        };
+impl TopScorePaginator<'_> {
+    fn new<'a>(
+        ctx: Context<'a>,
+        reply: ReplyHandle<'a>,
+        best_scores: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>,
+        color: Colour,
+        user: UserExtended,
+    ) -> TopScorePaginator<'a> {
+        let max_pages = count_score_pages(best_scores.len(), 5);
+        TopScorePaginator {
+            ctx,
+            reply,
+            best_scores,
+            color,
+            user,
+            page: 1,
+            offset: 0,
+            max_pages,
+        }
     }
 
-    remove_top_score_paginators(
-        ctx,
-        reply,
-        best_scores,
-        offset,
-        &page,
-        &max_pages,
-        color,
-        user,
-    )
-    .await?;
+    async fn handle_interactions(&mut self) -> Result<(), Error> {
+        while let Some(interaction) = self
+            .reply
+            .message()
+            .await?
+            .await_component_interaction(self.ctx)
+            .timeout(Duration::from_secs(15))
+            .await
+        {
+            let choice = &interaction.data.custom_id;
+            match choice.as_str() {
+                "last_page" => {
+                    interaction.defer(self.ctx).await?;
+                    if self.page == 1 {
+                        self.page = self.max_pages;
+                        self.offset = (self.max_pages - 1) * 5;
+                    } else {
+                        self.page -= 1;
+                        self.offset -= 5;
+                    }
+                    self.update_page().await?;
+                }
+                "next_page" => {
+                    interaction.defer(self.ctx).await?;
+                    if self.page == self.max_pages {
+                        self.page = 1;
+                        self.offset = 0;
+                    } else {
+                        self.page += 1;
+                        self.offset += 5;
+                    }
+                    self.update_page().await?;
+                }
+                "reset" => {
+                    interaction.defer(self.ctx).await?;
+                    self.page = 1;
+                    self.offset = 0;
+                    self.update_page().await?;
+                }
+                _ => {}
+            };
+        }
+        self.stop_paginator().await?;
+        Ok(())
+    }
 
-    Ok(())
-}
+    fn get_embed(&mut self) -> Result<CreateEmbed, Error> {
+        let formatted_scores = format_score_list(&self.best_scores, None, Some(self.offset))?;
 
-async fn remove_top_score_paginators(
-    ctx: Context<'_>,
-    reply: ReplyHandle<'_>,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
-    offset: usize,
-    page: &usize,
-    max_pages: &usize,
-    color: Colour,
-    user: &UserExtended,
-) -> Result<(), Error> {
-    let formatted_scores = format_score_list(best_scores, None, Some(offset))?;
+        Ok(create_embed(
+            self.color,
+            &self.user.avatar_url,
+            &formatted_scores,
+            &format!("Page {} of {}", self.page, self.max_pages),
+            &self.user.avatar_url,
+            &self.user.username,
+            &format_user_link(i64::from(self.user.user_id)),
+        ))
+    }
 
-    let embed = create_embed(
-        color,
-        &user.avatar_url,
-        &formatted_scores,
-        &format!("Page {page} of {max_pages}"),
-        &user.avatar_url,
-        user.username.as_str(),
-        &format_user_link(i64::from(user.user_id)),
-    );
+    async fn update_page(&mut self) -> Result<(), Error> {
+        let embed = self.get_embed()?;
 
-    let builder = CreateReply::default().embed(embed).components(vec![]);
+        let builder = CreateReply::default().embed(embed);
 
-    reply.edit(ctx, builder).await?;
+        self.reply.edit(self.ctx, builder).await?;
 
-    Ok(())
-}
+        Ok(())
+    }
 
-async fn change_top_scores_page(
-    ctx: Context<'_>,
-    reply: &ReplyHandle<'_>,
-    best_scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
-    offset: usize,
-    page: &usize,
-    max_pages: &usize,
-    color: Colour,
-    user: &UserExtended,
-) -> Result<(), Error> {
-    let formatted_scores = format_score_list(best_scores, None, Some(offset))?;
+    async fn stop_paginator(&mut self) -> Result<(), Error> {
+        let embed = self.get_embed()?;
 
-    let embed = create_embed(
-        color,
-        &user.avatar_url,
-        &formatted_scores,
-        &format!("Page {page} of {max_pages}"),
-        &user.avatar_url,
-        user.username.as_str(),
-        &format_user_link(i64::from(user.user_id)),
-    );
+        let builder = CreateReply::default().embed(embed).components(vec![]);
 
-    let builder = CreateReply::default().embed(embed);
+        self.reply.edit(self.ctx, builder).await?;
 
-    reply.edit(ctx, builder).await?;
-
-    Ok(())
+        Ok(())
+    }
 }

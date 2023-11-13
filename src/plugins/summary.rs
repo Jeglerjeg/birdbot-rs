@@ -259,7 +259,7 @@ pub async fn summary(
             tokio_stream::iter(filtered_messages).par_then_unordered(None, |value| async move {
                 value
                     .split_whitespace()
-                    .map(|s| s.to_owned())
+                    .map(std::borrow::ToOwned::to_owned)
                     .collect::<Vec<_>>()
             });
         while let Some(value) = stream.next().await {
