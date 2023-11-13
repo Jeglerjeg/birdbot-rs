@@ -150,9 +150,8 @@ pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
             .channel_ids
             .iter()
             .flatten()
-            .copied()
             .collect::<Vec<_>>();
-        if channels.contains(&i64::from(ctx.channel_id())) {
+        if channels.contains(&&i64::from(ctx.channel_id())) {
             summary_enabled_guild
                 .channel_ids
                 .retain(|element| element != &Some(i64::from(ctx.channel_id())));
@@ -254,17 +253,14 @@ pub async fn summary(
     if filtered_messages.is_empty() {
         ctx.say("No messages matching filters.").await?;
     } else {
-        let n_grams = n_grams.unwrap_or(1);
+        let n_grams = n_grams.unwrap_or(2);
         let mut chain = Chain::of_order(n_grams);
         let mut stream =
-            tokio_stream::iter(filtered_messages).par_map_unordered(None, move |value| {
-                move || {
-                    value
-                        .split_whitespace()
-                        .filter(|word| !word.is_empty())
-                        .map(std::borrow::ToOwned::to_owned)
-                        .collect::<Vec<_>>()
-                }
+            tokio_stream::iter(filtered_messages).par_then_unordered(None, |value| async move {
+                value
+                    .split_whitespace()
+                    .map(|s| s.to_owned())
+                    .collect::<Vec<_>>()
             });
         while let Some(value) = stream.next().await {
             chain.feed(value);
