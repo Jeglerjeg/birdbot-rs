@@ -4,22 +4,26 @@ use crate::utils::db::{summary_enabled_guilds, summary_messages};
 use crate::{Context, Data, Error};
 use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
-use lazy_static::lazy_static;
 use markov::Chain;
 use par_stream::ParStreamExt;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
+use std::sync::OnceLock;
 use tracing::log::error;
 
 pub struct SummaryEnabledGuilds {
     pub guilds: DashMap<i64, Vec<i64>>,
 }
 
-lazy_static! {
-    static ref SUMMARY_ENABLED_GUILDS: SummaryEnabledGuilds = SummaryEnabledGuilds {
-        guilds: DashMap::new(),
-    };
+impl SummaryEnabledGuilds {
+    fn new() -> SummaryEnabledGuilds {
+        SummaryEnabledGuilds {
+            guilds: DashMap::new(),
+        }
+    }
 }
+
+static SUMMARY_ENABLED_GUILDS: OnceLock<SummaryEnabledGuilds> = OnceLock::new();
 
 impl From<Message> for NewDbSummaryMessage {
     fn from(discord_message: Message) -> NewDbSummaryMessage {
@@ -68,9 +72,11 @@ pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
         return Ok(());
     }
 
-    match SUMMARY_ENABLED_GUILDS.guilds.get(&i64::from(guild_id)) {
+    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(|| SummaryEnabledGuilds::new());
+
+    match enabled_guilds.guilds.get(&i64::from(guild_id)) {
         None => {
-            SUMMARY_ENABLED_GUILDS.guilds.insert(i64::from(guild_id), {
+            enabled_guilds.guilds.insert(i64::from(guild_id), {
                 let connection = &mut data.db_pool.get().await?;
                 match summary_enabled_guilds::read(connection, i64::from(guild_id)).await {
                     Ok(guild) => guild
@@ -181,6 +187,8 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
     let mut connection = ctx.data().db_pool.get().await?;
     let enabled_guild = summary_enabled_guilds::read(&mut connection, i64::from(guild_id)).await;
 
+    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(|| SummaryEnabledGuilds::new());
+
     if let Ok(mut guild) = enabled_guild {
         guild.channel_ids.push(Some(i64::from(ctx.channel_id())));
         let new_guild = NewSummaryEnabledGuild {
@@ -189,7 +197,7 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
         };
         summary_enabled_guilds::update(&mut connection, guild.id, &new_guild).await?;
 
-        SUMMARY_ENABLED_GUILDS
+        enabled_guilds
             .guilds
             .entry(i64::from(guild_id))
             .or_default()
@@ -201,7 +209,7 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
         };
         let inserted_guild = summary_enabled_guilds::create(&mut connection, &new_guild).await?;
 
-        SUMMARY_ENABLED_GUILDS.guilds.insert(
+        enabled_guilds.guilds.insert(
             inserted_guild.guild_id,
             inserted_guild
                 .channel_ids
@@ -253,19 +261,7 @@ pub async fn summary(
     if filtered_messages.is_empty() {
         ctx.say("No messages matching filters.").await?;
     } else {
-        let n_grams = n_grams.unwrap_or(2);
-        let mut chain = Chain::of_order(n_grams);
-        let mut stream =
-            tokio_stream::iter(filtered_messages).par_then_unordered(None, |value| async move {
-                value
-                    .split_whitespace()
-                    .map(std::borrow::ToOwned::to_owned)
-                    .collect::<Vec<_>>()
-            });
-        while let Some(value) = stream.next().await {
-            chain.feed(value);
-        }
-        drop(stream);
+        let chain = create_chain(filtered_messages, n_grams.unwrap_or(2)).await;
         let generated_message = generate_message(chain);
         if let Some(message) = generated_message {
             ctx.say(message).await?;
@@ -275,4 +271,19 @@ pub async fn summary(
     }
 
     Ok(())
+}
+
+async fn create_chain(messages: Vec<String>, n_grams: usize) -> Chain<String> {
+    let mut chain = Chain::of_order(n_grams);
+    let mut stream = tokio_stream::iter(messages).par_then_unordered(None, |value| async move {
+        value
+            .split_whitespace()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>()
+    });
+    while let Some(value) = stream.next().await {
+        chain.feed(value);
+    }
+    drop(stream);
+    chain
 }

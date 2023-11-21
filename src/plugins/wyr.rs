@@ -3,7 +3,6 @@ use crate::{Context, Error};
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
-use lazy_static::lazy_static;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::ButtonStyle::{Danger, Success};
 use poise::serenity_prelude::{
@@ -12,17 +11,22 @@ use poise::serenity_prelude::{
 };
 use poise::{CreateReply, ReplyHandle};
 use rand::seq::SliceRandom;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 pub struct PreviousServerQuestions {
     pub recent_questions: DashMap<u64, Vec<i32>>,
 }
 
-lazy_static! {
-    static ref RECENTLY_ASKED_QUESTIONS: PreviousServerQuestions = PreviousServerQuestions {
-        recent_questions: DashMap::new(),
-    };
+impl PreviousServerQuestions {
+    fn new() -> PreviousServerQuestions {
+        PreviousServerQuestions {
+            recent_questions: DashMap::new(),
+        }
+    }
 }
+
+static RECENTLY_ASKED_QUESTIONS: OnceLock<PreviousServerQuestions> = OnceLock::new();
 
 fn format_results(question: &Question) -> String {
     format!(
@@ -249,6 +253,7 @@ pub async fn wyr(
         };
 
         let recent_vec = RECENTLY_ASKED_QUESTIONS
+            .get_or_init(|| PreviousServerQuestions::new())
             .recent_questions
             .entry(id)
             .or_default();

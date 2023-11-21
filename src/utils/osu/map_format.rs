@@ -6,21 +6,22 @@ use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::misc::gamemode_from_string;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_mode_abbreviation};
 use crate::Error;
-use lazy_static::lazy_static;
 use serenity::all::{Color, CreateEmbed};
 use serenity::builder::CreateEmbedAuthor;
 use std::collections::HashMap;
 use std::env;
+use std::sync::OnceLock;
 
-lazy_static! {
-    static ref MAX_DIFF_LENGTH: usize = env::var("MAX_DIFF_LENGTH")
-        .unwrap_or_else(|_| String::from("21"))
-        .parse::<usize>()
-        .expect("Failed to parse max queued songs.");
-}
+static MAX_DIFF_LENGTH: OnceLock<usize> = OnceLock::new();
 
 pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String, Error> {
     let mut diff_length = 0;
+    let max_diff_length = MAX_DIFF_LENGTH.get_or_init(|| {
+        env::var("MAX_DIFF_LENGTH")
+            .unwrap_or_else(|_| String::from("21"))
+            .parse::<usize>()
+            .expect("Failed to parse max queued songs.")
+    });
     let mut calculated_beatmaps = HashMap::new();
     for (beatmap, osu_file) in &beatmaps {
         if beatmap.version.len() > diff_length {
@@ -29,8 +30,8 @@ pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<
         let difficulty_values = calculate(None, beatmap, osu_file, None).await?;
         calculated_beatmaps.insert(beatmap.id, difficulty_values);
     }
-    if diff_length > *MAX_DIFF_LENGTH {
-        diff_length = *MAX_DIFF_LENGTH;
+    if &diff_length > max_diff_length {
+        diff_length = max_diff_length.to_owned();
     } else if diff_length < 10 {
         diff_length = 10;
     }
@@ -59,11 +60,11 @@ pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<
             .get(&beatmap.id)
             .ok_or("Couldn't get beatmap difficulty values in format_beatmapset")?;
 
-        let diff_name = if beatmap.version.len() < *MAX_DIFF_LENGTH {
+        let diff_name = if &beatmap.version.len() < max_diff_length {
             beatmap.version
         } else {
             let chars = beatmap.version.chars();
-            let substring: String = chars.into_iter().take(*MAX_DIFF_LENGTH - 3).collect();
+            let substring: String = chars.into_iter().take(max_diff_length - 3).collect();
             substring + "..."
         };
 

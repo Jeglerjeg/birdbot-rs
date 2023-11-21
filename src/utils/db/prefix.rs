@@ -4,23 +4,17 @@ use crate::{Error, PartialContext};
 use dashmap::DashMap;
 use diesel::prelude::QueryDsl;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
-use lazy_static::lazy_static;
 use poise::serenity_prelude::GuildId;
 use std::env;
+use std::sync::OnceLock;
 
-lazy_static! {
-    static ref DEFAULT_PREFIX: String = env::var("PREFIX").unwrap_or_else(|_| String::from(">"));
-}
+static DEFAULT_PREFIX: OnceLock<String> = OnceLock::new();
 
 pub struct GuildPrefix {
     pub guild_prefix: DashMap<GuildId, String>,
 }
 
-lazy_static! {
-    static ref GUILD_PREFIX: GuildPrefix = GuildPrefix {
-        guild_prefix: DashMap::new(),
-    };
-}
+static GUILD_PREFIX: OnceLock<GuildPrefix> = OnceLock::new();
 
 pub async fn add_guild_prefix(
     db: &mut AsyncPgConnection,
@@ -33,6 +27,9 @@ pub async fn add_guild_prefix(
     };
 
     GUILD_PREFIX
+        .get_or_init(|| GuildPrefix {
+            guild_prefix: DashMap::new(),
+        })
         .guild_prefix
         .insert(GuildId::from(u64::try_from(guild_id)?), guild_prefix);
 
@@ -49,11 +46,18 @@ pub async fn add_guild_prefix(
 
 pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>, Error> {
     let Some(guild_id) = ctx.guild_id else {
-        return Ok(Some(DEFAULT_PREFIX.clone()));
+        return Ok(Some(
+            DEFAULT_PREFIX
+                .get_or_init(|| env::var("PREFIX").unwrap_or_else(|_| String::from(">")))
+                .to_owned(),
+        ));
     };
 
     Ok(Some(
         GUILD_PREFIX
+            .get_or_init(|| GuildPrefix {
+                guild_prefix: DashMap::new(),
+            })
             .guild_prefix
             .entry(guild_id)
             .or_insert(
@@ -65,10 +69,12 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
                     .get(0)
                 {
                     Some(prefix) => prefix.guild_prefix.clone(),
-                    _ => DEFAULT_PREFIX.clone(),
+                    _ => DEFAULT_PREFIX
+                        .get_or_init(|| env::var("PREFIX").unwrap_or_else(|_| String::from(">")))
+                        .to_owned(),
                 },
             )
             .value()
-            .to_string(),
+            .to_owned(),
     ))
 }

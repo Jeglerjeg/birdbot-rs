@@ -1,6 +1,5 @@
 use crate::{Context, Error};
 use dashmap::DashMap;
-use lazy_static::lazy_static;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
 use poise::CreateReply;
@@ -12,7 +11,7 @@ use songbird::{
 };
 use std::collections::HashMap;
 use std::env;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tracing::{error, info};
 
@@ -36,34 +35,17 @@ pub struct QueuedTrack {
     pub metadata: AuxMetadata,
 }
 
-lazy_static! {
-    static ref PLAYING_GUILDS: PlayingGuilds = PlayingGuilds {
-        guilds: DashMap::new(),
-    };
-}
+static PLAYING_GUILDS: OnceLock<PlayingGuilds> = OnceLock::new();
 
-lazy_static! {
-    static ref MAX_SONGS_QUEUED: u16 = env::var("MAX_SONGS_QUEUED")
-        .unwrap_or_else(|_| String::from("6"))
-        .parse::<u16>()
-        .expect("Failed to parse max queued songs.");
-}
+static MAX_SONGS_QUEUED: OnceLock<u16> = OnceLock::new();
 
-lazy_static! {
-    static ref MAX_MUSIC_DURATION: Duration = Duration::from_secs(
-        env::var("MAX_MUSIC_DURATION")
-            .unwrap_or_else(|_| String::from("600"))
-            .parse::<u64>()
-            .expect("Failed to parse max music duration.")
-            * 60
-    );
-}
+static MAX_MUSIC_DURATION: OnceLock<Duration> = OnceLock::new();
 
 fn get_http_client(ctx: Context<'_>) -> reqwest::Client {
     ctx.data().http_client.clone()
 }
 
-fn format_duration(duration: Duration, play_time: Option<Duration>) -> String {
+fn format_duration(duration: &Duration, play_time: Option<Duration>) -> String {
     if duration.as_secs() >= 3600 {
         if let Some(play_time) = play_time {
             let played_hours_minutes_and_seconds = (
@@ -127,7 +109,7 @@ fn format_track(metadata: &AuxMetadata, play_time: Option<Duration>) -> String {
 
     let duration: String;
     if let Some(length) = metadata.duration {
-        duration = format!("Duration: {}", format_duration(length, play_time));
+        duration = format!("Duration: {}", format_duration(&length, play_time));
     } else {
         duration = String::new();
     }
@@ -225,8 +207,12 @@ pub async fn leave(
         manager.remove(guild_id).await?;
     };
 
-    if PLAYING_GUILDS.guilds.get(&guild_id).is_some() {
-        PLAYING_GUILDS.guilds.remove(&guild_id);
+    let playing_guilds = PLAYING_GUILDS.get_or_init(|| PlayingGuilds {
+        guilds: DashMap::new(),
+    });
+
+    if playing_guilds.guilds.get(&guild_id).is_some() {
+        playing_guilds.guilds.remove(&guild_id);
     };
 
     Ok(())
@@ -277,7 +263,13 @@ impl VoiceEventHandler for TrackEndNotifier {
                         error!("Failed to leave voice channel: {}", why);
                     };
                 } else {
-                    let mut playing_guild = PLAYING_GUILDS.guilds.get_mut(&self.guild_id).unwrap();
+                    let mut playing_guild = PLAYING_GUILDS
+                        .get_or_init(|| PlayingGuilds {
+                            guilds: DashMap::new(),
+                        })
+                        .guilds
+                        .get_mut(&self.guild_id)
+                        .unwrap();
 
                     for track in *track_list {
                         playing_guild
@@ -313,15 +305,20 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
 
     if let Ok(handle_lock) = manager.join(guild_id, connect_to).await {
         let mut handle = handle_lock.lock().await;
-        PLAYING_GUILDS.guilds.insert(
-            guild_id,
-            Guild {
-                queued_tracks: Queue {
-                    queue: HashMap::new(),
+        PLAYING_GUILDS
+            .get_or_init(|| PlayingGuilds {
+                guilds: DashMap::new(),
+            })
+            .guilds
+            .insert(
+                guild_id,
+                Guild {
+                    queued_tracks: Queue {
+                        queue: HashMap::new(),
+                    },
+                    volume: 0.6,
                 },
-                volume: 0.6,
-            },
-        );
+            );
 
         let leave_context = ctx.serenity_context().clone();
         handle.add_global_event(
@@ -387,6 +384,9 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         .ok_or("Failed to get guild ID in queue function")?;
 
     let mut playing_guild = PLAYING_GUILDS
+        .get_or_init(|| PlayingGuilds {
+            guilds: DashMap::new(),
+        })
         .guilds
         .get_mut(guild_id)
         .ok_or("Failed to get playing guild in queue function")?;
@@ -398,11 +398,17 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
                 requested += 1;
             }
         }
-        if requested >= *MAX_SONGS_QUEUED {
+        let max_queued = MAX_SONGS_QUEUED.get_or_init(|| {
+            env::var("MAX_SONGS_QUEUED")
+                .unwrap_or_else(|_| String::from("6"))
+                .parse::<u16>()
+                .expect("Failed to parse max queued songs.")
+        });
+        if &requested >= max_queued {
             drop(handler_lock);
             ctx.say(format!(
                 "You have queued more than the maximum of {} songs.",
-                *MAX_SONGS_QUEUED
+                max_queued
             ))
             .await?;
             return Ok(());
@@ -410,12 +416,21 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
     }
 
     if let Some(duration) = metadata.duration {
-        if duration > *MAX_MUSIC_DURATION {
+        let max_duration = MAX_MUSIC_DURATION.get_or_init(|| {
+            Duration::from_secs(
+                env::var("MAX_MUSIC_DURATION")
+                    .unwrap_or_else(|_| String::from("600"))
+                    .parse::<u64>()
+                    .expect("Failed to parse max music duration.")
+                    * 60,
+            )
+        });
+        if &duration > max_duration {
             let empty = handler_lock.queue().is_empty();
             drop(handler_lock);
             ctx.say(format!(
                 "Song is longer than the max allowed duration of {}",
-                format_duration(*MAX_MUSIC_DURATION, None)
+                format_duration(max_duration, None)
             ))
             .await?;
             if empty {
@@ -444,6 +459,8 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         .queued_tracks
         .queue
         .insert(track.uuid().as_u128(), queued_track);
+
+    drop(playing_guild);
 
     send_track_embed(ctx, &metadata, "Queued:", None).await?;
 
@@ -531,6 +548,9 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             .current()
             .ok_or("Failed to get current track in skip function")?;
         let mut playing_guild = PLAYING_GUILDS
+            .get_or_init(|| PlayingGuilds {
+                guilds: DashMap::new(),
+            })
             .guilds
             .get_mut(&guild_id)
             .ok_or("Failed to get playing guilds in skip function")?;
@@ -621,6 +641,9 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
                 .dequeue(queue.len() - 1)
                 .ok_or("Failed to deque track in undo function")?;
             let playing_guild = PLAYING_GUILDS
+                .get_or_init(|| PlayingGuilds {
+                    guilds: DashMap::new(),
+                })
                 .guilds
                 .get(&guild_id)
                 .ok_or("Failed to get playing guild in undo function")?;
@@ -686,6 +709,9 @@ pub async fn volume(
 
         let adjusted_volume = f32::from(volume) / 100.0;
         let mut playing_guild = PLAYING_GUILDS
+            .get_or_init(|| PlayingGuilds {
+                guilds: DashMap::new(),
+            })
             .guilds
             .get_mut(&guild_id)
             .ok_or("Failed to get playing guild in volume function.")?;
@@ -816,6 +842,9 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
             drop(handler);
 
             let playing_guilds = PLAYING_GUILDS
+                .get_or_init(|| PlayingGuilds {
+                    guilds: DashMap::new(),
+                })
                 .guilds
                 .get(&guild_id)
                 .ok_or("Failed to get playing guild in now_playing function.")?;

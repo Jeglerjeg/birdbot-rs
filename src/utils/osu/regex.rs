@@ -1,24 +1,14 @@
 use crate::utils::osu::misc::gamemode_from_string;
 use crate::Error;
-use lazy_static::lazy_static;
 use regex::Regex;
 use rosu_v2::prelude::GameMode;
+use std::sync::OnceLock;
 
-lazy_static! {
-    static ref BEATMAP_URL_PATTERN_V1: Regex =
-        Regex::new(r"https?://(osu|old)\.ppy\.sh/(?P<type>[bs])/(?P<id>\d+)(?:\?m=(?P<mode>\d))?")
-            .unwrap();
-}
+static BEATMAP_URL_PATTERN_V1: OnceLock<Regex> = OnceLock::new();
 
-lazy_static! {
-    static ref BEATMAPSET_URL_PATTERN_V2 : Regex = Regex::new(r"https?://osu\.ppy\.sh/beatmapsets/(?P<beatmapset_id>\d+)/?(?:#(?P<mode>\w+)/(?P<beatmap_id>\d+))?").unwrap();
-}
+static BEATMAPSET_URL_PATTERN_V2: OnceLock<Regex> = OnceLock::new();
 
-lazy_static! {
-    static ref BEATMAP_URL_PATTERN_V2: Regex =
-        Regex::new(r"https?://osu\.ppy\.sh/beatmaps/(?P<beatmap_id>\d+)(?:\?mode=(?P<mode>\w+))?")
-            .unwrap();
-}
+static BEATMAP_URL_PATTERN_V2: OnceLock<Regex> = OnceLock::new();
 
 pub struct BeatmapInfo {
     pub beatmapset_id: Option<i64>,
@@ -27,8 +17,19 @@ pub struct BeatmapInfo {
 }
 
 pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
-    if BEATMAP_URL_PATTERN_V2.is_match(url) {
-        let info = BEATMAP_URL_PATTERN_V2
+    let beatmap_v1_pattern = BEATMAP_URL_PATTERN_V1.get_or_init(|| {
+        Regex::new(r"https?://(osu|old)\.ppy\.sh/(?P<type>[bs])/(?P<id>\d+)(?:\?m=(?P<mode>\d))?")
+            .unwrap()
+    });
+
+    let beatmapset_v2_pattern = BEATMAPSET_URL_PATTERN_V2.get_or_init(|| Regex::new(r"https?://osu\.ppy\.sh/beatmapsets/(?P<beatmapset_id>\d+)/?(?:#(?P<mode>\w+)/(?P<beatmap_id>\d+))?").unwrap());
+
+    let beatmap_v2_pattern = BEATMAP_URL_PATTERN_V2.get_or_init(|| {
+        Regex::new(r"https?://osu\.ppy\.sh/beatmaps/(?P<beatmap_id>\d+)(?:\?mode=(?P<mode>\w+))?")
+            .unwrap()
+    });
+    if beatmap_v2_pattern.is_match(url) {
+        let info = beatmap_v2_pattern
             .captures(url)
             .ok_or("Failed to get BEATMAP_URL_PATTERN_V2 captures in get_beatmap_info function")?;
         Ok(BeatmapInfo {
@@ -49,8 +50,8 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
                     .as_str(),
             ),
         })
-    } else if BEATMAPSET_URL_PATTERN_V2.is_match(url) {
-        let info = BEATMAPSET_URL_PATTERN_V2.captures(url).ok_or(
+    } else if beatmapset_v2_pattern.is_match(url) {
+        let info = beatmapset_v2_pattern.captures(url).ok_or(
             "Failed to get BEATMAPSET_URL_PATTERN_V2 captures in get_beatmap_info function",
         )?;
         if let Some(mode) = info.name("mode") {
@@ -87,8 +88,8 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
                 mode: None,
             })
         }
-    } else if BEATMAP_URL_PATTERN_V1.is_match(url) {
-        let info = BEATMAP_URL_PATTERN_V1
+    } else if beatmap_v1_pattern.is_match(url) {
+        let info = beatmap_v1_pattern
             .captures(url)
             .ok_or("Failed to get BEATMAP_URL_PATTERN_V1 captures in get_beatmap_info function")?;
 

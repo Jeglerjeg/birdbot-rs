@@ -19,43 +19,25 @@ use chrono::Utc;
 use dashmap::DashMap;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
-use lazy_static::lazy_static;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{ChannelId, Context, CreateMessage};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, Score};
 use rosu_v2::Osu;
 use std::env;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
 use tracing::error;
 
-lazy_static! {
-    static ref PP_THRESHOLD: f64 = env::var("PP_THRESHOLD")
-        .unwrap_or_else(|_| String::from("0.1"))
-        .parse::<f64>()
-        .expect("Failed to parse tracking update interval.");
-}
+static UPDATE_INTERVAL: OnceLock<u64> = OnceLock::new();
 
-lazy_static! {
-    static ref UPDATE_INTERVAL: u64 = env::var("UPDATE_INTERVAL")
-        .unwrap_or_else(|_| String::from("30"))
-        .parse::<u64>()
-        .expect("Failed to parse tracking update interval.");
-}
+static PP_THRESHOLD: OnceLock<f64> = OnceLock::new();
 
-lazy_static! {
-    static ref NOT_PLAYING_SKIP: i32 = env::var("NOT_PLAYING_SKIP")
-        .unwrap_or_else(|_| String::from("10"))
-        .parse::<i32>()
-        .expect("Failed to parse tracking not playing skip.");
-}
+static NOT_PLAYING_SKIP: OnceLock<i32> = OnceLock::new();
 
-lazy_static! {
-    static ref SCORE_NOTIFICATIONS: DashMap<i64, Vec<u64>> = DashMap::new();
-}
+static SCORE_NOTIFICATIONS: OnceLock<DashMap<i64, Vec<u64>>> = OnceLock::new();
 
 pub struct OsuTracker {
     pub ctx: Context,
@@ -66,7 +48,17 @@ pub struct OsuTracker {
 impl OsuTracker {
     pub async fn tracking_loop(&mut self) -> Result<(), Error> {
         loop {
-            sleep(Duration::from_secs(*UPDATE_INTERVAL)).await;
+            sleep(Duration::from_secs(
+                UPDATE_INTERVAL
+                    .get_or_init(|| {
+                        env::var("UPDATE_INTERVAL")
+                            .unwrap_or_else(|_| String::from("30"))
+                            .parse::<u64>()
+                            .expect("Failed to parse tracking update interval.")
+                    })
+                    .to_owned(),
+            ))
+            .await;
             let connection = &mut self.pool.get().await?;
             let profiles = match linked_osu_profiles::get_all(connection).await {
                 Ok(profiles) => profiles,
@@ -97,7 +89,18 @@ impl OsuTracker {
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id).await {
             profile.ticks += 1;
             if is_playing(&self.ctx, user.id, linked_profile.home_guild)?
-                || (f64::from(profile.ticks) % f64::from(*NOT_PLAYING_SKIP)) == 0.0
+                || (f64::from(profile.ticks)
+                    % f64::from(
+                        NOT_PLAYING_SKIP
+                            .get_or_init(|| {
+                                env::var("NOT_PLAYING_SKIP")
+                                    .unwrap_or_else(|_| String::from("10"))
+                                    .parse::<i32>()
+                                    .expect("Failed to parse tracking not playing skip.")
+                            })
+                            .to_owned(),
+                    ))
+                    == 0.0
             {
                 let Ok(osu_profile) = self
                     .osu_client
@@ -171,7 +174,14 @@ impl OsuTracker {
         connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
-        if get_stat_diff(old, new, &DiffTypes::Pp) < *PP_THRESHOLD {
+        if &get_stat_diff(old, new, &DiffTypes::Pp)
+            < PP_THRESHOLD.get_or_init(|| {
+                env::var("PP_THRESHOLD")
+                    .unwrap_or_else(|_| String::from("0.1"))
+                    .parse::<f64>()
+                    .expect("Failed to parse tracking update interval.")
+            })
+        {
             return Ok(());
         }
         let new_scores = self
@@ -199,6 +209,7 @@ impl OsuTracker {
         connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
         let mut recent_scores = SCORE_NOTIFICATIONS
+            .get_or_init(|| DashMap::new())
             .entry(linked_profile.osu_id)
             .or_default();
 
@@ -285,13 +296,15 @@ impl OsuTracker {
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to parse gamemode in notify_single_score function")?;
 
-        if let Some(mut recent_scores) = SCORE_NOTIFICATIONS.get_mut(&linked_profile.osu_id) {
+        let score_notifications = SCORE_NOTIFICATIONS.get_or_init(|| DashMap::new());
+
+        if let Some(mut recent_scores) = score_notifications.get_mut(&linked_profile.osu_id) {
             if recent_scores.value().contains(&score_id) {
                 return Ok(());
             }
             recent_scores.push(score_id);
         } else {
-            SCORE_NOTIFICATIONS.insert(linked_profile.osu_id, vec![score_id]);
+            score_notifications.insert(linked_profile.osu_id, vec![score_id]);
         };
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
@@ -516,6 +529,7 @@ impl OsuTracker {
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
         let mut recent_scores = SCORE_NOTIFICATIONS
+            .get_or_init(|| DashMap::new())
             .entry(linked_profile.osu_id)
             .or_default();
 
