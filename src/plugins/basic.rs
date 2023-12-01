@@ -78,9 +78,9 @@ async fn help_single_command<U, E>(
 fn format_args<U, E>(arguments: &[poise::CommandParameter<U, E>]) -> String {
     return arguments.iter().fold(String::new(), |acc, arg| {
         acc + &*if arg.required {
-            format!("{} ", arg.name.as_ref().unwrap_or(&String::new()))
+            format!("{} ", arg.name)
         } else {
-            format!("<{}> ", arg.name.as_ref().unwrap_or(&String::new()))
+            format!("<{}> ", arg.name)
         }
     });
 }

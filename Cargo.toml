@@ -14,7 +14,7 @@ tracing-appender = "0.2"
 chrono = { version = "0.4", features = ["rkyv"] }
 diesel_migrations = "2.1"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "ba8576a770496b755064ae0c75d6ead6f98b7590"}
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "310c22d806962559a1dab073c6c6d336abea9c36"}
 num-format = "0.4"
 reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli"]}
 time = "0.3"
@@ -37,20 +37,18 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "557c4cf39eaf22c7e929e5a0a208651395783aa5"
+rev = "bd969b96810db67f03c8b2c9f0d705106046772c"
 
 [dependencies.symphonia]
 version = "0.5"
 features = ["aac", "mpa", "isomp4", "alac"]
 
 [dependencies.songbird]
-git = "https://github.com/serenity-rs/songbird"
-rev = "3ac17b62a66d22089d822962a53970bd4731ac09"
+version = "0.4"
 features = ["builtin-queue", "simd-json"]
 
 [dependencies.serenity]
-git = "https://github.com/serenity-rs/serenity"
-branch = "next"
+version= "0.12.0"
 default-features = false
 features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
 

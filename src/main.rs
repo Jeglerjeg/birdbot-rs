@@ -37,18 +37,16 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
 async fn event_listener(
+    ctx: &poise::serenity_prelude::Context,
     event: &FullEvent,
     _framework: poise::FrameworkContext<'_, Data, Error>,
     user_data: &Data,
 ) -> Result<(), Error> {
     match event {
-        FullEvent::Ready {
-            ctx: _ctx,
-            data_about_bot,
-        } => {
+        FullEvent::Ready { data_about_bot } => {
             info!("{} is connected!", data_about_bot.user.name);
         }
-        FullEvent::CacheReady { ctx, guilds } => {
+        FullEvent::CacheReady { guilds } => {
             info!("Cache ready: {} guilds cached.", guilds.len());
             let mut osu_tracker = OsuTracker {
                 ctx: ctx.clone(),
@@ -69,7 +67,7 @@ async fn event_listener(
                 Err(e) => error!("{e}"),
             }
         }
-        FullEvent::VoiceStateUpdate { ctx, old, .. } => {
+        FullEvent::VoiceStateUpdate { old, .. } => {
             let Some(voice) = old else { return Ok(()) };
             match plugins::music::check_for_empty_channel(ctx, voice.guild_id).await {
                 Ok(()) => {}
@@ -141,7 +139,7 @@ async fn main() {
 
         migration_connection.run_pending_migrations(MIGRATIONS)?;
 
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        Ok::<(), Error>(())
     })
     .await;
 
@@ -177,8 +175,8 @@ async fn main() {
             plugins::summary::summary_enable(),
             plugins::summary::summary_disable(),
         ],
-        event_handler: |event, framework, user_data| {
-            Box::pin(event_listener(event, framework, user_data))
+        event_handler: |ctx, event, framework, user_data| {
+            Box::pin(event_listener(ctx, event, framework, user_data))
         },
         on_error: |error| Box::pin(on_error(error)),
         // Set a function to be called prior to each command execution. This

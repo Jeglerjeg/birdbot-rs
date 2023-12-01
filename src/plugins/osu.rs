@@ -299,7 +299,7 @@ pub async fn mapinfo(
 
     let embed = format_map_status(beatmapset, color).await?;
 
-    let builder = CreateReply::new().embed(embed);
+    let builder = CreateReply::default().embed(embed);
 
     ctx.send(builder).await?;
 

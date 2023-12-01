@@ -110,7 +110,7 @@ pub async fn send_scores_embed(
             CreateButton::new("reset").label("⭯"),
         ])];
 
-        let builder = CreateReply::new().embed(embed).components(components);
+        let builder = CreateReply::default().embed(embed).components(components);
 
         let reply = ctx.send(builder).await?;
 
@@ -118,7 +118,7 @@ pub async fn send_scores_embed(
             .handle_interactions()
             .await?;
     } else {
-        let builder = CreateReply::new().embed(embed);
+        let builder = CreateReply::default().embed(embed);
 
         ctx.send(builder).await?;
     }
