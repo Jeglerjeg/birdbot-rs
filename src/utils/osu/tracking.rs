@@ -209,7 +209,7 @@ impl OsuTracker {
         connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
         let mut recent_scores = SCORE_NOTIFICATIONS
-            .get_or_init(|| DashMap::new())
+            .get_or_init(DashMap::new)
             .entry(linked_profile.osu_id)
             .or_default();
 
@@ -296,7 +296,7 @@ impl OsuTracker {
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to parse gamemode in notify_single_score function")?;
 
-        let score_notifications = SCORE_NOTIFICATIONS.get_or_init(|| DashMap::new());
+        let score_notifications = SCORE_NOTIFICATIONS.get_or_init(DashMap::new);
 
         if let Some(mut recent_scores) = score_notifications.get_mut(&linked_profile.osu_id) {
             if recent_scores.value().contains(&score_id) {
@@ -529,7 +529,7 @@ impl OsuTracker {
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
         let mut recent_scores = SCORE_NOTIFICATIONS
-            .get_or_init(|| DashMap::new())
+            .get_or_init(DashMap::new)
             .entry(linked_profile.osu_id)
             .or_default();
 

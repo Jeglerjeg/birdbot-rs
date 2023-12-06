@@ -407,8 +407,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         if &requested >= max_queued {
             drop(handler_lock);
             ctx.say(format!(
-                "You have queued more than the maximum of {} songs.",
-                max_queued
+                "You have queued more than the maximum of {max_queued} songs."
             ))
             .await?;
             return Ok(());

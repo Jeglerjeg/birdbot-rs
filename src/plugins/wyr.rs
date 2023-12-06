@@ -253,7 +253,7 @@ pub async fn wyr(
         };
 
         let recent_vec = RECENTLY_ASKED_QUESTIONS
-            .get_or_init(|| PreviousServerQuestions::new())
+            .get_or_init(PreviousServerQuestions::new)
             .recent_questions
             .entry(id)
             .or_default();

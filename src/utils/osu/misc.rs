@@ -1,5 +1,6 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
+use crate::models::osu_files::OsuFile;
 use crate::models::osu_users::OsuUser;
 use crate::plugins::osu::{GameModeChoices, SortChoices};
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
@@ -10,6 +11,8 @@ use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 use crate::Error;
 use diesel_async::AsyncPgConnection;
+use par_stream::ParStreamExt;
+use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{Context, Presence, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, UserExtended};
@@ -172,26 +175,32 @@ pub async fn set_up_score_list(
     connection: &mut AsyncPgConnection,
     scores: Vec<Score>,
 ) -> Result<Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>, Error> {
-    let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> = Vec::new();
+    let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> =
+        Vec::with_capacity(100);
     let typing = ctx.channel_id().start_typing(&ctx.serenity_context().http);
-    for (pos, score) in scores.iter().enumerate() {
+    let mut process_list: Vec<(Score, (Beatmap, Beatmapset, OsuFile))> = Vec::with_capacity(100);
+    for score in scores {
         let beatmap = get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
-
-        let calculated_results = calculate::calculate(
-            Some(score),
-            &beatmap.0,
-            &beatmap.2,
-            calculate_potential_acc(score),
+        process_list.push((score, beatmap));
+    }
+    let mut stream = tokio_stream::iter(process_list).par_then(None, move |score| async move {
+        let calculated = calculate::calculate(
+            Some(&score.0),
+            &score.1 .0,
+            &score.1 .2,
+            calculate_potential_acc(&score.0),
         )
         .await?;
 
-        score_list.push((
-            score.clone(),
-            pos + 1,
-            beatmap.0,
-            beatmap.1,
-            calculated_results,
-        ));
+        Ok::<(Score, (Beatmap, Beatmapset, OsuFile), CalculateResults), Error>((
+            score.0, score.1, calculated,
+        ))
+    });
+    let mut pos = 0;
+    while let Some(value) = stream.next().await {
+        pos += 1;
+        let value = value?;
+        score_list.push((value.0, pos, value.1 .0, value.1 .1, value.2));
     }
     typing.stop();
 

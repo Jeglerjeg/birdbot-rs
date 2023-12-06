@@ -72,7 +72,7 @@ pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
         return Ok(());
     }
 
-    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(|| SummaryEnabledGuilds::new());
+    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(SummaryEnabledGuilds::new);
 
     match enabled_guilds.guilds.get(&i64::from(guild_id)) {
         None => {
@@ -187,7 +187,7 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
     let mut connection = ctx.data().db_pool.get().await?;
     let enabled_guild = summary_enabled_guilds::read(&mut connection, i64::from(guild_id)).await;
 
-    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(|| SummaryEnabledGuilds::new());
+    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(SummaryEnabledGuilds::new);
 
     if let Ok(mut guild) = enabled_guild {
         guild.channel_ids.push(Some(i64::from(ctx.channel_id())));
