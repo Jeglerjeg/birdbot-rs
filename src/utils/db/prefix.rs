@@ -63,12 +63,10 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
             .or_insert(
                 match prefix::table
                     .find(i64::try_from(guild_id.get())?)
-                    .limit(1)
-                    .load::<Prefix>(&mut ctx.data.db_pool.get().await?)
-                    .await?
-                    .get(0)
+                    .first::<Prefix>(&mut ctx.data.db_pool.get().await?)
+                    .await
                 {
-                    Some(prefix) => prefix.guild_prefix.clone(),
+                    Ok(prefix) => prefix.guild_prefix.clone(),
                     _ => DEFAULT_PREFIX
                         .get_or_init(|| env::var("PREFIX").unwrap_or_else(|_| String::from(">")))
                         .to_owned(),

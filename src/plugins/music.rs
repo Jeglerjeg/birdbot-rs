@@ -263,19 +263,26 @@ impl VoiceEventHandler for TrackEndNotifier {
                         error!("Failed to leave voice channel: {}", why);
                     };
                 } else {
-                    let mut playing_guild = PLAYING_GUILDS
+                    let mut playing_guild = match PLAYING_GUILDS
                         .get_or_init(|| PlayingGuilds {
                             guilds: DashMap::new(),
                         })
                         .guilds
                         .get_mut(&self.guild_id)
-                        .unwrap();
+                    {
+                        None => {
+                            drop(handler);
+                            error!("Failed to get playing guild in voice handler");
+                            return None;
+                        }
+                        Some(playing_guild) => playing_guild,
+                    };
 
                     for track in *track_list {
                         playing_guild
                             .queued_tracks
                             .queue
-                            .remove(&(track).1.uuid().as_u128());
+                            .remove(&track.1.uuid().as_u128());
                     }
                 }
             }
@@ -379,17 +386,33 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
 
     let mut handler_lock = handler.lock().await;
 
-    let guild_id = &ctx
-        .guild_id()
-        .ok_or("Failed to get guild ID in queue function")?;
+    let guild_id = match ctx.guild_id() {
+        None => {
+            drop(handler_lock);
+            error!("Failed to get guild ID in queue function");
+            ctx.say("Something went wrong, please try again later.")
+                .await?;
+            return Ok(());
+        }
+        Some(guild_id) => guild_id,
+    };
 
-    let mut playing_guild = PLAYING_GUILDS
+    let mut playing_guild = match PLAYING_GUILDS
         .get_or_init(|| PlayingGuilds {
             guilds: DashMap::new(),
         })
         .guilds
-        .get_mut(guild_id)
-        .ok_or("Failed to get playing guild in queue function")?;
+        .get_mut(&guild_id)
+    {
+        None => {
+            drop(handler_lock);
+            error!("Failed to get playing guild in queue function");
+            ctx.say("Something went wrong, please try again later.")
+                .await?;
+            return Ok(());
+        }
+        Some(playing_guild) => playing_guild,
+    };
 
     let mut requested: u16 = 0;
     if !handler_lock.queue().is_empty() {
@@ -405,6 +428,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
                 .expect("Failed to parse max queued songs.")
         });
         if &requested >= max_queued {
+            drop(playing_guild);
             drop(handler_lock);
             ctx.say(format!(
                 "You have queued more than the maximum of {max_queued} songs."
@@ -427,6 +451,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         if &duration > max_duration {
             let empty = handler_lock.queue().is_empty();
             drop(handler_lock);
+            drop(playing_guild);
             ctx.say(format!(
                 "Song is longer than the max allowed duration of {}",
                 format_duration(max_duration, None)
@@ -533,26 +558,50 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
 
-        let channel_id = handler
-            .current_channel()
-            .ok_or("Failed to get current playing channel in skip function")?;
+        let channel_id = match handler.current_channel() {
+            None => {
+                drop(handler);
+                error!("Failed to get current playing channel in skip function");
+                ctx.say("Something went wrong, please try again later.")
+                    .await?;
+                return Ok(());
+            }
+            Some(channel_id) => channel_id,
+        };
         if user_channel.get() != channel_id.0.get() {
+            drop(handler);
             ctx.say("Not connected to the voice channel").await?;
             return Ok(());
         }
 
         let queue = handler.queue();
 
-        let track = queue
-            .current()
-            .ok_or("Failed to get current track in skip function")?;
-        let mut playing_guild = PLAYING_GUILDS
+        let track = match queue.current() {
+            None => {
+                drop(handler);
+                error!("Failed to get current track in skip function");
+                ctx.say("Something went wrong, please try again later.")
+                    .await?;
+                return Ok(());
+            }
+            Some(track) => track,
+        };
+        let mut playing_guild = match PLAYING_GUILDS
             .get_or_init(|| PlayingGuilds {
                 guilds: DashMap::new(),
             })
             .guilds
             .get_mut(&guild_id)
-            .ok_or("Failed to get playing guilds in skip function")?;
+        {
+            None => {
+                drop(handler);
+                error!("Failed to get playing guilds in skip function");
+                ctx.say("Something went wrong, please try again later.")
+                    .await?;
+                return Ok(());
+            }
+            Some(playing_guild) => playing_guild,
+        };
 
         let Some(queued_track) = playing_guild
             .queued_tracks
@@ -560,6 +609,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             .get_mut(&track.uuid().as_u128())
         else {
             drop(handler);
+            drop(playing_guild);
             ctx.say("Something went wrong while skipping the track.")
                 .await?;
             return Ok(());
@@ -636,16 +686,32 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
             drop(handler);
             ctx.say("No items queued").await?;
         } else {
-            let removed_item = queue
-                .dequeue(queue.len() - 1)
-                .ok_or("Failed to deque track in undo function")?;
-            let playing_guild = PLAYING_GUILDS
+            let removed_item = match queue.dequeue(queue.len() - 1) {
+                None => {
+                    drop(handler);
+                    error!("Failed to deque track in undo function");
+                    ctx.say("Something went wrong, please try again later.")
+                        .await?;
+                    return Ok(());
+                }
+                Some(removed_item) => removed_item,
+            };
+            let playing_guild = match PLAYING_GUILDS
                 .get_or_init(|| PlayingGuilds {
                     guilds: DashMap::new(),
                 })
                 .guilds
                 .get(&guild_id)
-                .ok_or("Failed to get playing guild in undo function")?;
+            {
+                None => {
+                    drop(handler);
+                    error!("Failed to get playing guild in undo function");
+                    ctx.say("Something went wrong, please try again later.")
+                        .await?;
+                    return Ok(());
+                }
+                Some(playing_guild) => playing_guild,
+            };
 
             let Some(queued_track) = playing_guild
                 .queued_tracks
@@ -654,6 +720,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
             else {
                 drop(handler);
                 drop(playing_guild);
+                error!("Failed to skip track in undo function");
                 ctx.say("Something went wrong while skipping the track.")
                     .await?;
                 return Ok(());
@@ -707,40 +774,51 @@ pub async fn volume(
         }
 
         let adjusted_volume = f32::from(volume) / 100.0;
-        let mut playing_guild = PLAYING_GUILDS
+        let mut playing_guild = match PLAYING_GUILDS
             .get_or_init(|| PlayingGuilds {
                 guilds: DashMap::new(),
             })
             .guilds
             .get_mut(&guild_id)
-            .ok_or("Failed to get playing guild in volume function.")?;
+        {
+            None => {
+                drop(handler_lock);
+                error!("Failed to get playing guild in volume function");
+                ctx.say("Something went wrong while skipping the track.")
+                    .await?;
+                return Ok(());
+            }
+            Some(playing_guild) => playing_guild,
+        };
         playing_guild.volume = adjusted_volume;
 
         let queue = handler_lock.queue();
         if queue.is_empty() {
+            drop(handler_lock);
+            drop(playing_guild);
             ctx.say("No items queued").await?;
         } else {
             for track in &queue.current_queue() {
                 track.set_volume(adjusted_volume)?;
             }
+            drop(handler_lock);
+            drop(playing_guild);
             ctx.say(format!("Changed volume to {volume}%.")).await?;
         }
     } else {
         let queue = handler_lock.queue();
-        match queue.current() {
-            Some(track) => {
-                ctx.say(format!(
-                    "Current volume is {}%.",
-                    (track.get_info().await?.volume * 100.0) as u32
-                ))
-                .await?;
-            }
-            _ => {
-                ctx.say("No items queued").await?;
-            }
+        if let Some(track) = queue.current() {
+            drop(handler_lock);
+            ctx.say(format!(
+                "Current volume is {}%.",
+                (track.get_info().await?.volume * 100.0) as u32
+            ))
+            .await?;
+        } else {
+            drop(handler_lock);
+            ctx.say("No items queued").await?;
         }
     }
-    drop(handler_lock);
 
     Ok(())
 }
