@@ -5,6 +5,7 @@ use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::ButtonStyle::{Danger, Success};
+use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::{
     CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
     CreateInteractionResponseMessage, Mentionable, User,
@@ -104,15 +105,12 @@ async fn handle_interaction_responses(
         let choice = &interaction.data.custom_id;
         match choice.as_str() {
             "choice_1" => {
-                interaction.defer(ctx).await?;
                 replies.push(interaction.user.id.get());
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
 
                 let embed = CreateEmbed::new().description(format_question(&question, &responses));
 
-                let builder = CreateReply::default().embed(embed);
-
                 crate::utils::db::questions::update_question_answers(
                     connection,
                     question.id,
@@ -120,19 +118,20 @@ async fn handle_interaction_responses(
                     question.choice2_answers,
                 )
                 .await?;
-
-                reply.edit(ctx, builder).await?;
+                interaction
+                    .create_response(
+                        ctx,
+                        UpdateMessage(CreateInteractionResponseMessage::new().embed(embed)),
+                    )
+                    .await?;
             }
             "choice_2" => {
-                interaction.defer(ctx).await?;
                 replies.push(interaction.user.id.get());
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
 
                 let embed = CreateEmbed::new().description(format_question(&question, &responses));
 
-                let builder = CreateReply::default().embed(embed);
-
                 crate::utils::db::questions::update_question_answers(
                     connection,
                     question.id,
@@ -140,8 +139,12 @@ async fn handle_interaction_responses(
                     question.choice2_answers,
                 )
                 .await?;
-
-                reply.edit(ctx, builder).await?;
+                interaction
+                    .create_response(
+                        ctx,
+                        UpdateMessage(CreateInteractionResponseMessage::new().embed(embed)),
+                    )
+                    .await?;
             }
             _ => {
                 interaction
@@ -191,11 +194,17 @@ async fn check_for_duplicates(
     choice_1: &str,
     choice_2: &str,
 ) -> bool {
-    if (crate::utils::db::questions::get_question(connection, choice_1, choice_2).await).is_ok() {
+    if crate::utils::db::questions::get_question(connection, choice_1, choice_2)
+        .await
+        .is_ok()
+    {
         return false;
     };
 
-    if (crate::utils::db::questions::get_question(connection, choice_2, choice_1).await).is_ok() {
+    if crate::utils::db::questions::get_question(connection, choice_2, choice_1)
+        .await
+        .is_ok()
+    {
         return false;
     };
 
