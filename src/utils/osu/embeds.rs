@@ -6,8 +6,10 @@ use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
+use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::{
     Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
+    CreateInteractionResponseMessage,
 };
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, UserExtended};
@@ -170,7 +172,6 @@ impl TopScorePaginator<'_> {
             let choice = &interaction.data.custom_id;
             match choice.as_str() {
                 "last_page" => {
-                    interaction.defer(self.ctx).await?;
                     if self.page == 1 {
                         self.page = self.max_pages;
                         self.offset = (self.max_pages - 1) * 5;
@@ -178,10 +179,11 @@ impl TopScorePaginator<'_> {
                         self.page -= 1;
                         self.offset -= 5;
                     }
-                    self.update_page().await?;
+                    interaction
+                        .create_response(self.ctx, UpdateMessage(self.get_updated_page()?))
+                        .await?;
                 }
                 "next_page" => {
-                    interaction.defer(self.ctx).await?;
                     if self.page == self.max_pages {
                         self.page = 1;
                         self.offset = 0;
@@ -189,13 +191,16 @@ impl TopScorePaginator<'_> {
                         self.page += 1;
                         self.offset += 5;
                     }
-                    self.update_page().await?;
+                    interaction
+                        .create_response(self.ctx, UpdateMessage(self.get_updated_page()?))
+                        .await?;
                 }
                 "reset" => {
-                    interaction.defer(self.ctx).await?;
                     self.page = 1;
                     self.offset = 0;
-                    self.update_page().await?;
+                    interaction
+                        .create_response(self.ctx, UpdateMessage(self.get_updated_page()?))
+                        .await?;
                 }
                 _ => {}
             };
@@ -218,14 +223,10 @@ impl TopScorePaginator<'_> {
         ))
     }
 
-    async fn update_page(&mut self) -> Result<(), Error> {
+    fn get_updated_page(&mut self) -> Result<CreateInteractionResponseMessage, Error> {
         let embed = self.get_embed()?;
 
-        let builder = CreateReply::default().embed(embed);
-
-        self.reply.edit(self.ctx, builder).await?;
-
-        Ok(())
+        Ok(CreateInteractionResponseMessage::new().embed(embed))
     }
 
     async fn stop_paginator(&mut self) -> Result<(), Error> {
