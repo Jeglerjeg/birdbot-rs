@@ -3,9 +3,10 @@ use crate::models::summary_messages::NewDbSummaryMessage;
 use crate::utils::db::{summary_enabled_guilds, summary_messages};
 use crate::{Context, Data, Error};
 use dashmap::DashMap;
+
 use diesel_async::AsyncPgConnection;
 use markov::Chain;
-use par_stream::ParStreamExt;
+
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
 use std::sync::OnceLock;
@@ -116,7 +117,7 @@ pub async fn get_filtered_messages(
     phrase: Option<String>,
     users: Vec<UserId>,
     channel_ids: Vec<ChannelId>,
-) -> Result<Vec<String>, Error> {
+) -> Result<Vec<Vec<String>>, Error> {
     let messages = summary_messages::read(
         connection,
         include_bots,
@@ -261,7 +262,11 @@ pub async fn summary(
     if filtered_messages.is_empty() {
         ctx.say("No messages matching filters.").await?;
     } else {
-        let chain = create_chain(filtered_messages, n_grams.unwrap_or(2)).await;
+        let mut chain = Chain::of_order(n_grams.unwrap_or(2));
+
+        for sentence in filtered_messages {
+            chain.feed(sentence);
+        }
         let generated_message = generate_message(chain);
         if let Some(message) = generated_message {
             ctx.say(message).await?;
@@ -271,19 +276,4 @@ pub async fn summary(
     }
 
     Ok(())
-}
-
-async fn create_chain(messages: Vec<String>, n_grams: usize) -> Chain<String> {
-    let mut chain = Chain::of_order(n_grams);
-    let mut stream = tokio_stream::iter(messages).par_then_unordered(None, |value| async move {
-        value
-            .split_whitespace()
-            .map(std::borrow::ToOwned::to_owned)
-            .collect::<Vec<_>>()
-    });
-    while let Some(value) = stream.next().await {
-        chain.feed(value);
-    }
-    drop(stream);
-    chain
 }
