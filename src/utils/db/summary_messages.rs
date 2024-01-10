@@ -6,6 +6,7 @@ use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions};
+use markov::Chain;
 use par_stream::{ParParams, ParStreamExt};
 use tokio_stream::StreamExt;
 
@@ -21,13 +22,14 @@ pub async fn create(
     Ok(())
 }
 
-pub async fn read(
+pub async fn construct_chain(
     db: &mut AsyncPgConnection,
     include_bots: bool,
     phrase: Option<String>,
     author_ids: Vec<i64>,
     channel_ids: Vec<i64>,
-) -> Result<Vec<Vec<String>>, Error> {
+    n_grams: usize,
+) -> Result<Chain<String>, Error> {
     let mut query = summary_messages::table
         .filter(summary_messages::channel_id.eq_any(channel_ids))
         .into_boxed();
@@ -41,7 +43,7 @@ pub async fn read(
     if !author_ids.is_empty() {
         query = query.filter(summary_messages::author_id.eq_any(author_ids));
     }
-    let messages = query
+    let mut messages = query
         .select(summary_messages::content)
         .load_stream::<String>(db)
         .await?
@@ -57,10 +59,14 @@ pub async fn read(
                     .map(std::borrow::ToOwned::to_owned)
                     .collect::<Vec<_>>()
             },
-        )
-        .collect::<Vec<_>>()
-        .await;
-    Ok(messages)
+        );
+
+    let mut chain = Chain::of_order(n_grams);
+
+    while let Some(value) = messages.next().await {
+        chain.feed(value);
+    }
+    Ok(chain)
 }
 
 pub async fn count_entries(db: &mut AsyncPgConnection, channel_id: i64) -> Result<i64, Error> {

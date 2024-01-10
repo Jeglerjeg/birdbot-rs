@@ -7,6 +7,7 @@ use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
 use markov::Chain;
 
+use crate::utils::db::summary_messages::construct_chain;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
 use std::sync::OnceLock;
@@ -109,24 +110,6 @@ pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
     }
 
     Ok(())
-}
-
-pub async fn get_filtered_messages(
-    connection: &mut AsyncPgConnection,
-    include_bots: bool,
-    phrase: Option<String>,
-    users: Vec<UserId>,
-    channel_ids: Vec<ChannelId>,
-) -> Result<Vec<Vec<String>>, Error> {
-    let messages = summary_messages::read(
-        connection,
-        include_bots,
-        phrase,
-        users.into_iter().map(i64::from).collect(),
-        channel_ids.into_iter().map(i64::from).collect(),
-    )
-    .await?;
-    Ok(messages)
 }
 
 pub fn generate_message(chain: Chain<String>) -> Option<String> {
@@ -250,24 +233,19 @@ pub async fn summary(
     if channels.is_empty() {
         channels.push(ctx.channel_id());
     }
-    let filtered_messages = get_filtered_messages(
+    let chain = construct_chain(
         &mut connection,
         include_bots.unwrap_or(false),
         phrase,
-        users,
-        channels,
+        users.into_iter().map(i64::from).collect(),
+        channels.into_iter().map(i64::from).collect(),
+        n_grams.unwrap_or(2),
     )
     .await?;
 
-    if filtered_messages.is_empty() {
+    if chain.is_empty() {
         ctx.say("No messages matching filters.").await?;
     } else {
-        let mut chain = Chain::of_order(n_grams.unwrap_or(2));
-
-        for sentence in filtered_messages {
-            chain.feed(sentence);
-        }
-
         let generated_message = generate_message(chain);
         if let Some(message) = generated_message {
             ctx.say(message).await?;
