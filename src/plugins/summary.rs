@@ -267,6 +267,7 @@ pub async fn summary(
         for sentence in filtered_messages {
             chain.feed(sentence);
         }
+
         let generated_message = generate_message(chain);
         if let Some(message) = generated_message {
             ctx.say(message).await?;

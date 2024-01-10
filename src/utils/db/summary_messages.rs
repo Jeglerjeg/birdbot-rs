@@ -6,7 +6,7 @@ use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions};
-use par_stream::ParStreamExt;
+use par_stream::{ParParams, ParStreamExt};
 use tokio_stream::StreamExt;
 
 pub async fn create(
@@ -45,13 +45,19 @@ pub async fn read(
         .select(summary_messages::content)
         .load_stream::<String>(db)
         .await?
-        .par_then_unordered(None, |value| async move {
-            value
-                .expect("Couldn't get message value from summary db")
-                .split_whitespace()
-                .map(std::borrow::ToOwned::to_owned)
-                .collect::<Vec<_>>()
-        })
+        .par_then_unordered(
+            ParParams {
+                num_workers: num_cpus::get(),
+                buf_size: Some(512),
+            },
+            |value| async move {
+                value
+                    .expect("Couldn't get message value from summary db")
+                    .split_whitespace()
+                    .map(std::borrow::ToOwned::to_owned)
+                    .collect::<Vec<_>>()
+            },
+        )
         .collect::<Vec<_>>()
         .await;
     Ok(messages)
