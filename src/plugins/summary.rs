@@ -8,6 +8,7 @@ use diesel_async::AsyncPgConnection;
 use markov::Chain;
 
 use crate::utils::db::summary_messages::construct_chain;
+use itertools::Itertools;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
 use std::sync::OnceLock;
@@ -112,7 +113,7 @@ pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn generate_message(chain: Chain<String>) -> Option<String> {
+pub fn generate_message(chain: &Chain<String>) -> Option<String> {
     let mut generated_string = chain.generate().join(" ");
     let mut tries = 0;
     while generated_string.chars().count() > 2000 {
@@ -122,7 +123,6 @@ pub fn generate_message(chain: Chain<String>) -> Option<String> {
         tries += 1;
         generated_string = chain.generate().join(" ");
     }
-    drop(chain);
     Some(generated_string)
 }
 
@@ -223,10 +223,13 @@ pub async fn summary(
     phrase: Option<String>,
     include_bots: Option<bool>,
     users: Vec<UserId>,
+    mut channels: Vec<ChannelId>,
     #[min = 1]
     #[max = 10]
     n_grams: Option<usize>,
-    mut channels: Vec<ChannelId>,
+    #[min = 1]
+    #[max = 10]
+    number_of_summaries: Option<usize>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let mut connection = ctx.data().db_pool.get().await?;
@@ -246,12 +249,24 @@ pub async fn summary(
     if chain.is_empty() {
         ctx.say("No messages matching filters.").await?;
     } else {
-        let generated_message = generate_message(chain);
-        if let Some(message) = generated_message {
-            ctx.say(message).await?;
+        let number_of_summaries = number_of_summaries.unwrap_or(1);
+        let message = if number_of_summaries == 1 {
+            let generated_message = generate_message(&chain);
+            if let Some(message) = generated_message {
+                message
+            } else {
+                ctx.say("Unable to generate a response.").await?;
+                return Ok(());
+            }
         } else {
-            ctx.say("Unable to generate a response.").await?;
-        }
+            let mut summaries = Vec::with_capacity(number_of_summaries);
+            for _ in 1..=number_of_summaries {
+                let generated_message = generate_message(&chain);
+                summaries.push(generated_message);
+            }
+            summaries.iter().flatten().cloned().join("\n")
+        };
+        ctx.say(message).await?;
     }
 
     Ok(())
