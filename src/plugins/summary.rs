@@ -162,7 +162,7 @@ pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(prefix_command, owners_only, guild_only)]
+#[poise::command(prefix_command, owners_only, guild_only, hide_in_help)]
 pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let guild_id = ctx
