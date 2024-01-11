@@ -136,7 +136,6 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<boo
 struct RespektiveUser {
     rank: u32,
     user_id: u32,
-    username: String,
 }
 
 pub async fn get_score_rank(user_id: u32, mode: GameMode) -> Result<u32, Error> {
