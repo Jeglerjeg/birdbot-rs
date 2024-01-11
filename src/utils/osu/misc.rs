@@ -143,7 +143,7 @@ pub async fn get_score_rank(user_id: u32, mode: GameMode) -> Result<u32, Error> 
     let client = reqwest::Client::new();
     let response = client.get(url).send().await?.bytes().await?;
     let users: Vec<RespektiveUser> = serde_json::from_slice(&response)?;
-    Ok(users.get(0).ok_or("Failed to get respektive user")?.rank)
+    Ok(users.first().ok_or("Failed to get respektive user")?.rank)
 }
 
 pub fn sort_scores(

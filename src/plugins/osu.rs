@@ -67,12 +67,15 @@ pub async fn osu(
         return Ok(());
     };
 
-    let color = match ctx.author_member().await {
-        None => BLUE,
-        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+    let color = match ctx.guild() {
+        Some(guild) => match ctx.cache().member(guild.id, discord_user) {
+            Some(member) => member.colour(ctx).unwrap_or(BLUE),
+            _ => BLUE,
+        },
+        _ => BLUE,
     };
 
-    let author = CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face());
+    let author = CreateEmbedAuthor::new(&discord_user.name).icon_url(discord_user.face());
 
     let card = render_card(&osu_user, color).await?.encode_png()?;
 
