@@ -459,7 +459,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
 
     let sh_rectangle = Rectangle::new()
         .set("id", "sh_rectangle")
-        .set("x", 174)
+        .set("x", 171)
         .set("y", 194)
         .set("width", 32)
         .set("height", 16)

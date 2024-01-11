@@ -8,7 +8,7 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
-use diesel::{Connection, ConnectionResult};
+use diesel::Connection;
 use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
