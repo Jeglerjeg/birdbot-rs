@@ -8,7 +8,7 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
-use diesel::Connection;
+use diesel::{Connection, ConnectionResult};
 use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
@@ -132,7 +132,7 @@ async fn main() {
 
     let db_pool = utils::db::establish_connection::establish_connection();
 
-    let res = tokio::task::spawn_blocking(move || {
+    let res = tokio::task::block_in_place(move || {
         let mut migration_connection = AsyncConnectionWrapper::<AsyncPgConnection>::establish(
             &env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
         )?;
@@ -140,8 +140,7 @@ async fn main() {
         migration_connection.run_pending_migrations(MIGRATIONS)?;
 
         Ok::<(), Error>(())
-    })
-    .await;
+    });
 
     if let Err(why) = res {
         panic!("Couldn't run migrations: {why:?}");
