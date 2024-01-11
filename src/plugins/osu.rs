@@ -7,6 +7,7 @@ use crate::utils::db::{
 };
 use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
 use crate::utils::osu::calculate::calculate;
+use crate::utils::osu::card::render_card;
 use crate::utils::osu::misc::{
     calculate_potential_acc, find_beatmap_link, get_user, is_playing, set_up_score_list,
     sort_scores, wipe_profile_data,
@@ -15,7 +16,7 @@ use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::{Context, Error};
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{CreateEmbed, CreateEmbedAuthor, GuildChannel};
+use poise::serenity_prelude::{CreateAttachment, CreateEmbed, CreateEmbedAuthor, GuildChannel};
 use poise::CreateReply;
 use rosu_v2::model::GameMode;
 
@@ -47,54 +48,43 @@ use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
         "debug"
     )
 )]
-pub async fn osu(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn osu(
+    ctx: Context<'_>,
+    #[description = "Mode to see profile in."] mode: Option<GameModeChoices>,
+    #[description = "Discord user to see profile for."] discord_user: Option<
+        poise::serenity_prelude::User,
+    >,
+    #[rest]
+    #[description = "User to see profile for."]
+    user: Option<String>,
+) -> Result<(), Error> {
     ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
-    let profile =
-        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await;
-    match profile {
-        Ok(profile) => {
-            let color = match ctx.author_member().await {
-                None => BLUE,
-                Some(member) => member.colour(ctx).unwrap_or(BLUE),
-            };
 
-            let colour_formatted =
-                format!("%23{:02x}{:02x}{:02x}", color.r(), color.g(), color.b());
+    let discord_user = discord_user.as_ref().unwrap_or_else(|| ctx.author());
 
-            let darkheader = if (f32::from(color.r()) * 0.299
-                + f32::from(color.g()) * 0.587
-                + f32::from(color.b()) * 0.144)
-                > 186.0
-            {
-                "&darkheader"
-            } else {
-                ""
-            };
+    let Some(osu_user) = get_user(ctx, discord_user, user, connection, mode).await? else {
+        return Ok(());
+    };
 
-            let mode = match profile.mode.as_str() {
-                "osu" => 0,
-                "taiko" => 1,
-                "fruits" => 2,
-                "mania" => 3,
-                _ => 10,
-            };
+    let color = match ctx.author_member().await {
+        None => BLUE,
+        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+    };
 
-            let author = CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face());
+    let author = CreateEmbedAuthor::new(&ctx.author().name).icon_url(ctx.author().face());
 
-            let embed = CreateEmbed::new()
-                .image(format!("https://osusig.lolicon.app/sig.php?colour={}&uname={}&pp=0&countryrank=&xpbar=&mode={}&date={}{}",
-                               colour_formatted, profile.osu_id, mode, Utc::now().timestamp(), darkheader)).color(color).author(author);
+    let card = render_card(&osu_user, color).await?.encode_png()?;
 
-            let builder = CreateReply::default().embed(embed);
+    let embed = CreateEmbed::new()
+        .image("attachment://card.png")
+        .author(author);
 
-            ctx.send(builder).await?;
-        }
-        Err(_) => {
-            ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
-                .await?;
-        }
-    }
+    let file = CreateAttachment::bytes(card, "card.png");
+
+    let builder = CreateReply::default().embed(embed).attachment(file);
+
+    ctx.send(builder).await?;
 
     Ok(())
 }
@@ -488,12 +478,12 @@ pub async fn scores(
 )]
 pub async fn recent(
     ctx: Context<'_>,
-    #[description = "User to see profile for."] mode: Option<GameModeChoices>,
+    #[description = "Gamemode to look for scores."] mode: Option<GameModeChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
     #[rest]
-    #[description = "User to see profile for."]
+    #[description = "User to see score for."]
     user: Option<String>,
 ) -> Result<(), Error> {
     ctx.defer().await?;

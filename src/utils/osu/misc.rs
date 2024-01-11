@@ -6,7 +6,6 @@ use crate::plugins::osu::{GameModeChoices, SortChoices};
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate;
-use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 use crate::Error;
@@ -16,6 +15,7 @@ use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{Context, Presence, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, UserExtended};
+use serde::{Deserialize, Serialize};
 
 pub enum DiffTypes {
     Pp,
@@ -132,6 +132,21 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<boo
     Ok(false)
 }
 
+#[derive(Deserialize, Serialize)]
+struct RespektiveUser {
+    rank: u32,
+    user_id: u32,
+    username: String,
+}
+
+pub async fn get_score_rank(user_id: u32, mode: GameMode) -> Result<u32, Error> {
+    let url = format!("https://score.respektive.pw/u/{user_id}?m={}", mode as u8);
+    let client = reqwest::Client::new();
+    let response = client.get(url).send().await?.bytes().await?;
+    let users: Vec<RespektiveUser> = serde_json::from_slice(&response)?;
+    Ok(users.get(0).ok_or("Failed to get respektive user")?.rank)
+}
+
 pub fn sort_scores(
     mut scores: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>,
     sort_by: &SortChoices,
@@ -207,6 +222,28 @@ pub async fn set_up_score_list(
     Ok(score_list)
 }
 
+pub async fn get_user_by_username(
+    ctx: crate::Context<'_>,
+    user: &str,
+    mode: Option<GameModeChoices>,
+) -> Result<Option<UserExtended>, Error> {
+    if let Some(mode) = mode {
+        let gamemode: GameMode = mode.into();
+        if let Ok(mut user) = ctx.data().osu_client.user(user).mode(gamemode).await {
+            user.mode = gamemode;
+            Ok(Some(user))
+        } else {
+            ctx.say("Could not find user.").await?;
+            Ok(None)
+        }
+    } else if let Ok(user) = ctx.data().osu_client.user(user).await {
+        Ok(Some(user))
+    } else {
+        ctx.say("Could not find user.").await?;
+        Ok(None)
+    }
+}
+
 pub async fn get_user(
     ctx: crate::Context<'_>,
     discord_user: &poise::serenity_prelude::User,
@@ -215,21 +252,7 @@ pub async fn get_user(
     mode: Option<GameModeChoices>,
 ) -> Result<Option<UserExtended>, Error> {
     if let Some(user) = user {
-        if let Some(mode) = mode {
-            let gamemode: GameMode = mode.into();
-            if let Ok(mut user) = ctx.data().osu_client.user(user).mode(gamemode).await {
-                user.mode = gamemode;
-                Ok(Some(user))
-            } else {
-                ctx.say("Could not find user.").await?;
-                Ok(None)
-            }
-        } else if let Ok(user) = ctx.data().osu_client.user(user).await {
-            Ok(Some(user))
-        } else {
-            ctx.say("Could not find user.").await?;
-            Ok(None)
-        }
+        Ok(get_user_by_username(ctx, &user, mode).await?)
     } else {
         let linked_profile =
             linked_osu_profiles::read(connection, i64::try_from(discord_user.id.get())?).await;
@@ -256,9 +279,7 @@ pub async fn get_user(
                 Ok(None)
             }
         } else {
-            ctx.say(format_missing_user_string(ctx, discord_user).await?)
-                .await?;
-            Ok(None)
+            Ok(get_user_by_username(ctx, &discord_user.name, mode).await?)
         }
     }
 }

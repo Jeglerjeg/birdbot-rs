@@ -28,10 +28,16 @@ mobc = "0.8"
 markov = "1.1"
 diesel_full_text_search = "2.1"
 tokio-stream = "0.1"
-par-stream ={ version = "0.10", features = ["runtime-tokio"]}
+par-stream = { version = "0.10", features = ["runtime-tokio"]}
 tikv-jemallocator = "0.5"
 num_cpus = "1.16.0"
 itertools = "0.12"
+resvg = "0.37"
+svg = "0.14"
+base64 = "0.21"
+color_space = "0.5"
+image = "0.24"
+serde_json = "1.0"
 
 [dependencies.tokio]
 version = "1.35"
