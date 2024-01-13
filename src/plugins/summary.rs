@@ -176,7 +176,7 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
     if let Ok(mut guild) = enabled_guild {
         guild.channel_ids.push(Some(i64::from(ctx.channel_id())));
         let new_guild = NewSummaryEnabledGuild {
-            guild_id: guild.id,
+            guild_id: i64::from(guild_id),
             channel_ids: guild.channel_ids,
         };
         summary_enabled_guilds::update(&mut connection, guild.id, &new_guild).await?;
