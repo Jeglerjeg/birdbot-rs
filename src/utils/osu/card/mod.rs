@@ -4,20 +4,24 @@ pub mod header;
 use crate::Error;
 use color_space::{FromRgb, Hsv, Rgb};
 use resvg::tiny_skia::Pixmap;
-use resvg::usvg;
 use resvg::usvg::fontdb::Database;
-use resvg::usvg::{Size, Transform, Tree, TreeParsing, TreeTextToPath};
+use resvg::usvg::{PostProcessingSteps, Size, Transform, Tree, TreeParsing, TreePostProc};
+use resvg::{render, usvg};
 use rosu_v2::prelude::UserExtended;
 use serenity::all::Colour;
 use svg::Document;
 
 pub async fn render_card(osu_user: &UserExtended, color: Colour) -> Result<Pixmap, Error> {
     let mut svg = load_svg(osu_user, color).await?;
-    svg.convert_text(&load_fonts());
-    let mut renderable = resvg::Tree::from_usvg(&svg);
-    renderable.size = Size::from_wh(1500.0, 940.0).unwrap();
+    svg.postprocess(
+        PostProcessingSteps {
+            convert_text_into_paths: true,
+        },
+        &load_fonts(),
+    );
+    svg.size = Size::from_wh(1500.0, 940.0).unwrap();
     let mut pixmap = Pixmap::new(1500, 940).unwrap();
-    renderable.render(Transform::default(), &mut pixmap.as_mut());
+    render(&svg, Transform::default(), &mut pixmap.as_mut());
     Ok(pixmap)
 }
 
