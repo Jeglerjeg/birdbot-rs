@@ -8,7 +8,8 @@ use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::embeds::create_embed;
 use crate::utils::osu::misc::{
-    calculate_potential_acc, gamemode_from_string, get_stat_diff, is_playing, DiffTypes,
+    calculate_potential_acc, gamemode_from_string, get_osu_user, get_stat_diff, is_playing,
+    DiffTypes,
 };
 use crate::utils::osu::misc_format::{format_diff, format_footer, format_user_link};
 use crate::utils::osu::pp::CalculateResults;
@@ -20,7 +21,7 @@ use dashmap::DashMap;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{ChannelId, Context, CreateMessage};
+use poise::serenity_prelude::{ChannelId, Context, CreateMessage, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, Score};
 use rosu_v2::Osu;
@@ -81,7 +82,11 @@ impl OsuTracker {
         linked_profile: &LinkedOsuProfile,
         connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
-        let user = match self.ctx.cache.user(u64::try_from(linked_profile.id)?) {
+        let user = match get_osu_user(
+            &self.ctx,
+            UserId::from(u64::try_from(linked_profile.id)?),
+            u64::try_from(linked_profile.home_guild)?,
+        )? {
             Some(user) => user.clone(),
             _ => return Ok(()),
         };
@@ -269,7 +274,7 @@ impl OsuTracker {
             linked_profile,
             &thumbnail,
             &formatted_score,
-            "",
+            &String::new(),
             &author_text,
             new,
         )
@@ -368,10 +373,12 @@ impl OsuTracker {
                         .collect::<Vec<i64>>()
                     {
                         if let Ok(member) = guild_id
-                            .member(&self.ctx, u64::try_from(linked_profile.id)?)
+                            .member(&self.ctx, UserId::new(u64::try_from(linked_profile.id)?))
                             .await
                         {
                             let color = member.colour(&self.ctx).unwrap_or(BLUE);
+
+                            let user_link = format_user_link(new.id);
 
                             let embed = create_embed(
                                 color,
@@ -380,7 +387,7 @@ impl OsuTracker {
                                 footer,
                                 &new.avatar_url,
                                 author_text,
-                                &format_user_link(new.id),
+                                &user_link,
                             );
 
                             let builder = CreateMessage::new().embed(embed);
@@ -580,6 +587,8 @@ impl OsuTracker {
             score.score.ended_at.unix_timestamp()
         );
 
+        let user_link = format_user_link(new.id);
+
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
@@ -592,7 +601,7 @@ impl OsuTracker {
                         .collect::<Vec<i64>>()
                     {
                         if let Ok(member) = guild_id
-                            .member(&self.ctx, u64::try_from(linked_profile.id)?)
+                            .member(&self.ctx, UserId::new(u64::try_from(linked_profile.id)?))
                             .await
                         {
                             let color = member.colour(&self.ctx).unwrap_or(BLUE);
@@ -604,7 +613,7 @@ impl OsuTracker {
                                 &footer,
                                 &new.avatar_url,
                                 author_text,
-                                &format_user_link(new.id),
+                                &user_link,
                             );
 
                             let builder = CreateMessage::new().embed(embed);

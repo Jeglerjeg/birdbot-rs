@@ -15,8 +15,8 @@ use diesel_async::AsyncPgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use mobc::Pool;
 use poise::serenity_prelude::FullEvent;
+use poise::FrameworkContext;
 use rosu_v2::prelude::Osu;
-use songbird::SerenityInit;
 use std::env;
 use std::sync::Arc;
 use tracing::{error, info};
@@ -28,6 +28,7 @@ pub struct Data {
     osu_client: Arc<Osu>,
     db_pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>>,
     http_client: reqwest::Client,
+    songbird: Arc<songbird::Songbird>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -37,10 +38,8 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
 async fn event_listener(
-    ctx: &poise::serenity_prelude::Context,
+    ctx: FrameworkContext<'_, Data, Error>,
     event: &FullEvent,
-    _framework: poise::FrameworkContext<'_, Data, Error>,
-    user_data: &Data,
 ) -> Result<(), Error> {
     match event {
         FullEvent::Ready { data_about_bot } => {
@@ -49,9 +48,9 @@ async fn event_listener(
         FullEvent::CacheReady { guilds } => {
             info!("Cache ready: {} guilds cached.", guilds.len());
             let mut osu_tracker = OsuTracker {
-                ctx: ctx.clone(),
-                osu_client: user_data.osu_client.clone(),
-                pool: user_data.db_pool.clone(),
+                ctx: ctx.serenity_context.clone(),
+                osu_client: ctx.serenity_context.data::<Data>().osu_client.clone(),
+                pool: ctx.serenity_context.data::<Data>().db_pool.clone(),
                 shut_down: false,
             };
 
@@ -62,14 +61,18 @@ async fn event_listener(
             });
         }
         FullEvent::Message { new_message, .. } => {
-            match plugins::summary::add_message(new_message, user_data).await {
+            match plugins::summary::add_message(new_message, &ctx.serenity_context.data::<Data>())
+                .await
+            {
                 Ok(()) => {}
                 Err(e) => error!("{e}"),
             }
         }
         FullEvent::VoiceStateUpdate { old, .. } => {
             let Some(voice) = old else { return Ok(()) };
-            match plugins::music::check_for_empty_channel(ctx, voice.guild_id).await {
+            match plugins::music::check_for_empty_channel(ctx.serenity_context, voice.guild_id)
+                .await
+            {
                 Ok(()) => {}
                 Err(e) => error!("{e}"),
             }
@@ -85,9 +88,9 @@ async fn pre_command(ctx: Context<'_>) {
         "@{} ({}) -> {}",
         ctx.author().name,
         match ctx.guild() {
-            Some(guild) => guild.name.clone(),
+            Some(guild) => guild.name.to_string(),
             _ => {
-                "Direct Message".into()
+                "Direct Message".to_string()
             }
         },
         ctx.invocation_string()
@@ -174,9 +177,7 @@ async fn main() {
             plugins::summary::summary_enable(),
             plugins::summary::summary_disable(),
         ],
-        event_handler: |ctx, event, framework, user_data| {
-            Box::pin(event_listener(ctx, event, framework, user_data))
-        },
+        event_handler: |ctx, event| Box::pin(event_listener(ctx, event)),
         on_error: |error| Box::pin(on_error(error)),
         // Set a function to be called prior to each command execution. This
         // provides all context of the command that would also be passed to the actual command code
@@ -226,20 +227,20 @@ async fn main() {
         Err(why) => panic!("Failed to create client or make initial osu!api interaction: {why}"),
     };
 
-    let framework = poise::Framework::new(options, move |_ctx, _data_about_bot, _framework| {
-        Box::pin(async move {
-            Ok(Data {
-                time_started: Utc::now(),
-                osu_client,
-                db_pool,
-                http_client: reqwest::Client::new(),
-            })
-        })
-    });
+    let framework = poise::Framework::new(options);
 
-    let mut client = serenity::Client::builder(token, intents)
+    let manager = songbird::Songbird::serenity();
+
+    let mut client = serenity::Client::builder(&token, intents)
         .framework(framework)
-        .register_songbird()
+        .voice_manager::<songbird::Songbird>(manager.clone())
+        .data(Arc::new(Data {
+            time_started: Utc::now(),
+            osu_client,
+            db_pool,
+            http_client: reqwest::Client::new(),
+            songbird: manager,
+        }))
         .await
         .unwrap();
 

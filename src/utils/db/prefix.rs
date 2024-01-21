@@ -1,6 +1,6 @@
 use crate::models::prefix::{NewPrefix, Prefix};
 use crate::schema::prefix;
-use crate::{Error, PartialContext};
+use crate::{Data, Error, PartialContext};
 use dashmap::DashMap;
 use diesel::prelude::QueryDsl;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
@@ -63,7 +63,15 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
             .or_insert(
                 match prefix::table
                     .find(i64::try_from(guild_id.get())?)
-                    .first::<Prefix>(&mut ctx.data.db_pool.get().await?)
+                    .first::<Prefix>(
+                        &mut ctx
+                            .framework
+                            .serenity_context
+                            .data::<Data>()
+                            .db_pool
+                            .get()
+                            .await?,
+                    )
                     .await
                 {
                     Ok(prefix) => prefix.guild_prefix.clone(),

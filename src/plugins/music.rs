@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{Context, Data, Error};
 use dashmap::DashMap;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
@@ -158,7 +158,7 @@ pub async fn check_for_empty_channel(
         return Ok(());
     };
 
-    let manager = get_manager(ctx).await;
+    let manager = get_manager(ctx);
 
     let guild_handler = manager.get(guild_id);
 
@@ -172,7 +172,7 @@ pub async fn check_for_empty_channel(
         let channel_id = ChannelId::from(
             channel
                 .ok_or("Failed to parse channel ID in check_for_empty_channel")?
-                .0,
+                .get(),
         );
         let guild = ctx.http.get_guild(guild_id).await?;
         let guild_channels = guild.channels(&ctx).await?;
@@ -195,7 +195,7 @@ pub async fn leave(
         return Ok(());
     };
 
-    let manager = get_manager(ctx).await;
+    let manager = get_manager(ctx);
 
     if let Some(guild_handler) = manager.get(guild_id) {
         let lock = guild_handler.lock().await;
@@ -219,10 +219,8 @@ pub async fn leave(
 }
 
 #[inline]
-pub async fn get_manager(ctx: &poise::serenity_prelude::Context) -> Arc<Songbird> {
-    songbird::get(ctx)
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
+pub fn get_manager(ctx: &poise::serenity_prelude::Context) -> Arc<Songbird> {
+    ctx.data::<Data>().songbird.clone()
 }
 
 struct TrackErrorNotifier;
@@ -253,7 +251,7 @@ struct TrackEndNotifier {
 impl VoiceEventHandler for TrackEndNotifier {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         if let EventContext::Track(track_list) = ctx {
-            let manager = get_manager(&self.ctx).await;
+            let manager = get_manager(&self.ctx);
 
             if let Some(handler_lock) = manager.get(self.guild_id) {
                 let handler = handler_lock.lock().await;
@@ -308,7 +306,7 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
         return Ok(false);
     };
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     if let Ok(handle_lock) = manager.join(guild_id, connect_to).await {
         let mut handle = handle_lock.lock().await;
@@ -378,7 +376,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         }
     };
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     let Some(handler) = manager.get(guild_id) else {
         return Ok(());
@@ -512,7 +510,7 @@ pub async fn play(
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     if manager.get(guild_id).is_some() {
         queue(ctx, url_or_name, guild_id).await?;
@@ -553,7 +551,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -566,9 +564,9 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                     .await?;
                 return Ok(());
             }
-            Some(channel_id) => channel_id,
+            Some(channel_id) => ChannelId::from(channel_id.get()),
         };
-        if user_channel.get() != channel_id.0.get() {
+        if user_channel.get() != channel_id.get() {
             drop(handler);
             ctx.say("Not connected to the voice channel").await?;
             return Ok(());
@@ -631,7 +629,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 
             let guild_channels = guild.channels(ctx).await?;
 
-            let needed_to_skip = match guild_channels.get(&ChannelId::from(channel_id.0)) {
+            let needed_to_skip = match guild_channels.get(&channel_id) {
                 None => {
                     drop(handler);
                     drop(playing_guild);
@@ -676,7 +674,7 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -760,7 +758,7 @@ pub async fn volume(
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     let Some(handler) = manager.get(guild_id) else {
         ctx.say("Not in a voice channel.").await?;
@@ -832,7 +830,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -868,7 +866,7 @@ pub async fn resume(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;
@@ -910,7 +908,7 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
         .clone();
     let guild_id = guild.id;
 
-    let manager = get_manager(ctx.serenity_context()).await;
+    let manager = get_manager(ctx.serenity_context());
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let handler = handler_lock.lock().await;

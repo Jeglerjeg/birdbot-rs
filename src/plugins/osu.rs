@@ -9,14 +9,16 @@ use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::card::render_card;
 use crate::utils::osu::misc::{
-    calculate_potential_acc, find_beatmap_link, get_user, is_playing, set_up_score_list,
-    sort_scores, wipe_profile_data,
+    calculate_potential_acc, find_beatmap_link, get_osu_user, get_user, is_playing,
+    set_up_score_list, sort_scores, wipe_profile_data,
 };
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::{Context, Error};
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{CreateAttachment, CreateEmbed, CreateEmbedAuthor, GuildChannel};
+use poise::serenity_prelude::{
+    CreateAttachment, CreateEmbed, CreateEmbedAuthor, GuildChannel, UserId,
+};
 use poise::CreateReply;
 use rosu_v2::model::GameMode;
 
@@ -68,14 +70,14 @@ pub async fn osu(
     };
 
     let color = match ctx.guild() {
-        Some(guild) => match ctx.cache().member(guild.id, discord_user) {
+        Some(guild) => match ctx.cache().member(guild.id, discord_user.id) {
             Some(member) => member.colour(ctx).unwrap_or(BLUE),
             _ => BLUE,
         },
         _ => BLUE,
     };
 
-    let author = CreateEmbedAuthor::new(&discord_user.name).icon_url(discord_user.face());
+    let author = CreateEmbedAuthor::new(discord_user.name.clone()).icon_url(discord_user.face());
 
     let card = render_card(&osu_user, color).await?.encode_png()?;
 
@@ -977,7 +979,11 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
     for linked_profile in &linked_profiles {
         for osu_user in &tracked_profiles {
             if linked_profile.osu_id == osu_user.id {
-                let user = ctx.cache().user(u64::try_from(linked_profile.id)?);
+                let user = get_osu_user(
+                    ctx.serenity_context(),
+                    UserId::from(u64::try_from(linked_profile.id)?),
+                    u64::try_from(linked_profile.home_guild)?,
+                )?;
                 if let Some(user) = user {
                     if is_playing(ctx.serenity_context(), user.id, linked_profile.home_guild)? {
                         playing_users.push(format!("`{}`", user.name));

@@ -31,9 +31,9 @@ static SUMMARY_ENABLED_GUILDS: OnceLock<SummaryEnabledGuilds> = OnceLock::new();
 impl From<Message> for NewDbSummaryMessage {
     fn from(discord_message: Message) -> NewDbSummaryMessage {
         NewDbSummaryMessage {
-            content: discord_message.content,
+            content: discord_message.content.to_string(),
             discord_id: i64::from(discord_message.id),
-            is_bot: discord_message.author.bot,
+            is_bot: discord_message.author.bot(),
             author_id: i64::from(discord_message.author.id),
             channel_id: i64::from(discord_message.channel_id),
         }
@@ -126,7 +126,7 @@ pub fn generate_message(chain: &Chain<String>) -> Option<String> {
     Some(generated_string)
 }
 
-#[poise::command(prefix_command, owners_only, guild_only)]
+#[poise::command(prefix_command, owners_only, guild_only, hide_in_help)]
 pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     let guild_id = ctx

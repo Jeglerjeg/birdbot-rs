@@ -8,22 +8,22 @@ use crate::{Context, Error};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::{
-    Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
-    CreateInteractionResponseMessage,
+    Colour, ComponentInteraction, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor,
+    CreateEmbedFooter, CreateInteractionResponseMessage,
 };
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, UserExtended};
 use std::time::Duration;
 
-pub fn create_embed(
+pub fn create_embed<'a>(
     color: Colour,
-    thumbnail: &str,
-    description: &str,
-    footer: &str,
-    author_icon: &str,
-    author_name: &str,
-    author_url: &str,
-) -> CreateEmbed {
+    thumbnail: &'a str,
+    description: &'a str,
+    footer: &'a str,
+    author_icon: &'a str,
+    author_name: &'a str,
+    author_url: &'a str,
+) -> CreateEmbed<'a> {
     let embed = CreateEmbed::new();
 
     let created_footer = CreateEmbedFooter::new(footer);
@@ -61,18 +61,22 @@ pub async fn send_score_embed(
         Some(member) => member.colour(ctx).unwrap_or(BLUE),
     };
 
+    let user_link = format_user_link(i64::from(user.user_id));
+
+    let description = format!(
+        "{}<t:{}:R>",
+        formatted_score,
+        score.0.ended_at.unix_timestamp()
+    );
+
     let embed = create_embed(
         color,
         &score.2.list_cover,
-        &format!(
-            "{}<t:{}:R>",
-            formatted_score,
-            score.0.ended_at.unix_timestamp()
-        ),
+        &description,
         &footer,
         &user.avatar_url,
         &user.username,
-        &format_user_link(i64::from(user.user_id)),
+        &user_link,
     );
 
     let builder = CreateReply::default().embed(embed);
@@ -95,14 +99,18 @@ pub async fn send_scores_embed(
 
     let formatted_scores = format_score_list(&best_scores, None, None)?;
 
+    let user_link = format_user_link(i64::from(user.user_id));
+
+    let footer = format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5));
+
     let embed = create_embed(
         color,
         thumbnail,
         &formatted_scores,
-        &format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5)),
+        &footer,
         &user.avatar_url,
         &user.username,
-        &format_user_link(i64::from(user.user_id)),
+        &user_link,
     );
 
     if best_scores.len() > 5 {
@@ -179,9 +187,7 @@ impl TopScorePaginator<'_> {
                         self.page -= 1;
                         self.offset -= 5;
                     }
-                    interaction
-                        .create_response(self.ctx, UpdateMessage(self.get_updated_page()?))
-                        .await?;
+                    self.update_page(&interaction).await?;
                 }
                 "next_page" => {
                     if self.page == self.max_pages {
@@ -191,16 +197,12 @@ impl TopScorePaginator<'_> {
                         self.page += 1;
                         self.offset += 5;
                     }
-                    interaction
-                        .create_response(self.ctx, UpdateMessage(self.get_updated_page()?))
-                        .await?;
+                    self.update_page(&interaction).await?;
                 }
                 "reset" => {
                     self.page = 1;
                     self.offset = 0;
-                    interaction
-                        .create_response(self.ctx, UpdateMessage(self.get_updated_page()?))
-                        .await?;
+                    self.update_page(&interaction).await?;
                 }
                 _ => {}
             };
@@ -209,28 +211,48 @@ impl TopScorePaginator<'_> {
         Ok(())
     }
 
-    fn get_embed(&mut self) -> Result<CreateEmbed, Error> {
+    async fn update_page(&self, interaction: &ComponentInteraction) -> Result<(), Error> {
         let formatted_scores = format_score_list(&self.best_scores, None, Some(self.offset))?;
 
-        Ok(create_embed(
+        let footer = format!("Page {} of {}", self.page, self.max_pages);
+
+        let user_link = format_user_link(i64::from(self.user.user_id));
+
+        let embed = create_embed(
             self.color,
             &self.user.avatar_url,
             &formatted_scores,
-            &format!("Page {} of {}", self.page, self.max_pages),
+            &footer,
             &self.user.avatar_url,
             &self.user.username,
-            &format_user_link(i64::from(self.user.user_id)),
-        ))
+            &user_link,
+        );
+
+        let interaction_response = CreateInteractionResponseMessage::new().embed(embed);
+
+        interaction
+            .create_response(self.ctx, UpdateMessage(interaction_response))
+            .await?;
+
+        Ok(())
     }
 
-    fn get_updated_page(&mut self) -> Result<CreateInteractionResponseMessage, Error> {
-        let embed = self.get_embed()?;
+    async fn stop_paginator(&self) -> Result<(), Error> {
+        let formatted_scores = format_score_list(&self.best_scores, None, Some(self.offset))?;
 
-        Ok(CreateInteractionResponseMessage::new().embed(embed))
-    }
+        let footer = format!("Page {} of {}", self.page, self.max_pages);
 
-    async fn stop_paginator(&mut self) -> Result<(), Error> {
-        let embed = self.get_embed()?;
+        let user_link = format_user_link(i64::from(self.user.user_id));
+
+        let embed = create_embed(
+            self.color,
+            &self.user.avatar_url,
+            &formatted_scores,
+            &footer,
+            &self.user.avatar_url,
+            &self.user.username,
+            &user_link,
+        );
 
         let builder = CreateReply::default().embed(embed).components(vec![]);
 

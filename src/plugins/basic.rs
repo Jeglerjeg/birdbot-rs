@@ -2,6 +2,7 @@ use crate::{Context, Error};
 use poise::builtins::HelpConfiguration;
 
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
+use poise::serenity_prelude::small_fixed_array::FixedString;
 use poise::serenity_prelude::{Colour, CreateEmbed, User};
 use poise::{Command, ContextMenuCommandAction, CreateReply, PartialContext};
 use rand::Rng;
@@ -42,7 +43,7 @@ impl<K, V> IntoIterator for OrderedMap<K, V> {
     }
 }
 
-async fn help_single_command<U, E>(
+async fn help_single_command<U: Send + Sync + 'static, E>(
     ctx: poise::Context<'_, U, E>,
     command_name: &str,
 ) -> Result<(), Error> {
@@ -85,7 +86,7 @@ fn format_args<U, E>(arguments: &[poise::CommandParameter<U, E>]) -> String {
     });
 }
 
-async fn format_command<U, E>(
+async fn format_command<U: Send + Sync + 'static, E>(
     ctx: poise::Context<'_, U, E>,
     command: &Command<U, E>,
     parent: Option<String>,
@@ -128,7 +129,7 @@ async fn format_command<U, E>(
     ))
 }
 
-async fn help_all_commands<U, E>(
+async fn help_all_commands<U: Send + Sync + 'static, E>(
     ctx: poise::Context<'_, U, E>,
     config: HelpConfiguration<'_>,
 ) -> Result<(), Error> {
@@ -212,25 +213,23 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let username = if let Some(discriminator) = owner.discriminator {
         format!("@{}#{}", owner.name, discriminator)
     } else {
-        owner.name
+        owner.name.to_string()
     };
 
     let content = format!(
         "```elm\n\
         Owner   : {}\n\
         Up      : {} UTC\n\
-        Members : {}\n\
         Guilds  : {}```\
         {}",
         username,
         ctx.data().time_started.format("%d-%m-%Y %H:%M:%S"),
-        ctx.cache().users().len(),
         ctx.cache().guilds().len(),
         information.description
     );
 
     let color = match ctx.guild() {
-        Some(guild) => match ctx.cache().member(guild.id, ctx.framework().bot_id) {
+        Some(guild) => match ctx.cache().member(guild.id, ctx.framework().bot_id()) {
             Some(member) => member.colour(ctx).unwrap_or(BLUE),
             _ => BLUE,
         },
@@ -340,7 +339,7 @@ pub async fn avatar(
     user: Option<User>,
 ) -> Result<(), Error> {
     let color: Colour;
-    let name: String;
+    let name: FixedString<u8>;
     let avatar: String;
 
     if let Some(guild) = ctx.guild() {

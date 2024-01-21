@@ -12,7 +12,7 @@ use crate::Error;
 use diesel_async::AsyncPgConnection;
 use par_stream::ParStreamExt;
 use poise::futures_util::StreamExt;
-use poise::serenity_prelude::{Context, Presence, UserId};
+use poise::serenity_prelude::{Context, GuildId, Presence, User, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, UserExtended};
 use serde::{Deserialize, Serialize};
@@ -95,7 +95,7 @@ pub async fn wipe_profile_data(db: &mut AsyncPgConnection, user_id: i64) -> Resu
 
 pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
     let mut presence: Option<Presence> = None;
-    if let Some(guild_ref) = ctx.cache.guild(u64::try_from(home_guild)?) {
+    if let Some(guild_ref) = ctx.cache.guild(GuildId::new(u64::try_from(home_guild)?)) {
         if guild_ref.members.contains_key(&user_id) {
             let presences = &guild_ref.presences;
             presence = presences.get(&user_id).cloned();
@@ -245,7 +245,7 @@ pub async fn get_user_by_username(
 
 pub async fn get_user(
     ctx: crate::Context<'_>,
-    discord_user: &poise::serenity_prelude::User,
+    discord_user: &User,
     user: Option<String>,
     connection: &mut AsyncPgConnection,
     mode: Option<GameModeChoices>,
@@ -283,10 +283,39 @@ pub async fn get_user(
     }
 }
 
+pub fn get_osu_user(
+    ctx: &Context,
+    user_id: UserId,
+    home_guild: u64,
+) -> Result<Option<User>, Error> {
+    let mut user: Option<User> = None;
+    if let Some(guild_ref) = ctx.cache.guild(GuildId::new(home_guild)) {
+        if let Some(guild_user) = guild_ref.members.get(&user_id) {
+            user = Some(guild_user.user.clone());
+        }
+    }
+
+    if user.is_none() {
+        for guild in ctx.cache.guilds() {
+            if let Some(guild_user) = ctx
+                .cache
+                .guild(guild)
+                .ok_or("Failed to get guild from cache")?
+                .members
+                .get(&user_id)
+            {
+                user = Some(guild_user.user.clone());
+            }
+        }
+    }
+
+    Ok(user)
+}
+
 pub async fn find_beatmap_link(ctx: crate::Context<'_>) -> Result<Option<BeatmapInfo>, Error> {
     let builder = poise::serenity_prelude::GetMessages::new().limit(100);
     for message in ctx.channel_id().messages(ctx, builder).await? {
-        let mut to_search = message.content;
+        let mut to_search = message.content.to_string();
         for embed in message.embeds {
             if let Some(description) = embed.description {
                 to_search.push_str(&description);

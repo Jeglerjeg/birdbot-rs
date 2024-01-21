@@ -95,7 +95,7 @@ pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<
 pub async fn format_map_status(
     beatmapset_and_beatmap: (Beatmapset, Vec<(Beatmap, OsuFile)>),
     color: Color,
-) -> Result<CreateEmbed, Error> {
+) -> Result<CreateEmbed<'static>, Error> {
     let beatmapset = beatmapset_and_beatmap.0;
     let header = format!("{} - {}", beatmapset.artist, beatmapset.title);
 
