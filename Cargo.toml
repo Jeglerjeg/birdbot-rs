@@ -11,7 +11,7 @@ tracing = "0.1"
 rand = "0.8"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
-chrono = { version = "0.4", features = ["rkyv"] }
+chrono = { version = "0.4" }
 diesel_migrations = "2.1"
 serde = "1.0"
 rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "310c22d806962559a1dab073c6c6d336abea9c36"}
@@ -54,13 +54,13 @@ features = ["aac", "mpa", "isomp4", "alac"]
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
 rev = "ea7cfd97dc2363870248505537d2aa94107fb23b"
-features = ["builtin-queue", "simd-json"]
+features = ["builtin-queue"]
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
 branch = "next"
 default-features = false
-features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice", "simd-json"]
+features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice"]
 
 [profile.dev]
 lto = "off"
