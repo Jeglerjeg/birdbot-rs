@@ -182,7 +182,7 @@ async fn help_all_commands<U: Send + Sync + 'static, E>(
     menu += config.extra_text_at_bottom;
 
     let color = match ctx.author_member().await {
-        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+        Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
         _ => BLUE,
     };
 
@@ -230,7 +230,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 
     let color = match ctx.guild() {
         Some(guild) => match ctx.cache().member(guild.id, ctx.framework().bot_id()) {
-            Some(member) => member.colour(ctx).unwrap_or(BLUE),
+            Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
             _ => BLUE,
         },
         _ => BLUE,
@@ -347,7 +347,7 @@ pub async fn avatar(
             .cache()
             .member(guild.id, user.as_ref().unwrap_or_else(|| ctx.author()).id)
         {
-            color = member.colour(ctx).unwrap_or(BLUE);
+            color = member.colour(ctx.cache()).unwrap_or(BLUE);
             name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
             avatar = member.face();
         } else {

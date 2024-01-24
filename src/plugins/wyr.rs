@@ -83,7 +83,7 @@ async fn handle_interaction_responses(
     let mut interaction_stream = reply
         .message()
         .await?
-        .await_component_interaction(ctx)
+        .await_component_interaction(ctx.serenity_context().shard.clone())
         .timeout(Duration::from_secs(30))
         .stream();
 

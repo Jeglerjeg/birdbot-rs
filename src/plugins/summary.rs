@@ -45,7 +45,7 @@ pub async fn download_messages(
     connection: &mut AsyncPgConnection,
 ) -> Result<(), Error> {
     let mut downloaded_messages: Vec<NewDbSummaryMessage> = Vec::new();
-    let mut message_iterator = ctx.channel_id().messages_iter(&ctx).boxed();
+    let mut message_iterator = ctx.channel_id().messages_iter(ctx.http()).boxed();
     while let Some(message) = message_iterator.next().await {
         if downloaded_messages.len() == 1000 {
             summary_messages::create(connection, &downloaded_messages).await?;

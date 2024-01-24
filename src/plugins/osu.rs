@@ -71,7 +71,7 @@ pub async fn osu(
 
     let color = match ctx.guild() {
         Some(guild) => match ctx.cache().member(guild.id, discord_user.id) {
-            Some(member) => member.colour(ctx).unwrap_or(BLUE),
+            Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
             _ => BLUE,
         },
         _ => BLUE,
@@ -289,7 +289,7 @@ pub async fn mapinfo(
 
     let color = match ctx.author_member().await {
         None => BLUE,
-        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+        Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
     };
 
     let embed = format_map_status(beatmapset, color).await?;

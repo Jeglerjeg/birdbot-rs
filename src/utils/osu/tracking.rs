@@ -274,7 +274,7 @@ impl OsuTracker {
             linked_profile,
             &thumbnail,
             &formatted_score,
-            &String::new(),
+            "",
             &author_text,
             new,
         )
@@ -376,7 +376,7 @@ impl OsuTracker {
                             .member(&self.ctx, UserId::new(u64::try_from(linked_profile.id)?))
                             .await
                         {
-                            let color = member.colour(&self.ctx).unwrap_or(BLUE);
+                            let color = member.colour(&self.ctx.cache).unwrap_or(BLUE);
 
                             let user_link = format_user_link(new.id);
 
@@ -604,7 +604,7 @@ impl OsuTracker {
                             .member(&self.ctx, UserId::new(u64::try_from(linked_profile.id)?))
                             .await
                         {
-                            let color = member.colour(&self.ctx).unwrap_or(BLUE);
+                            let color = member.colour(&self.ctx.cache).unwrap_or(BLUE);
 
                             let embed = create_embed(
                                 color,

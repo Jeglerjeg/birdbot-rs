@@ -130,7 +130,7 @@ async fn send_track_embed(
 ) -> Result<(), Error> {
     let color = match ctx.author_member().await {
         None => BLUE,
-        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+        Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
     };
 
     let thumbnail_url = match &metadata.thumbnail {
@@ -175,11 +175,11 @@ pub async fn check_for_empty_channel(
                 .get(),
         );
         let guild = ctx.http.get_guild(guild_id).await?;
-        let guild_channels = guild.channels(&ctx).await?;
+        let guild_channels = guild.channels(&ctx.http).await?;
         let channel = guild_channels
             .get(&channel_id)
             .ok_or("Failed to get guild channel in check_for_empty")?;
-        if channel.members(ctx)?.len() <= 1 {
+        if channel.members(&ctx.cache)?.len() <= 1 {
             leave(ctx, Some(guild_id)).await?;
         }
     };
@@ -627,7 +627,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 return Ok(());
             }
 
-            let guild_channels = guild.channels(ctx).await?;
+            let guild_channels = guild.channels(ctx.http()).await?;
 
             let needed_to_skip = match guild_channels.get(&channel_id) {
                 None => {
@@ -637,7 +637,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                         .await?;
                     return Ok(());
                 }
-                Some(channel) => channel.members(ctx)?.len() - 2,
+                Some(channel) => channel.members(ctx.cache())?.len() - 2,
             };
 
             queued_track.skipped.push(ctx.author().id.get());

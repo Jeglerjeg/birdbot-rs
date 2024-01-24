@@ -58,7 +58,7 @@ pub async fn send_score_embed(
 
     let color = match ctx.author_member().await {
         None => BLUE,
-        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+        Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
     };
 
     let user_link = format_user_link(i64::from(user.user_id));
@@ -94,7 +94,7 @@ pub async fn send_scores_embed(
 ) -> Result<(), Error> {
     let color = match ctx.author_member().await {
         None => BLUE,
-        Some(member) => member.colour(ctx).unwrap_or(BLUE),
+        Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
     };
 
     let formatted_scores = format_score_list(&best_scores, None, None)?;
@@ -173,7 +173,7 @@ impl TopScorePaginator<'_> {
             .reply
             .message()
             .await?
-            .await_component_interaction(self.ctx)
+            .await_component_interaction(self.ctx.serenity_context().shard.clone())
             .timeout(Duration::from_secs(15))
             .await
         {
