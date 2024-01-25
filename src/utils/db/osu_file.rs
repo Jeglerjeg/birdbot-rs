@@ -1,6 +1,5 @@
 use crate::models::osu_files::{NewOsuFile, OsuFile};
 use crate::schema::osu_files;
-use crate::schema::osu_files::id;
 use crate::Error;
 use diesel::dsl::count;
 use diesel::prelude::QueryDsl;
@@ -44,7 +43,7 @@ pub async fn count_entries(db: &mut AsyncPgConnection) -> Result<i64, Error> {
 
 pub async fn get_files(db: &mut AsyncPgConnection, ids: &[i64]) -> Result<Vec<OsuFile>, Error> {
     let osu_file = osu_files::table
-        .filter(id.eq_any(ids))
+        .filter(osu_files::id.eq_any(ids))
         .load::<OsuFile>(db)
         .await?;
 

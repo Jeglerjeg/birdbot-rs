@@ -16,7 +16,7 @@ diesel_migrations = "2.1"
 serde = "1.0"
 rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "310c22d806962559a1dab073c6c6d336abea9c36"}
 num-format = "0.4"
-reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli"]}
+reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli", "gzip", "deflate"]}
 time = "0.3"
 dashmap = "5.5"
 rosu-pp = { version = "0.10", features = ["async_tokio"] }
@@ -45,7 +45,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "224084106ae17cdd8551ae9fc420c416ecaba208"
+rev = "023f66a427da03d4a05c51193daaa63aac726b00"
 
 [dependencies.symphonia]
 version = "0.5"

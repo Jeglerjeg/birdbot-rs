@@ -200,7 +200,6 @@ async fn main() {
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
         .with_ansi(false)
         .with_writer(non_blocking)
         .init();
