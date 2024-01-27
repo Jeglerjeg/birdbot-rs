@@ -977,19 +977,21 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
 
     let mut playing_users: Vec<String> = Vec::new();
     for linked_profile in &linked_profiles {
-        for osu_user in &tracked_profiles {
-            if linked_profile.osu_id == osu_user.id {
-                let user = get_osu_user(
-                    ctx.serenity_context(),
-                    UserId::from(u64::try_from(linked_profile.id)?),
-                    u64::try_from(linked_profile.home_guild)?,
-                )?;
-                if let Some(user) = user {
-                    if is_playing(ctx.serenity_context(), user.id, linked_profile.home_guild)? {
-                        playing_users.push(format!("`{}`", user.name));
-                    }
-                };
-            }
+        if tracked_profiles
+            .iter()
+            .find(|x| x.id == linked_profile.osu_id)
+            .is_some()
+        {
+            let user = get_osu_user(
+                ctx.serenity_context(),
+                UserId::from(u64::try_from(linked_profile.id)?),
+                u64::try_from(linked_profile.home_guild)?,
+            )?;
+            if let Some(user) = user {
+                if is_playing(ctx.serenity_context(), user.id, linked_profile.home_guild)? {
+                    playing_users.push(format!("`{}`", user.name));
+                }
+            };
         }
     }
 

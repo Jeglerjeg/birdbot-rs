@@ -314,7 +314,7 @@ pub fn get_osu_user(
 
 pub async fn find_beatmap_link(ctx: crate::Context<'_>) -> Result<Option<BeatmapInfo>, Error> {
     let builder = poise::serenity_prelude::GetMessages::new().limit(100);
-    for message in ctx.channel_id().messages(ctx, builder).await? {
+    for message in ctx.channel_id().messages(ctx.http(), builder).await? {
         let mut to_search = message.content.to_string();
         for embed in message.embeds {
             if let Some(description) = embed.description {

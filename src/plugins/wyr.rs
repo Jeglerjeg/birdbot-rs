@@ -91,7 +91,7 @@ async fn handle_interaction_responses(
         if replies.contains(&interaction.user.id.get()) {
             interaction
                 .create_response(
-                    ctx,
+                    ctx.http(),
                     CreateInteractionResponse::Message(
                         CreateInteractionResponseMessage::default()
                             .ephemeral(true)
@@ -120,7 +120,7 @@ async fn handle_interaction_responses(
                 .await?;
                 interaction
                     .create_response(
-                        ctx,
+                        ctx.http(),
                         UpdateMessage(CreateInteractionResponseMessage::new().embed(embed)),
                     )
                     .await?;
@@ -141,7 +141,7 @@ async fn handle_interaction_responses(
                 .await?;
                 interaction
                     .create_response(
-                        ctx,
+                        ctx.http(),
                         UpdateMessage(CreateInteractionResponseMessage::new().embed(embed)),
                     )
                     .await?;
@@ -149,7 +149,7 @@ async fn handle_interaction_responses(
             _ => {
                 interaction
                     .create_response(
-                        ctx,
+                        ctx.http(),
                         CreateInteractionResponse::Message(
                             CreateInteractionResponseMessage::default()
                                 .ephemeral(true)

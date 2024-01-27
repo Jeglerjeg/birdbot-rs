@@ -231,7 +231,7 @@ impl TopScorePaginator<'_> {
         let interaction_response = CreateInteractionResponseMessage::new().embed(embed);
 
         interaction
-            .create_response(self.ctx, UpdateMessage(interaction_response))
+            .create_response(self.ctx.http(), UpdateMessage(interaction_response))
             .await?;
 
         Ok(())
