@@ -1,4 +1,4 @@
-use crate::utils::osu::pp::{parse_map, CalculateResults};
+use crate::utils::osu::pp::{get_map_attributes, parse_map, CalculateResults};
 use crate::Error;
 use rosu_pp::{BeatmapExt, GameMode, OsuPP};
 
@@ -68,11 +68,17 @@ pub async fn calculate_std_pp(
         potential_result = OsuPP::new(&map).mods(mods).mode(GameMode::Osu);
     }
 
-    let map_attributes = map.attributes().mods(mods).build();
+    let map_attributes = get_map_attributes(&map, GameMode::Catch, mods, clock_rate);
 
     let result = result.calculate();
 
-    let map_calc = map.stars().mods(mods).mode(GameMode::Osu).calculate();
+    let mut map_calc = map.stars().mods(mods).mode(GameMode::Osu);
+
+    if let Some(clock_rate) = clock_rate {
+        map_calc = map_calc.clock_rate(f64::from(clock_rate));
+    }
+
+    let map_calc = map_calc.calculate();
 
     Ok(CalculateResults {
         total_stars: map_calc.stars(),
