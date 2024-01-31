@@ -979,8 +979,7 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
     for linked_profile in &linked_profiles {
         if tracked_profiles
             .iter()
-            .find(|x| x.id == linked_profile.osu_id)
-            .is_some()
+            .any(|x| x.id == linked_profile.osu_id)
         {
             let user = get_osu_user(
                 ctx.serenity_context(),

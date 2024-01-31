@@ -1,6 +1,7 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::utils::misc::remove_trailing_zeros;
+use crate::utils::osu::misc::is_perfect;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_footer};
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
@@ -10,10 +11,24 @@ use rosu_v2::prelude::Score;
 use std::cmp;
 
 pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<String, Error> {
-    let color = if score.perfect {
-        "\u{001b}[0;32m"
-    } else {
-        "\u{001b}[0;31m"
+    let color = match score.build_id {
+        None => {
+            if score.legacy_perfect.ok_or(format!(
+                "Couldn't get legacy_perfect for score id: {}",
+                score.id
+            ))? {
+                "\u{001b}[0;32m"
+            } else {
+                "\u{001b}[0;31m"
+            }
+        }
+        Some(_) => {
+            if is_perfect(&score.statistics) {
+                "\u{001b}[0;32m"
+            } else {
+                "\u{001b}[0;31m"
+            }
+        }
     };
 
     let max_combo = pp.max_combo;
@@ -35,10 +50,10 @@ pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<St
             "acc{gap}300s  100s  50s  miss  combo\
                 \n{color}{}{stat_gap}{:<6}{:<6}{:<5}{:<6}{}/{}",
             accuracy_string,
-            score.statistics.count_300,
-            score.statistics.count_100,
-            score.statistics.count_50,
-            score.statistics.count_miss,
+            score.statistics.great,
+            score.statistics.ok,
+            score.statistics.meh,
+            score.statistics.miss,
             score.max_combo,
             max_combo
         )),
@@ -46,9 +61,9 @@ pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<St
             "acc{gap}great  good  miss  combo\
             \n{color}{}{stat_gap}{:<7}{:<6}{:<6}{}/{}",
             accuracy_string,
-            score.statistics.count_300,
-            score.statistics.count_100,
-            score.statistics.count_miss,
+            score.statistics.great,
+            score.statistics.ok,
+            score.statistics.miss,
             score.max_combo,
             max_combo
         )),
@@ -56,21 +71,21 @@ pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<St
             "acc{gap}max   300s  200s  100s  50s  miss\
         \n{color}{}{stat_gap}{:<6}{:<6}{:<6}{:<6}{:<5}{:<6}",
             accuracy_string,
-            score.statistics.count_geki,
-            score.statistics.count_300,
-            score.statistics.count_katu,
-            score.statistics.count_100,
-            score.statistics.count_50,
-            score.statistics.count_miss
+            score.statistics.perfect,
+            score.statistics.great,
+            score.statistics.good,
+            score.statistics.ok,
+            score.statistics.meh,
+            score.statistics.miss
         )),
         GameMode::Catch => Ok(format!(
             "acc{gap}fruits ticks drpm miss combo\
            \n{color}{}{stat_gap}{:<7}{:<6}{:<5}{:<5}{}/{}",
             accuracy_string,
-            score.statistics.count_300,
-            score.statistics.count_100,
-            score.statistics.count_katu,
-            score.statistics.count_miss,
+            score.statistics.great,
+            score.statistics.large_tick_hit,
+            score.statistics.small_tick_hit,
+            score.statistics.small_tick_miss,
             score.max_combo,
             max_combo
         )),

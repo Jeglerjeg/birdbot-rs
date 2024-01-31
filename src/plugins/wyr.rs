@@ -4,7 +4,7 @@ use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
 use poise::futures_util::StreamExt;
-use poise::serenity_prelude::ButtonStyle::{Danger, Success};
+use poise::serenity_prelude::ButtonStyle;
 use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::{
     CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
@@ -57,8 +57,12 @@ async fn create_wyr_message(
     let embed = CreateEmbed::new().description(format_question(&question, &[]));
 
     let components = vec![CreateActionRow::Buttons(vec![
-        CreateButton::new("choice_1").style(Success).label("1"),
-        CreateButton::new("choice_2").style(Danger).label("2"),
+        CreateButton::new("choice_1")
+            .style(ButtonStyle::Success)
+            .label("1"),
+        CreateButton::new("choice_2")
+            .style(ButtonStyle::Danger)
+            .label("2"),
     ])];
 
     let builder = CreateReply::default().embed(embed).components(components);

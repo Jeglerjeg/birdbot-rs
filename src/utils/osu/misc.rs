@@ -14,7 +14,7 @@ use par_stream::ParStreamExt;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{Context, GuildId, Presence, User, UserId};
 use rosu_v2::model::GameMode;
-use rosu_v2::prelude::{Score, UserExtended};
+use rosu_v2::prelude::{Score, ScoreStatistics, UserExtended};
 use serde::{Deserialize, Serialize};
 
 pub enum DiffTypes {
@@ -68,13 +68,20 @@ pub fn calculate_potential_acc(score: &Score) -> Option<f64> {
     match score.mode {
         GameMode::Osu => {
             let total_hits = score.statistics.total_hits(GameMode::Osu);
-            let total_points = (score.statistics.count_50 * 50)
-                + (score.statistics.count_100 * 100)
-                + (score.statistics.count_300 + score.statistics.count_miss) * 300;
+            let total_points = (score.statistics.meh * 50)
+                + (score.statistics.ok * 100)
+                + (score.statistics.great + score.statistics.miss) * 300;
             Some((f64::from(total_points) / (f64::from(total_hits) * 300.0)) * 100.0)
         }
         _ => None,
     }
+}
+
+pub fn is_perfect(statistics: &ScoreStatistics) -> bool {
+    if statistics.miss > 0 || statistics.large_tick_miss > 0 || statistics.combo_break > 0 {
+        return false;
+    }
+    true
 }
 
 pub fn count_score_pages(score_count: usize, scores_per_page: usize) -> usize {
@@ -171,7 +178,7 @@ pub fn sort_scores(
             scores.sort_by(|a, b| b.2.drain.cmp(&a.2.drain));
         }
         SortChoices::Misses => {
-            scores.sort_by(|a, b| b.0.statistics.count_miss.cmp(&a.0.statistics.count_miss));
+            scores.sort_by(|a, b| b.0.statistics.miss.cmp(&a.0.statistics.miss));
         }
         SortChoices::Stars => {
             scores.sort_by(|a, b| b.4.total_stars.total_cmp(&a.4.total_stars));

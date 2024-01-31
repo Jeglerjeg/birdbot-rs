@@ -224,10 +224,7 @@ impl OsuTracker {
             .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
 
         for score in new_scores {
-            let score_id = score
-                .0
-                .score_id
-                .ok_or("Failed to get score id in notify_multiple_scores function")?;
+            let score_id = score.0.id;
 
             if recent_scores.value().contains(&score_id) {
                 continue;
@@ -293,10 +290,7 @@ impl OsuTracker {
     ) -> Result<(), Error> {
         let score = &new_scores[0];
 
-        let score_id = score
-            .0
-            .score_id
-            .ok_or("Failed to get score_id in notify_single_score function")?;
+        let score_id = score.0.id;
 
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to parse gamemode in notify_single_score function")?;
@@ -554,10 +548,7 @@ impl OsuTracker {
             .mode(*mode)
             .await?;
 
-        let score_id = score
-            .score
-            .score_id
-            .ok_or("Failed to get score_id in notify_leaderboard_score")?;
+        let score_id = score.score.id;
 
         if recent_scores.contains(&score_id) {
             return Ok(());
