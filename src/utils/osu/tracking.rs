@@ -8,8 +8,7 @@ use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::embeds::create_embed;
 use crate::utils::osu::misc::{
-    calculate_potential_acc, gamemode_from_string, get_osu_user, get_stat_diff, is_playing,
-    DiffTypes,
+    calculate_potential_acc, gamemode_from_string, get_osu_user, is_playing,
 };
 use crate::utils::osu::misc_format::{format_diff, format_footer, format_user_link};
 use crate::utils::osu::pp::CalculateResults;
@@ -33,8 +32,6 @@ use tokio::time::sleep;
 use tracing::error;
 
 static UPDATE_INTERVAL: OnceLock<u64> = OnceLock::new();
-
-static PP_THRESHOLD: OnceLock<f64> = OnceLock::new();
 
 static NOT_PLAYING_SKIP: OnceLock<i32> = OnceLock::new();
 
@@ -93,65 +90,39 @@ impl OsuTracker {
 
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id).await {
             profile.ticks += 1;
+
+            let not_playing_skip = NOT_PLAYING_SKIP
+                .get_or_init(|| {
+                    env::var("NOT_PLAYING_SKIP")
+                        .unwrap_or_else(|_| String::from("10"))
+                        .parse::<i32>()
+                        .expect("Failed to parse tracking not playing skip.")
+                })
+                .to_owned();
+
+            if profile.ticks > not_playing_skip {
+                profile.ticks = 0;
+            }
+
             if is_playing(&self.ctx, user.id, linked_profile.home_guild)?
-                || (f64::from(profile.ticks)
-                    % f64::from(
-                        NOT_PLAYING_SKIP
-                            .get_or_init(|| {
-                                env::var("NOT_PLAYING_SKIP")
-                                    .unwrap_or_else(|_| String::from("10"))
-                                    .parse::<i32>()
-                                    .expect("Failed to parse tracking not playing skip.")
-                            })
-                            .to_owned(),
-                    ))
-                    == 0.0
+                || (profile.ticks.eq(&not_playing_skip))
             {
-                let Ok(osu_profile) = self
-                    .osu_client
-                    .user(u32::try_from(linked_profile.osu_id)?)
-                    .mode(
-                        gamemode_from_string(&linked_profile.mode)
-                            .ok_or("Failed to parse gamemode in update_user_data function")?,
-                    )
-                    .await
-                else {
+                osu_users::update_ticks(connection, profile.id, profile.ticks).await?;
+
+                if let Err(why) = self.notify_pp(&profile, connection, linked_profile).await {
+                    error!("Error occurred while running tracking loop: {}", why);
                     return Ok(());
-                };
-                let mut db_profile = NewOsuUser::try_from(osu_profile)?;
-                db_profile.add_ticks(profile.ticks);
-                let new = osu_users::create(connection, &db_profile).await?;
+                }
 
                 if let Err(why) = self
-                    .notify_pp(&profile, &new, connection, linked_profile)
+                    .notify_recent(&profile, connection, linked_profile)
                     .await
                 {
                     error!("Error occurred while running tracking loop: {}", why);
                     return Ok(());
                 }
-
-                if let Err(why) = self.notify_recent(&new, connection, linked_profile).await {
-                    error!("Error occurred while running tracking loop: {}", why);
-                    return Ok(());
-                }
             } else {
-                let user_update = NewOsuUser {
-                    id: profile.id,
-                    username: profile.username,
-                    avatar_url: profile.avatar_url,
-                    country_code: profile.country_code,
-                    mode: profile.mode,
-                    pp: profile.pp,
-                    accuracy: profile.accuracy,
-                    country_rank: profile.country_rank,
-                    global_rank: profile.global_rank,
-                    max_combo: profile.max_combo,
-                    ticks: profile.ticks,
-                    ranked_score: profile.ranked_score,
-                    time_cached: profile.time_cached,
-                };
-
-                osu_users::create(connection, &user_update).await?;
+                osu_users::update_ticks(connection, profile.id, profile.ticks).await?;
             }
         } else {
             let Ok(osu_profile) = self
@@ -175,30 +146,49 @@ impl OsuTracker {
     async fn notify_pp(
         &mut self,
         old: &OsuUser,
-        new: &OsuUser,
         connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
-        if &get_stat_diff(old, new, &DiffTypes::Pp)
-            < PP_THRESHOLD.get_or_init(|| {
-                env::var("PP_THRESHOLD")
-                    .unwrap_or_else(|_| String::from("0.1"))
-                    .parse::<f64>()
-                    .expect("Failed to parse tracking update interval.")
-            })
-        {
-            return Ok(());
-        }
         let new_scores = self
-            .get_new_score(new.id, linked_profile, connection)
+            .get_new_score(old.id, linked_profile, connection)
             .await?;
         if new_scores.is_empty() {
             return Ok(());
         } else if new_scores.len() == 1 {
-            self.notify_single_score(&new_scores, linked_profile, new, old, connection)
+            let Ok(osu_profile) = self
+                .osu_client
+                .user(u32::try_from(linked_profile.osu_id)?)
+                .mode(
+                    gamemode_from_string(&linked_profile.mode)
+                        .ok_or("Failed to parse gamemode in update_user_data function")?,
+                )
+                .await
+            else {
+                return Ok(());
+            };
+
+            let db_profile = NewOsuUser::try_from(osu_profile)?;
+            let new = osu_users::create(connection, &db_profile).await?;
+
+            self.notify_single_score(&new_scores, linked_profile, &new, old, connection)
                 .await?;
         } else {
-            self.notify_multiple_scores(&new_scores, linked_profile, new, old, connection)
+            let Ok(osu_profile) = self
+                .osu_client
+                .user(u32::try_from(linked_profile.osu_id)?)
+                .mode(
+                    gamemode_from_string(&linked_profile.mode)
+                        .ok_or("Failed to parse gamemode in update_user_data function")?,
+                )
+                .await
+            else {
+                return Ok(());
+            };
+
+            let db_profile = NewOsuUser::try_from(osu_profile)?;
+            let new = osu_users::create(connection, &db_profile).await?;
+
+            self.notify_multiple_scores(&new_scores, linked_profile, &new, old, connection)
                 .await?;
         };
 
@@ -231,20 +221,18 @@ impl OsuTracker {
             }
             recent_scores.push(score_id);
 
-            let api_score = self.osu_client.score(score_id, gamemode).await?;
-
             let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
             let calculated_results = calculate(
-                Some(&api_score),
+                Some(&score.0),
                 &beatmap.0,
                 &beatmap.2,
-                calculate_potential_acc(&api_score),
+                calculate_potential_acc(&score.0),
             )
             .await?;
 
             to_notify.push((
-                api_score.clone(),
+                score.0.to_owned(),
                 score.1,
                 beatmap.0,
                 beatmap.1,
@@ -321,12 +309,10 @@ impl OsuTracker {
         );
         let footer = format_footer(&score.0, &beatmap.0, &pp)?;
 
-        let api_score = self.osu_client.score(score_id, gamemode).await?;
-
         let thumbnail = beatmap.1.list_cover.clone();
         let formatted_score = format!(
             "{}{}\n<t:{}:R>",
-            format_new_score(&api_score, &beatmap.0, &beatmap.1, &pp, None)?,
+            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, None)?,
             format_diff(new, old, gamemode)?,
             score.0.ended_at.unix_timestamp()
         );

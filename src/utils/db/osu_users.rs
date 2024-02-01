@@ -1,4 +1,5 @@
 use crate::models::osu_users::{NewOsuUser, OsuUser};
+use crate::schema::osu_users;
 use crate::Error;
 use chrono::Utc;
 use diesel::insert_into;
@@ -43,6 +44,19 @@ pub async fn create(db: &mut AsyncPgConnection, item: &NewOsuUser) -> Result<Osu
         .await?;
 
     Ok(user)
+}
+
+pub async fn update_ticks(
+    db: &mut AsyncPgConnection,
+    profile_id: i64,
+    ticks: i32,
+) -> Result<(), Error> {
+    diesel::update(osu_users::table.find(profile_id))
+        .set(osu_users::ticks.eq(ticks))
+        .execute(db)
+        .await?;
+
+    Ok(())
 }
 
 pub async fn read(db: &mut AsyncPgConnection, param_id: i64) -> QueryResult<OsuUser> {
