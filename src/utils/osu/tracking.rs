@@ -232,7 +232,7 @@ impl OsuTracker {
             .await?;
 
             to_notify.push((
-                score.0.to_owned(),
+                score.0.clone(),
                 score.1,
                 beatmap.0,
                 beatmap.1,

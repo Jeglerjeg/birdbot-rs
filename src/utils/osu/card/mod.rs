@@ -39,7 +39,11 @@ pub async fn load_svg(osu_user: &UserExtended, color: Colour) -> Result<Tree, Er
 }
 
 fn adjust_saturation_and_brightness(color: Colour, saturation: f64, brightness: f64) -> Colour {
-    let rgb = Rgb::new(color.r() as f64, color.g() as f64, color.b() as f64);
+    let rgb = Rgb::new(
+        f64::from(color.r()),
+        f64::from(color.g()),
+        f64::from(color.b()),
+    );
     let hsv = Hsv::from_rgb(&rgb);
     let adjusted_hsv = Hsv::new(hsv.h, saturation, brightness);
     let adjusted_rgb = Rgb::from(adjusted_hsv);
