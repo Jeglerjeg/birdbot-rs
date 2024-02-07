@@ -5,7 +5,7 @@ use crate::Error;
 use color_space::{FromRgb, Hsv, Rgb};
 use resvg::tiny_skia::Pixmap;
 use resvg::usvg::fontdb::Database;
-use resvg::usvg::{PostProcessingSteps, Size, Transform, Tree, TreeParsing, TreePostProc};
+use resvg::usvg::{PostProcessingSteps, Size, Transform, Tree};
 use resvg::{render, usvg};
 use rosu_v2::prelude::UserExtended;
 use serenity::all::Colour;

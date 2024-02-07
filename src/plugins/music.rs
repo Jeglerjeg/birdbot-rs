@@ -368,13 +368,7 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
 
     let mut source = YoutubeDl::new(http_client, url);
 
-    let metadata = match source.aux_metadata().await {
-        Ok(metadata) => metadata,
-        Err(why) => {
-            error!("{}", why);
-            return Ok(());
-        }
-    };
+    let metadata = source.aux_metadata().await?;
 
     let manager = get_manager(ctx.serenity_context());
 
@@ -513,14 +507,24 @@ pub async fn play(
     let manager = get_manager(ctx.serenity_context());
 
     if manager.get(guild_id).is_some() {
-        queue(ctx, url_or_name, guild_id).await?;
+        match queue(ctx, url_or_name, guild_id).await {
+            Ok(_) => {}
+            Err(why) => {
+                ctx.say(format!("Couldn't queue item: {why}")).await?;
+            }
+        }
     } else {
         if !join(ctx).await? {
             return Ok(());
         }
 
         if manager.get(guild_id).is_some() {
-            queue(ctx, url_or_name, guild_id).await?;
+            match queue(ctx, url_or_name, guild_id).await {
+                Ok(_) => {}
+                Err(why) => {
+                    ctx.say(format!("Couldn't queue item: {why}")).await?;
+                }
+            }
         }
     }
     Ok(())
