@@ -508,7 +508,7 @@ pub async fn play(
 
     if manager.get(guild_id).is_some() {
         match queue(ctx, url_or_name, guild_id).await {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(why) => {
                 ctx.say(format!("Couldn't queue item: {why}")).await?;
             }
@@ -520,7 +520,7 @@ pub async fn play(
 
         if manager.get(guild_id).is_some() {
             match queue(ctx, url_or_name, guild_id).await {
-                Ok(_) => {}
+                Ok(()) => {}
                 Err(why) => {
                     ctx.say(format!("Couldn't queue item: {why}")).await?;
                 }
