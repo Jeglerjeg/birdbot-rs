@@ -121,10 +121,13 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<Strin
     } else if country_diff > 0.0 {
         format!(
             " +{}",
-            (global_diff as i64).to_formatted_string(&Locale::en)
+            (country_diff as i64).to_formatted_string(&Locale::en)
         )
     } else {
-        format!(" {}", (global_diff as i64).to_formatted_string(&Locale::en))
+        format!(
+            " {}",
+            (country_diff as i64).to_formatted_string(&Locale::en)
+        )
     };
 
     let formatted_acc_diff = if acc_diff == 0.0 {
