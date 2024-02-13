@@ -5,6 +5,7 @@ use dashmap::DashMap;
 use diesel::prelude::QueryDsl;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use poise::serenity_prelude::GuildId;
+use std::borrow::Cow;
 use std::env;
 use std::sync::OnceLock;
 
@@ -44,16 +45,14 @@ pub async fn add_guild_prefix(
     Ok(())
 }
 
-pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>, Error> {
+pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<Cow<'static, str>>, Error> {
     let Some(guild_id) = ctx.guild_id else {
-        return Ok(Some(
-            DEFAULT_PREFIX
-                .get_or_init(|| env::var("PREFIX").unwrap_or_else(|_| String::from(">")))
-                .to_owned(),
-        ));
+        return Ok(Some(Cow::from(DEFAULT_PREFIX.get_or_init(|| {
+            env::var("PREFIX").unwrap_or_else(|_| String::from(">"))
+        }))));
     };
 
-    Ok(Some(
+    Ok(Some(Cow::from(
         GUILD_PREFIX
             .get_or_init(|| GuildPrefix {
                 guild_prefix: DashMap::new(),
@@ -74,7 +73,7 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
                     )
                     .await
                 {
-                    Ok(prefix) => prefix.guild_prefix.clone(),
+                    Ok(prefix) => prefix.guild_prefix,
                     _ => DEFAULT_PREFIX
                         .get_or_init(|| env::var("PREFIX").unwrap_or_else(|_| String::from(">")))
                         .to_owned(),
@@ -82,5 +81,5 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<String>,
             )
             .value()
             .to_owned(),
-    ))
+    )))
 }

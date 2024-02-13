@@ -14,7 +14,7 @@ tracing-appender = "0.2"
 chrono = { version = "0.4" }
 diesel_migrations = "2.1"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "ed3982e08b31a1d8808ceb8323b297cb321c6322"}
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "836d8f5d89527aa21b31c67bc7c58d1a46f3d6b1"}
 num-format = "0.4"
 reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli", "gzip", "deflate"]}
 time = "0.3"
@@ -45,7 +45,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "9bd3f5b4c8b842ee6184e1f6847b5ae7aecce976"
+rev = "70c7b26613a209e9a626772bdd1dbe8e1bd74bce"
 
 [dependencies.symphonia]
 version = "0.5"

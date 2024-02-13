@@ -100,14 +100,14 @@ async fn format_command<U: Send + Sync + 'static, E>(
                 Some(dynamic_prefix_callback) => {
                     match dynamic_prefix_callback(PartialContext::from(ctx)).await {
                         Ok(Some(dynamic_prefix)) => dynamic_prefix,
-                        Err(_) | Ok(None) => String::new(),
+                        Err(_) | Ok(None) => std::borrow::Cow::Borrowed(""),
                     }
                 }
-                None => String::new(),
+                None => std::borrow::Cow::Borrowed(""),
             },
         }
     } else if command.slash_action.is_some() {
-        String::from("/")
+        std::borrow::Cow::Borrowed("/")
     } else {
         // This is not a prefix or slash command, i.e. probably a context menu only command
         // which we will only show later
