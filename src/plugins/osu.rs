@@ -292,7 +292,7 @@ pub async fn mapinfo(
         Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
     };
 
-    let embed = format_map_status(beatmapset, color).await?;
+    let embed = format_map_status(beatmapset, color)?;
 
     let builder = CreateReply::default().embed(embed);
 
@@ -371,8 +371,7 @@ pub async fn score(
                 &beatmap.0,
                 &beatmap.2,
                 calculate_potential_acc(&score.score),
-            )
-            .await?;
+            )?;
 
             send_score_embed(
                 ctx,
@@ -526,8 +525,7 @@ pub async fn recent(
                     &beatmap.0,
                     &beatmap.2,
                     calculate_potential_acc(score),
-                )
-                .await?;
+                )?;
 
                 send_score_embed(
                     ctx,

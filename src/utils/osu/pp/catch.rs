@@ -2,7 +2,7 @@ use crate::utils::osu::pp::{get_map_attributes, parse_map, CalculateResults};
 use crate::Error;
 use rosu_pp::{BeatmapExt, CatchPP, GameMode};
 
-pub async fn calculate_catch_pp(
+pub fn calculate_catch_pp(
     file: &[u8],
     mods: u32,
     combo: Option<usize>,
@@ -14,7 +14,7 @@ pub async fn calculate_catch_pp(
     passed_objects: Option<usize>,
     clock_rate: Option<f32>,
 ) -> Result<CalculateResults, Error> {
-    let map = parse_map(file).await?;
+    let map = parse_map(file)?;
     let map = map.convert_mode(GameMode::Catch);
 
     let mut result = CatchPP::new(&map).mods(mods);

@@ -14,7 +14,7 @@ use std::sync::OnceLock;
 
 static MAX_DIFF_LENGTH: OnceLock<usize> = OnceLock::new();
 
-pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String, Error> {
+pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String, Error> {
     let mut diff_length = 0;
     let max_diff_length = MAX_DIFF_LENGTH.get_or_init(|| {
         env::var("MAX_DIFF_LENGTH")
@@ -27,7 +27,7 @@ pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<
         if beatmap.version.len() > diff_length {
             diff_length = beatmap.version.len();
         }
-        let difficulty_values = calculate(None, beatmap, osu_file, None).await?;
+        let difficulty_values = calculate(None, beatmap, osu_file, None)?;
         calculated_beatmaps.insert(beatmap.id, difficulty_values);
     }
     if &diff_length > max_diff_length {
@@ -92,7 +92,7 @@ pub async fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<
     Ok(formatted_beatmaps)
 }
 
-pub async fn format_map_status(
+pub fn format_map_status(
     beatmapset_and_beatmap: (Beatmapset, Vec<(Beatmap, OsuFile)>),
     color: Color,
 ) -> Result<CreateEmbed<'static>, Error> {
@@ -107,6 +107,6 @@ pub async fn format_map_status(
     Ok(embed
         .image(beatmapset.cover)
         .color(color)
-        .description(format_beatmapset(beatmapset_and_beatmap.1).await?)
+        .description(format_beatmapset(beatmapset_and_beatmap.1)?)
         .author(created_author))
 }

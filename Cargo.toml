@@ -14,12 +14,12 @@ tracing-appender = "0.2"
 chrono = { version = "0.4" }
 diesel_migrations = "2.1"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "836d8f5d89527aa21b31c67bc7c58d1a46f3d6b1"}
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "510f45fce6bcb7303ed49fe8f4e552394aa113bf"}
 num-format = "0.4"
 reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli", "gzip", "deflate"]}
 time = "0.3"
 dashmap = "5.5"
-rosu-pp = { version = "0.10", features = ["async_tokio"] }
+rosu-pp = { version = "0.10"}
 regex = "1.10"
 url = "2.5"
 diesel = { version = "2.1", features = ["chrono"]}
@@ -32,7 +32,7 @@ par-stream = { version = "0.10", features = ["runtime-tokio"]}
 tikv-jemallocator = "0.5"
 num_cpus = "1.16.0"
 itertools = "0.12"
-resvg = "0.39"
+resvg = "0.40"
 svg = "0.15"
 base64 = "0.21"
 color_space = "0.5"

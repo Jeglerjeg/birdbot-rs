@@ -243,7 +243,7 @@ pub fn draw_username(document: Document, username: &str) -> Document {
         .set("style", "white-space: pre")
         .set("font-family", "Torus")
         .set("font-size", 16)
-        .set("x", 78)
+        .set("x", 75)
         .set("y", 21.363_636_364);
     username_text.append(svg::node::Text::new(username));
     document.add(username_text)
@@ -333,7 +333,7 @@ pub fn draw_join_date(document: Document, join_time: OffsetDateTime) -> Document
         .set("font-family", "Torus")
         .set("font-size", 10)
         .set("letter-spacing", "0em")
-        .set("x", 78)
+        .set("x", 75)
         .set("y", 55);
     let year_and_date_join = format!(
         "{} {} {}",

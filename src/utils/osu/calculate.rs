@@ -9,7 +9,7 @@ use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
 use rosu_v2::model::GameMode;
 
-pub async fn calculate(
+pub fn calculate(
     score: Option<&rosu_v2::prelude::Score>,
     beatmap: &Beatmap,
     osu_file: &OsuFile,
@@ -29,8 +29,7 @@ pub async fn calculate(
                 Some(score.statistics.miss as usize),
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
-            )
-            .await?),
+            )?),
             GameMode::Mania => Ok(calculate_mania_pp(
                 &osu_file.file,
                 score.mods.bits(),
@@ -42,8 +41,7 @@ pub async fn calculate(
                 Some(score.statistics.miss as usize),
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
-            )
-            .await?),
+            )?),
             GameMode::Taiko => Ok(calculate_taiko_pp(
                 &osu_file.file,
                 score.mods.bits(),
@@ -54,8 +52,7 @@ pub async fn calculate(
                 Some(score.statistics.miss as usize),
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
-            )
-            .await?),
+            )?),
             GameMode::Catch => Ok(calculate_catch_pp(
                 &osu_file.file,
                 score.mods.bits(),
@@ -67,8 +64,7 @@ pub async fn calculate(
                 Some(score.statistics.miss as usize),
                 Some(score.total_hits() as usize),
                 score.mods.clock_rate(),
-            )
-            .await?),
+            )?),
         };
     }
 
@@ -87,8 +83,7 @@ pub async fn calculate(
             None,
             None,
             None,
-        )
-        .await?),
+        )?),
         GameMode::Mania => Ok(calculate_mania_pp(
             &osu_file.file,
             0,
@@ -100,14 +95,18 @@ pub async fn calculate(
             None,
             None,
             None,
-        )
-        .await?),
-        GameMode::Taiko => {
-            Ok(
-                calculate_taiko_pp(&osu_file.file, 0, None, None, None, None, None, None, None)
-                    .await?,
-            )
-        }
+        )?),
+        GameMode::Taiko => Ok(calculate_taiko_pp(
+            &osu_file.file,
+            0,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )?),
         GameMode::Catch => Ok(calculate_catch_pp(
             &osu_file.file,
             0,
@@ -119,7 +118,6 @@ pub async fn calculate(
             None,
             None,
             None,
-        )
-        .await?),
+        )?),
     }
 }

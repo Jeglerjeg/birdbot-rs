@@ -210,8 +210,7 @@ pub async fn set_up_score_list(
             &score.1 .0,
             &score.1 .2,
             calculate_potential_acc(&score.0),
-        )
-        .await?;
+        )?;
 
         Ok::<(Score, (Beatmap, Beatmapset, OsuFile), CalculateResults), Error>((
             score.0, score.1, calculated,

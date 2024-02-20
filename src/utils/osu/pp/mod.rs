@@ -7,8 +7,8 @@ pub mod mania;
 pub mod osu;
 pub mod taiko;
 
-pub async fn parse_map(file: &[u8]) -> Result<Beatmap, Error> {
-    let beatmap = Beatmap::from_bytes(file).await?;
+pub fn parse_map(file: &[u8]) -> Result<Beatmap, Error> {
+    let beatmap = Beatmap::from_bytes(file)?;
 
     Ok(beatmap)
 }

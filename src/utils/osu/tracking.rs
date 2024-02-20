@@ -228,8 +228,7 @@ impl OsuTracker {
                 &beatmap.0,
                 &beatmap.2,
                 calculate_potential_acc(&score.0),
-            )
-            .await?;
+            )?;
 
             to_notify.push((
                 score.0.clone(),
@@ -301,8 +300,7 @@ impl OsuTracker {
             &beatmap.0,
             &beatmap.2,
             calculate_potential_acc(&score.0),
-        )
-        .await?;
+        )?;
         let author_text = format!(
             "{} set a new best score (#{}/{})",
             &new.username, score.1, 100
@@ -549,8 +547,7 @@ impl OsuTracker {
             &beatmap.0,
             &beatmap.2,
             calculate_potential_acc(&score.score),
-        )
-        .await?;
+        )?;
 
         let footer = format_footer(&score.score, &beatmap.0, &pp)?;
 

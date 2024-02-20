@@ -5,21 +5,14 @@ use crate::Error;
 use color_space::{FromRgb, Hsv, Rgb};
 use resvg::tiny_skia::Pixmap;
 use resvg::usvg::fontdb::Database;
-use resvg::usvg::{PostProcessingSteps, Size, Transform, Tree};
+use resvg::usvg::{Transform, Tree};
 use resvg::{render, usvg};
 use rosu_v2::prelude::UserExtended;
 use serenity::all::Colour;
 use svg::Document;
 
 pub async fn render_card(osu_user: &UserExtended, color: Colour) -> Result<Pixmap, Error> {
-    let mut svg = load_svg(osu_user, color).await?;
-    svg.postprocess(
-        PostProcessingSteps {
-            convert_text_into_paths: true,
-        },
-        &load_fonts(),
-    );
-    svg.size = Size::from_wh(1500.0, 940.0).unwrap();
+    let svg = load_svg(osu_user, color).await?;
     let mut pixmap = Pixmap::new(1500, 940).unwrap();
     render(&svg, Transform::default(), &mut pixmap.as_mut());
     Ok(pixmap)
@@ -35,6 +28,7 @@ pub async fn load_svg(osu_user: &UserExtended, color: Colour) -> Result<Tree, Er
     Ok(Tree::from_str(
         &generate_svg(osu_user, color).await?,
         &usvg::Options::default(),
+        &load_fonts(),
     )?)
 }
 
@@ -61,8 +55,8 @@ pub async fn generate_svg(osu_user: &UserExtended, color: Colour) -> Result<Stri
         .set("viewBox", (0, 0, 375, 235))
         .set("xmlns:xlink", "http://www.w3.org/1999/xlink")
         .set("fill", "none")
-        .set("width", 375)
-        .set("height", 235);
+        .set("width", 1500)
+        .set("height", 940);
     document = header::draw_header(document, osu_user, color).await?;
     document = body::draw_body(document, osu_user).await?;
     Ok(document.to_string())
