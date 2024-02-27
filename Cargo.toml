@@ -33,7 +33,7 @@ tikv-jemallocator = "0.5"
 num_cpus = "1.16.0"
 itertools = "0.12"
 resvg = "0.40"
-svg = "0.15"
+svg = "0.16"
 base64 = "0.21"
 color_space = "0.5"
 image = "0.24"
@@ -49,7 +49,7 @@ rev = "70c7b26613a209e9a626772bdd1dbe8e1bd74bce"
 
 [dependencies.symphonia]
 version = "0.5"
-features = ["aac", "mpa", "isomp4", "alac"]
+features = ["aac", "mpa", "isomp4", "alac","opt-simd"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"

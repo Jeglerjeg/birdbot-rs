@@ -6,7 +6,7 @@ use base64::Engine;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::prelude::{GradeCounts, UserExtended};
 use svg::node::element::{Image, Mask, Rectangle, Text};
-use svg::{Document, Node};
+use svg::Document;
 
 pub async fn draw_body(mut document: Document, osu_user: &UserExtended) -> Result<Document, Error> {
     document = draw_ranks(document, osu_user).await?;
@@ -58,7 +58,7 @@ pub async fn draw_ranks(document: Document, osu_user: &UserExtended) -> Result<D
         }
     };
 
-    let mut global_rank_text = Text::new()
+    let global_rank_text = Text::new("Global Rank")
         .set("id", "global_rank_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -68,8 +68,7 @@ pub async fn draw_ranks(document: Document, osu_user: &UserExtended) -> Result<D
         .set("letter-spacing", "0em")
         .set("x", 25)
         .set("y", 77.8);
-    global_rank_text.append(svg::node::Text::new("Global Rank"));
-    let mut global_rank_statistics = Text::new()
+    let global_rank_statistics = Text::new(global_rank)
         .set("id", "global_rank_statistics")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -79,9 +78,8 @@ pub async fn draw_ranks(document: Document, osu_user: &UserExtended) -> Result<D
         .set("letter-spacing", "0em")
         .set("x", 22)
         .set("y", 103.1);
-    global_rank_statistics.append(svg::node::Text::new(global_rank));
 
-    let mut country_rank_text = Text::new()
+    let country_rank_text = Text::new("Country Rank")
         .set("id", "country_rank_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -91,8 +89,7 @@ pub async fn draw_ranks(document: Document, osu_user: &UserExtended) -> Result<D
         .set("letter-spacing", "0em")
         .set("x", 146)
         .set("y", 77.8);
-    country_rank_text.append(svg::node::Text::new("Country Rank"));
-    let mut country_rank_statistics = Text::new()
+    let country_rank_statistics = Text::new(country_rank)
         .set("id", "country_rank_statistics")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -102,9 +99,8 @@ pub async fn draw_ranks(document: Document, osu_user: &UserExtended) -> Result<D
         .set("letter-spacing", "0em")
         .set("x", 143)
         .set("y", 103.1);
-    country_rank_statistics.append(svg::node::Text::new(country_rank));
 
-    let mut score_rank_text = Text::new()
+    let score_rank_text = Text::new("Score Rank")
         .set("id", "score_rank_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -114,8 +110,7 @@ pub async fn draw_ranks(document: Document, osu_user: &UserExtended) -> Result<D
         .set("letter-spacing", "0em")
         .set("x", 275)
         .set("y", 77.8);
-    score_rank_text.append(svg::node::Text::new("Score Rank"));
-    let mut score_rank_statistics = Text::new()
+    let score_rank_statistics = Text::new(score_rank)
         .set("id", "score_rank_statistics")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -125,7 +120,6 @@ pub async fn draw_ranks(document: Document, osu_user: &UserExtended) -> Result<D
         .set("letter-spacing", "0em")
         .set("x", 272)
         .set("y", 103.1);
-    score_rank_statistics.append(svg::node::Text::new(score_rank));
 
     Ok(document
         .add(global_rank_text)
@@ -167,7 +161,7 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         clears = "-".into();
     }
 
-    let mut medal_count_text = Text::new()
+    let medal_count_text = Text::new("Medals")
         .set("id", "medal_count_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -177,23 +171,21 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 25)
         .set("y", 124.8);
-    medal_count_text.append(svg::node::Text::new("Medals"));
-    let mut medal_count_statistics = Text::new()
-        .set("id", "medal_count_text")
-        .set("fill", "#DBF0E9")
-        .set("xml:space", "preserve")
-        .set("style", "white-space: pre")
-        .set("font-family", "Torus")
-        .set("font-size", 14)
-        .set("letter-spacing", "0em")
-        .set("x", 25)
-        .set("y", 140.1);
-    medal_count_statistics.append(svg::node::Text::new(format!(
+    let medal_count_statistics = Text::new(format!(
         "{}",
         osu_user.medals.clone().unwrap_or_default().len()
-    )));
+    ))
+    .set("id", "medal_count_text")
+    .set("fill", "#DBF0E9")
+    .set("xml:space", "preserve")
+    .set("style", "white-space: pre")
+    .set("font-family", "Torus")
+    .set("font-size", 14)
+    .set("letter-spacing", "0em")
+    .set("x", 25)
+    .set("y", 140.1);
 
-    let mut pp_text = Text::new()
+    let pp_text = Text::new("PP")
         .set("id", "pp_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -203,8 +195,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 86)
         .set("y", 124.8);
-    pp_text.append(svg::node::Text::new("PP"));
-    let mut pp_statistics = Text::new()
+
+    let pp_statistics = Text::new(pp)
         .set("id", "pp_statistics")
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
@@ -214,9 +206,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 86)
         .set("y", 140.1);
-    pp_statistics.append(svg::node::Text::new(pp));
 
-    let mut play_time_text = Text::new()
+    let play_time_text = Text::new("Play Time")
         .set("id", "play_time_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -226,8 +217,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 140)
         .set("y", 124.8);
-    play_time_text.append(svg::node::Text::new("Play Time"));
-    let mut play_time_statistics = Text::new()
+
+    let play_time_statistics = Text::new(play_time)
         .set("id", "play_time_statistics")
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
@@ -237,9 +228,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 140)
         .set("y", 140.1);
-    play_time_statistics.append(svg::node::Text::new(play_time));
 
-    let mut play_count_text = Text::new()
+    let play_count_text = Text::new("Play Count")
         .set("id", "play_count_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -249,8 +239,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 220)
         .set("y", 124.8);
-    play_count_text.append(svg::node::Text::new("Play Count"));
-    let mut play_count_statistics = Text::new()
+
+    let play_count_statistics = Text::new(play_count)
         .set("id", "play_count_statistics")
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
@@ -260,9 +250,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 220)
         .set("y", 140.1);
-    play_count_statistics.append(svg::node::Text::new(play_count));
 
-    let mut accuracy_text = Text::new()
+    let accuracy_text = Text::new("Accuracy")
         .set("id", "accuracy_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -272,8 +261,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 302)
         .set("y", 124.8);
-    accuracy_text.append(svg::node::Text::new("Accuracy"));
-    let mut accuracy_statistics = Text::new()
+
+    let accuracy_statistics = Text::new(accuracy)
         .set("id", "accuracy_statistics")
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
@@ -283,9 +272,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 302)
         .set("y", 140.1);
-    accuracy_statistics.append(svg::node::Text::new(accuracy));
 
-    let mut ranked_score_text = Text::new()
+    let ranked_score_text = Text::new("Ranked Score")
         .set("id", "ranked_score_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -295,8 +283,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 41)
         .set("y", 157.8);
-    ranked_score_text.append(svg::node::Text::new("Ranked Score"));
-    let mut ranked_score_statistics = Text::new()
+
+    let ranked_score_statistics = Text::new(ranked_score)
         .set("id", "ranked_score_statistics")
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
@@ -306,9 +294,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 41)
         .set("y", 173.1);
-    ranked_score_statistics.append(svg::node::Text::new(ranked_score));
 
-    let mut total_score_text = Text::new()
+    let total_score_text = Text::new("Total Score")
         .set("id", "total_score_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -318,8 +305,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 161)
         .set("y", 157.8);
-    total_score_text.append(svg::node::Text::new("Total Score"));
-    let mut total_score_statistics = Text::new()
+
+    let total_score_statistics = Text::new(total_score)
         .set("id", "total_score_statistics")
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
@@ -329,9 +316,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 161)
         .set("y", 173.1);
-    total_score_statistics.append(svg::node::Text::new(total_score));
 
-    let mut clears_text = Text::new()
+    let clears_text = Text::new("Clears")
         .set("id", "clears_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -341,8 +327,8 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 285)
         .set("y", 157.8);
-    clears_text.append(svg::node::Text::new("Clears"));
-    let mut clears_statistics = Text::new()
+
+    let clears_statistics = Text::new(clears)
         .set("id", "clears_statistics")
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
@@ -352,7 +338,6 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 285)
         .set("y", 173.1);
-    clears_statistics.append(svg::node::Text::new(clears));
 
     Ok(document
         .add(medal_count_text)
@@ -401,7 +386,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         )
         .set("mask", "url(#ssh_mask)");
 
-    let mut ssh_text = Text::new()
+    let ssh_text = Text::new(grades.ssh.to_formatted_string(&Locale::en))
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
         .set("style", "white-space: pre")
@@ -411,10 +396,6 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         .set("y", 221.8)
         .set("dominant-baseline", "middle")
         .set("text-anchor", "middle");
-
-    ssh_text.append(svg::node::Text::new(
-        grades.ssh.to_formatted_string(&Locale::en),
-    ));
 
     let ss_rectangle = Rectangle::new()
         .set("id", "ss_rectangle")
@@ -442,7 +423,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         )
         .set("mask", "url(#ss_mask)");
 
-    let mut ss_text = Text::new()
+    let ss_text = Text::new(grades.ss.to_formatted_string(&Locale::en))
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
         .set("style", "white-space: pre")
@@ -452,10 +433,6 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         .set("y", 221.8)
         .set("dominant-baseline", "middle")
         .set("text-anchor", "middle");
-
-    ss_text.append(svg::node::Text::new(
-        grades.ss.to_formatted_string(&Locale::en),
-    ));
 
     let sh_rectangle = Rectangle::new()
         .set("id", "sh_rectangle")
@@ -483,7 +460,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         )
         .set("mask", "url(#sh_mask)");
 
-    let mut sh_text = Text::new()
+    let sh_text = Text::new(grades.sh.to_formatted_string(&Locale::en))
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
         .set("style", "white-space: pre")
@@ -493,10 +470,6 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         .set("y", 221.8)
         .set("dominant-baseline", "middle")
         .set("text-anchor", "middle");
-
-    sh_text.append(svg::node::Text::new(
-        grades.sh.to_formatted_string(&Locale::en),
-    ));
 
     let s_rectangle = Rectangle::new()
         .set("id", "s_rectangle")
@@ -524,7 +497,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         )
         .set("mask", "url(#s_mask)");
 
-    let mut s_text = Text::new()
+    let s_text = Text::new(grades.s.to_formatted_string(&Locale::en))
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
         .set("style", "white-space: pre")
@@ -534,10 +507,6 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         .set("y", 221.8)
         .set("dominant-baseline", "middle")
         .set("text-anchor", "middle");
-
-    s_text.append(svg::node::Text::new(
-        grades.s.to_formatted_string(&Locale::en),
-    ));
 
     let a_rectangle = Rectangle::new()
         .set("id", "a_rectangle")
@@ -565,7 +534,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         )
         .set("mask", "url(#a_mask)");
 
-    let mut a_text = Text::new()
+    let a_text = Text::new(grades.a.to_formatted_string(&Locale::en))
         .set("fill", "#DBF0E9")
         .set("xml:space", "preserve")
         .set("style", "white-space: pre")
@@ -575,10 +544,6 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
         .set("y", 221.8)
         .set("dominant-baseline", "middle")
         .set("text-anchor", "middle");
-
-    a_text.append(svg::node::Text::new(
-        grades.a.to_formatted_string(&Locale::en),
-    ));
 
     Ok(document
         .add(ssh_mask)

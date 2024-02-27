@@ -12,7 +12,7 @@ use std::str::FromStr;
 use svg::node::element::{
     Definitions, Image, LinearGradient, Mask, Path, RadialGradient, Rectangle, Stop, Text,
 };
-use svg::{Document, Node};
+use svg::Document;
 use time::OffsetDateTime;
 
 pub async fn draw_header(
@@ -200,20 +200,20 @@ pub fn draw_following_pill(document: Document, osu_user: &UserExtended) -> Docum
         .set("id", "following_icon")
         .set("d", "M116 34.5C117.263 34.5 118.286 33.4928 118.286 32.25C118.286 31.0072 117.263 30 116 30C114.738 30 113.714 31.0072 113.714 32.25C113.714 33.4928 114.738 34.5 116 34.5ZM117.6 35.0625H117.302C116.905 35.2418 116.464 35.3438 116 35.3438C115.536 35.3438 115.096 35.2418 114.698 35.0625H114.4C113.075 35.0625 112 36.1207 112 37.425V38.1562C112 38.6221 112.384 39 112.857 39H119.143C119.616 39 120 38.6221 120 38.1562V37.425C120 36.1207 118.925 35.0625 117.6 35.0625Z")
         .set("fill", "white");
-    let mut number_of_followers = Text::new()
-        .set("x", 123.471)
-        .set("y", 38.8)
-        .set("fill", "white")
-        .set("style", "white-space: pre")
-        .set("font-family", "Torus")
-        .set("font-size", 12)
-        .set("letter-spacing", "0em");
-    number_of_followers.append(svg::node::Text::new(
+    let number_of_followers = Text::new(
         osu_user
             .follower_count
             .unwrap_or(0)
             .to_formatted_string(&Locale::en),
-    ));
+    )
+    .set("x", 123.471)
+    .set("y", 38.8)
+    .set("fill", "white")
+    .set("style", "white-space: pre")
+    .set("font-family", "Torus")
+    .set("font-size", 12)
+    .set("letter-spacing", "0em");
+
     document.add(icon).add(number_of_followers)
 }
 
@@ -237,7 +237,7 @@ pub fn draw_osu_circle(document: Document) -> Document {
 }
 
 pub fn draw_username(document: Document, username: &str) -> Document {
-    let mut username_text = Text::new()
+    let username_text = Text::new(username)
         .set("fill", "white")
         .set("xml:space", "preserve")
         .set("style", "white-space: pre")
@@ -245,7 +245,7 @@ pub fn draw_username(document: Document, username: &str) -> Document {
         .set("font-size", 16)
         .set("x", 75)
         .set("y", 21.363_636_364);
-    username_text.append(svg::node::Text::new(username));
+
     document.add(username_text)
 }
 
@@ -272,7 +272,7 @@ pub fn draw_level(document: Document, level: u8) -> Document {
         .set("d", "M339.75 9.18579C342.38 7.66741 345.62 7.66741 348.25 9.18579L359.901 15.9123C362.531 17.4307 364.151 20.2367 364.151 23.2735V36.7265C364.151 39.7633 362.531 42.5693 359.901 44.0877L348.25 50.8142C345.62 52.3326 342.38 52.3326 339.75 50.8142L328.099 44.0877C325.469 42.5693 323.849 39.7633 323.849 36.7265V23.2735C323.849 20.2367 325.469 17.4307 328.099 15.9123L339.75 9.18579Z")
         .set("stroke_width", 9)
         .set("stroke", "url(#level_hexagon_paint)");
-    let mut level_text = Text::new()
+    let level_text = Text::new(level.to_string())
         .set("id", "xp_level_text")
         .set("fill", "white")
         .set("xml:space", "preserve")
@@ -284,7 +284,6 @@ pub fn draw_level(document: Document, level: u8) -> Document {
         .set("text-anchor", "middle")
         .set("x", 344)
         .set("y", 31);
-    level_text.append(svg::node::Text::new(format!("{level}")));
 
     document
         .add(level_hexagon)
@@ -325,16 +324,6 @@ pub fn draw_user_group(
 }
 
 pub fn draw_join_date(document: Document, join_time: OffsetDateTime) -> Document {
-    let mut join_date = Text::new()
-        .set("id", "join_date")
-        .set("fill", "white")
-        .set("xml:space", "preserve")
-        .set("style", "white-space: pre")
-        .set("font-family", "Torus")
-        .set("font-size", 10)
-        .set("letter-spacing", "0em")
-        .set("x", 75)
-        .set("y", 55);
     let year_and_date_join = format!(
         "{} {} {}",
         join_time.day(),
@@ -348,6 +337,17 @@ pub fn draw_join_date(document: Document, join_time: OffsetDateTime) -> Document
         year_and_date_join,
         time_since.whole_days()
     );
-    join_date.append(svg::node::Text::new(formatted_join_date));
+
+    let join_date = Text::new(formatted_join_date)
+        .set("id", "join_date")
+        .set("fill", "white")
+        .set("xml:space", "preserve")
+        .set("style", "white-space: pre")
+        .set("font-family", "Torus")
+        .set("font-size", 10)
+        .set("letter-spacing", "0em")
+        .set("x", 75)
+        .set("y", 55);
+
     document.add(join_date)
 }
