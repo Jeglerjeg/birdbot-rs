@@ -34,7 +34,7 @@ num_cpus = "1.16.0"
 itertools = "0.12"
 resvg = "0.40"
 svg = "0.16"
-base64 = "0.21"
+base64 = "0.22"
 color_space = "0.5"
 image = "0.24"
 serde_json = "1.0"
@@ -49,11 +49,11 @@ rev = "70c7b26613a209e9a626772bdd1dbe8e1bd74bce"
 
 [dependencies.symphonia]
 version = "0.5"
-features = ["aac", "mpa", "isomp4", "alac","opt-simd"]
+features = ["all-codecs", "opt-simd"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "ea7cfd97dc2363870248505537d2aa94107fb23b"
+rev = "e6bbf0122bb6810a79878e4d864de376c2fe1597"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
