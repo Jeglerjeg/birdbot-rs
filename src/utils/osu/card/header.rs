@@ -147,7 +147,7 @@ pub async fn draw_avatar_and_cover(
 
     let mut buffer = Vec::new();
 
-    opened_image.write_to(&mut Cursor::new(&mut buffer), image::ImageOutputFormat::Png)?;
+    opened_image.write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)?;
 
     let avatar_image_base64 = general_purpose::STANDARD.encode(buffer);
 
@@ -190,7 +190,7 @@ fn fit_image_to_aspect_ratio(image_bytes: &[u8], aspect_ratio: u32) -> Result<Ve
 
     let mut buffer = Vec::new();
 
-    resized_image.write_to(&mut Cursor::new(&mut buffer), image::ImageOutputFormat::Png)?;
+    resized_image.write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)?;
 
     Ok(buffer)
 }
