@@ -56,7 +56,7 @@ async fn event_listener(
 
             tokio::spawn(async move {
                 match osu_tracker.tracking_loop().await {
-                    Ok(_) => {}
+                    Ok(()) => {}
                     Err(why) => error!("{why}"),
                 };
             });

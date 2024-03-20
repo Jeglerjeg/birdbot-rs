@@ -198,7 +198,9 @@ pub async fn set_up_score_list(
 ) -> Result<Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>, Error> {
     let mut score_list: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> =
         Vec::with_capacity(100);
-    let typing = ctx.channel_id().start_typing(&ctx.serenity_context().http);
+    let typing = ctx
+        .channel_id()
+        .start_typing(ctx.serenity_context().http.clone());
     let mut process_list: Vec<(Score, (Beatmap, Beatmapset, OsuFile))> = Vec::with_capacity(100);
     for score in scores {
         let beatmap = get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;

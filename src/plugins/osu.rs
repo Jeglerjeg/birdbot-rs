@@ -70,7 +70,7 @@ pub async fn osu(
     };
 
     let color = match ctx.guild() {
-        Some(guild) => match ctx.cache().member(guild.id, discord_user.id) {
+        Some(guild) => match guild.members.get(&discord_user.id) {
             Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
             _ => BLUE,
         },

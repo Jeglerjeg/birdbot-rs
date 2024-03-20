@@ -45,7 +45,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "354712f401a7e2655c4d459c33d695e114b32bf6"
+rev = "0c8cfd256790f130a18c5e9d41f6881137f72e8b"
 
 [dependencies.symphonia]
 version = "0.5"

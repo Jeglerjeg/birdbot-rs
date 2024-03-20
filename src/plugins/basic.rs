@@ -229,7 +229,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     );
 
     let color = match ctx.guild() {
-        Some(guild) => match ctx.cache().member(guild.id, ctx.framework().bot_id()) {
+        Some(guild) => match guild.members.get(&ctx.framework().bot_id()) {
             Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
             _ => BLUE,
         },
@@ -343,9 +343,9 @@ pub async fn avatar(
     let avatar: String;
 
     if let Some(guild) = ctx.guild() {
-        if let Some(member) = ctx
-            .cache()
-            .member(guild.id, user.as_ref().unwrap_or_else(|| ctx.author()).id)
+        if let Some(member) = guild
+            .members
+            .get(&user.as_ref().unwrap_or_else(|| ctx.author()).id)
         {
             color = member.colour(ctx.cache()).unwrap_or(BLUE);
             name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
