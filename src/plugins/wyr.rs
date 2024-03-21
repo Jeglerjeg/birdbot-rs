@@ -245,7 +245,7 @@ pub async fn wyr(
 
         crate::utils::db::questions::add_question(connection, &choice_1, &choice_2).await?;
 
-        let choices = vec![choice_1, choice_2];
+        let choices = [choice_1, choice_2];
 
         let choice: Vec<_> = choices
             .choose_multiple(&mut rand::thread_rng(), 1)
