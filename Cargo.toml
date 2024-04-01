@@ -40,12 +40,12 @@ image = "0.25"
 serde_json = "1.0"
 
 [dependencies.tokio]
-version = "1.36"
+version = "1.37"
 features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "0c8cfd256790f130a18c5e9d41f6881137f72e8b"
+rev = "57abf8fd66e62df52674955752075272c1ce19cf"
 
 [dependencies.symphonia]
 version = "0.5"
