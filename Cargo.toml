@@ -16,10 +16,10 @@ diesel_migrations = "2.1"
 serde = "1.0"
 rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "510f45fce6bcb7303ed49fe8f4e552394aa113bf"}
 num-format = "0.4"
-reqwest = { version = "0.11", default_features=false, features = ["rustls-tls", "brotli", "gzip", "deflate"]}
+reqwest = { version = "0.12", default_features=false, features = ["rustls-tls", "brotli", "gzip", "deflate", "http2"]}
 time = "0.3"
 dashmap = "5.5"
-rosu-pp = { version = "0.10"}
+rosu-pp = { version = "1.0"}
 regex = "1.10"
 url = "2.5"
 diesel = { version = "2.1", features = ["chrono"]}
@@ -53,7 +53,7 @@ features = ["all-codecs", "opt-simd"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "e6bbf0122bb6810a79878e4d864de376c2fe1597"
+rev = "10a03864cc71c6eb3d2f58f1b45332d6e59fad37"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
