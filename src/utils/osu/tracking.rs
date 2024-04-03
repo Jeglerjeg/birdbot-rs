@@ -310,7 +310,7 @@ impl OsuTracker {
         let thumbnail = beatmap.1.list_cover.clone();
         let formatted_score = format!(
             "{}{}\n<t:{}:R>",
-            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, None)?,
+            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, None, None)?,
             format_diff(new, old, gamemode)?,
             score.0.ended_at.unix_timestamp()
         );
@@ -557,7 +557,14 @@ impl OsuTracker {
 
         let formatted_score = &format!(
             "{}<t:{}:R>",
-            format_new_score(&score.score, &beatmap.0, &beatmap.1, &pp, Some(&score.pos))?,
+            format_new_score(
+                &score.score,
+                &beatmap.0,
+                &beatmap.1,
+                &pp,
+                Some(&score.pos),
+                None
+            )?,
             score.score.ended_at.unix_timestamp()
         );
 

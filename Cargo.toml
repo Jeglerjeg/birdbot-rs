@@ -32,7 +32,7 @@ par-stream = { version = "0.10", features = ["runtime-tokio"]}
 tikv-jemallocator = "0.5"
 num_cpus = "1.16.0"
 itertools = "0.12"
-resvg = "0.40"
+resvg = "0.41"
 svg = "0.16"
 base64 = "0.22"
 color_space = "0.5"

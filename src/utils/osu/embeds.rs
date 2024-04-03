@@ -54,6 +54,7 @@ pub async fn send_score_embed(
         score.2,
         score.3,
         scoreboard_rank,
+        None,
     )?;
 
     let color = match ctx.author_member().await {

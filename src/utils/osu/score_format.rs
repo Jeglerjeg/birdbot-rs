@@ -98,6 +98,7 @@ pub fn format_score_info(
     beatmapset: &Beatmapset,
     pp: &CalculateResults,
     scoreboard_rank: Option<&usize>,
+    list_position: Option<&usize>,
 ) -> Result<String, Error> {
     let italic = if beatmapset.artist.contains('*') {
         ""
@@ -125,9 +126,16 @@ pub fn format_score_info(
         score.grade.to_string()
     };
 
+    let list_position = if let Some(list_position) = list_position {
+        format!("{}. ", list_position)
+    } else {
+        String::new()
+    };
+
     Ok(format!(
-        "[{italic}{} - {} [{}]{italic}]({})\n\
+        "{}[{italic}{} - {} [{}]{italic}]({})\n\
         **{}pp {}★, {} {}+{} {}**",
+        list_position,
         beatmapset.artist,
         beatmapset.title,
         beatmap.version,
@@ -151,10 +159,18 @@ pub fn format_new_score(
     beatmapset: &Beatmapset,
     pp: &CalculateResults,
     scoreboard_rank: Option<&usize>,
+    list_position: Option<&usize>,
 ) -> Result<String, Error> {
     Ok(format!(
         "{}```ansi\n{}```",
-        format_score_info(score, beatmap, beatmapset, pp, scoreboard_rank)?,
+        format_score_info(
+            score,
+            beatmap,
+            beatmapset,
+            pp,
+            scoreboard_rank,
+            list_position
+        )?,
         format_score_statistic(score, pp)?
     ))
 }
@@ -183,11 +199,11 @@ pub fn format_score_list(
             format!("\n{formatted_footer}")
         };
 
-        let formatted_score = format_new_score(score, beatmap, beatmapset, pp, None)?;
+        let formatted_score =
+            format_new_score(score, beatmap, beatmapset, pp, None, Some(position))?;
 
         formatted_list.push(format!(
-            "{}.\n{}<t:{}:R>{}\n",
-            position,
+            "{}<t:{}:R>{}\n",
             formatted_score,
             score.ended_at.unix_timestamp(),
             footer
