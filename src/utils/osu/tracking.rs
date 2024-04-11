@@ -458,7 +458,7 @@ impl OsuTracker {
 
         let mut recent_events = self
             .osu_client
-            .recent_events(u32::try_from(new.id)?)
+            .recent_activity(u32::try_from(new.id)?)
             .await?;
         recent_events.reverse();
 
