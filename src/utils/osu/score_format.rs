@@ -127,7 +127,7 @@ pub fn format_score_info(
     };
 
     let list_position = if let Some(list_position) = list_position {
-        format!("{}. ", list_position)
+        format!("{list_position}. ")
     } else {
         String::new()
     };
