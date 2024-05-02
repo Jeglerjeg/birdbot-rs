@@ -31,7 +31,7 @@ pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String
         calculated_beatmaps.insert(beatmap.id, difficulty_values);
     }
     if &diff_length > max_diff_length {
-        diff_length = max_diff_length.to_owned();
+        max_diff_length.clone_into(&mut diff_length);
     } else if diff_length < 10 {
         diff_length = 10;
     }
