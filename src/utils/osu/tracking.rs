@@ -371,7 +371,7 @@ impl OsuTracker {
                             let builder = CreateMessage::new().embed(embed);
 
                             ChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.ctx, builder)
+                                .send_message(&self.ctx.http, builder)
                                 .await?;
                         }
                     }
@@ -600,7 +600,7 @@ impl OsuTracker {
                             let builder = CreateMessage::new().embed(embed);
 
                             ChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.ctx, builder)
+                                .send_message(&self.ctx.http, builder)
                                 .await?;
                         }
                     }
