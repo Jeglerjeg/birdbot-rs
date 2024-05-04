@@ -2,10 +2,9 @@ use crate::models::summary_messages::NewDbSummaryMessage;
 use crate::schema::summary_messages;
 use crate::Error;
 use diesel::dsl::count;
-use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl};
+use diesel::{insert_into, PgTextExpressionMethods};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
-use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions};
 use markov::Chain;
 use par_stream::{ParParams, ParStreamExt};
 use tokio_stream::StreamExt;
@@ -34,8 +33,7 @@ pub async fn construct_chain(
         .filter(summary_messages::channel_id.eq_any(channel_ids))
         .into_boxed();
     if let Some(phrase) = phrase {
-        let ts_query = plainto_tsquery(phrase);
-        query = query.filter(summary_messages::ts.matches(ts_query));
+        query = query.filter(summary_messages::content.ilike(format!("% {phrase} %")));
     }
     if !include_bots {
         query = query.filter(summary_messages::is_bot.eq(false));
@@ -56,7 +54,7 @@ pub async fn construct_chain(
                 value
                     .expect("Couldn't get message value from summary db")
                     .split_whitespace()
-                    .map(std::borrow::ToOwned::to_owned)
+                    .map(ToOwned::to_owned)
                     .collect::<Vec<_>>()
             },
         );
