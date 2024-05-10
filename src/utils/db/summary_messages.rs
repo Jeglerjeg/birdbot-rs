@@ -33,7 +33,7 @@ pub async fn construct_chain(
         .filter(summary_messages::channel_id.eq_any(channel_ids))
         .into_boxed();
     if let Some(phrase) = phrase {
-        query = query.filter(summary_messages::content.ilike(format!("% {phrase} %")));
+        query = query.filter(summary_messages::content.ilike(format!("%{phrase}%")));
     }
     if !include_bots {
         query = query.filter(summary_messages::is_bot.eq(false));
