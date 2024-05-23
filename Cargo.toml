@@ -30,7 +30,7 @@ tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"]}
 tikv-jemallocator = "0.5"
 num_cpus = "1.16.0"
-itertools = "0.12"
+itertools = "0.13"
 resvg = "0.41"
 svg = "0.17"
 base64 = "0.22"
@@ -44,7 +44,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "47a26bdee706d47ed3bda076abea1de4a0ec568f"
+rev = "198c62d83a30811a4fa4801a23d2672edeb40caf"
 
 [dependencies.symphonia]
 version = "0.5"
