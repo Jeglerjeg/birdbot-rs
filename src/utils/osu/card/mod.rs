@@ -1,6 +1,7 @@
 pub mod body;
 pub mod header;
 
+use std::sync::Arc;
 use crate::Error;
 use color_space::{FromRgb, Hsv, Rgb};
 use resvg::tiny_skia::Pixmap;
@@ -27,8 +28,10 @@ pub fn load_fonts() -> Database {
 pub async fn load_svg(osu_user: &UserExtended, color: Colour) -> Result<Tree, Error> {
     Ok(Tree::from_str(
         &generate_svg(osu_user, color).await?,
-        &usvg::Options::default(),
-        &load_fonts(),
+        &usvg::Options {
+            fontdb: Arc::from(load_fonts()),
+            ..Default::default()
+        },
     )?)
 }
 
