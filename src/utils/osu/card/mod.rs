@@ -1,7 +1,6 @@
 pub mod body;
 pub mod header;
 
-use std::sync::Arc;
 use crate::Error;
 use color_space::{FromRgb, Hsv, Rgb};
 use resvg::tiny_skia::Pixmap;
@@ -10,6 +9,7 @@ use resvg::usvg::{Transform, Tree};
 use resvg::{render, usvg};
 use rosu_v2::prelude::UserExtended;
 use serenity::all::Colour;
+use std::sync::Arc;
 use svg::Document;
 
 pub async fn render_card(osu_user: &UserExtended, color: Colour) -> Result<Pixmap, Error> {
