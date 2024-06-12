@@ -149,13 +149,6 @@ pub async fn get_updated_beatmapset(
     osu_client: Arc<Osu>,
     id: u32,
 ) -> Result<(Beatmapset, Vec<(Beatmap, OsuFile)>), Error> {
-    let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await?;
-    if let Some(beatmapset) = query_beatmapset {
-        update_cache(connection, osu_client, beatmapset.0.id).await?;
-        return Ok(beatmapsets::read(connection, i64::from(id))
-            .await?
-            .ok_or("Failed to fetch beatmap in get_beatmapset")?);
-    }
     cache_beatmapset(connection, osu_client, i64::from(id)).await?;
     Ok(beatmapsets::read(connection, i64::from(id))
         .await?
