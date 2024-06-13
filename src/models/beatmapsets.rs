@@ -16,7 +16,7 @@ pub struct Beatmapset {
     pub status: String,
     pub title: String,
     pub user_id: i64,
-    pub time_cached: chrono::NaiveDateTime,
+    pub time_cached: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
