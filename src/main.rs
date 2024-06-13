@@ -51,7 +51,6 @@ async fn event_listener(
                 ctx: ctx.serenity_context.clone(),
                 osu_client: ctx.serenity_context.data::<Data>().osu_client.clone(),
                 pool: ctx.serenity_context.data::<Data>().db_pool.clone(),
-                shut_down: false,
             };
 
             tokio::spawn(async move {

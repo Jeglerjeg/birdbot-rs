@@ -5,10 +5,7 @@ use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User
 use poise::CreateReply;
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
-use songbird::{
-    tracks::TrackHandle, Event, EventContext, EventHandler as VoiceEventHandler, Songbird,
-    TrackEvent,
-};
+use songbird::{Event, EventContext, EventHandler as VoiceEventHandler, Songbird, TrackEvent};
 use std::collections::HashMap;
 use std::env;
 use std::sync::{Arc, OnceLock};
@@ -29,7 +26,6 @@ pub struct Queue {
 }
 
 pub struct QueuedTrack {
-    pub track: TrackHandle,
     pub requested: User,
     pub skipped: Vec<u64>,
     pub metadata: AuxMetadata,
@@ -465,7 +461,6 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
     drop(handler_lock);
 
     let queued_track = QueuedTrack {
-        track: track.clone(),
         metadata: metadata.clone(),
         requested: ctx.author().clone(),
         skipped: Vec::new(),

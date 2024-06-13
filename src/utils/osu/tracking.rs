@@ -46,7 +46,6 @@ pub struct OsuTracker {
     pub ctx: Context,
     pub osu_client: Arc<Osu>,
     pub pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>>,
-    pub shut_down: bool,
 }
 impl OsuTracker {
     pub async fn tracking_loop(&mut self) -> Result<(), Error> {

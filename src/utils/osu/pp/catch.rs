@@ -95,10 +95,6 @@ pub fn calculate_catch_pp(
         pp: result.pp,
         max_pp: None,
         max_combo: full_calc.max_combo(),
-        ar: diff_attributes.ar,
-        cs: diff_attributes.cs,
-        od: diff_attributes.od,
-        hp: diff_attributes.hp,
         clock_rate: diff_attributes.clock_rate,
     })
 }
