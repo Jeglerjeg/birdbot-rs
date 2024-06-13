@@ -4,7 +4,7 @@ use crate::models::osu_files::OsuFile;
 use crate::schema::{beatmapsets, osu_files};
 use crate::Error;
 use diesel::dsl::count;
-use diesel::prelude::{BelongingToDsl, ExpressionMethods, QueryDsl, QueryResult};
+use diesel::prelude::{BelongingToDsl, ExpressionMethods, QueryDsl};
 use diesel::{insert_into, SelectableHelper};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use rosu_v2::prelude::BeatmapsetExtended;
@@ -69,15 +69,4 @@ pub async fn read(
         return Ok(Some((beatmapset, beatmaps)));
     }
     Ok(None)
-}
-
-pub async fn update(
-    db: &mut AsyncPgConnection,
-    param_id: i64,
-    beatmapset: BeatmapsetExtended,
-) -> QueryResult<usize> {
-    diesel::update(beatmapsets::table.find(param_id))
-        .set(NewBeatmapset::from(beatmapset))
-        .execute(db)
-        .await
 }

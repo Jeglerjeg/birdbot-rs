@@ -13,6 +13,7 @@ use std::sync::Arc;
 pub async fn cache_beatmapset(
     connection: &mut AsyncPgConnection,
     beatmapset: BeatmapsetExtended,
+    to_delete: Option<Vec<i64>>,
 ) -> Result<(), Error> {
     if let Some(ref beatmaps) = beatmapset.maps {
         let mut beatmaps_to_insert = Vec::new();
@@ -38,6 +39,13 @@ pub async fn cache_beatmapset(
         osu_file::create(connection, osu_files_to_insert).await?;
     }
 
+    if let Some(to_delete) = to_delete {
+        for id in to_delete {
+            beatmaps::delete(connection, id).await?;
+            osu_file::delete(connection, id).await?;
+        }
+    }
+
     beatmapsets::create(connection, beatmapset).await?;
 
     Ok(())
@@ -54,11 +62,17 @@ pub async fn get_beatmap(
             return Ok(beatmap);
         }
         let beatmapset = osu_client.beatmapset_from_map_id(id).await?;
-        cache_beatmapset(connection, beatmapset).await?;
+        let to_delete = Some(check_if_deleted(
+            beatmapsets::read(connection, i64::from(beatmapset.mapset_id))
+                .await?
+                .ok_or("Beatmapset couldn't be fetched from db in get_beatmaps")?,
+            &beatmapset,
+        ));
+        cache_beatmapset(connection, beatmapset, to_delete).await?;
         return Ok(beatmaps::get_single(connection, i64::from(id)).await?);
     }
     let beatmapset = osu_client.beatmapset_from_map_id(id).await?;
-    cache_beatmapset(connection, beatmapset).await?;
+    cache_beatmapset(connection, beatmapset, None).await?;
     Ok(beatmaps::get_single(connection, i64::from(id)).await?)
 }
 
@@ -68,18 +82,19 @@ pub async fn get_beatmapset(
     id: u32,
 ) -> Result<(Beatmapset, Vec<(Beatmap, OsuFile)>), Error> {
     let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await?;
-    if let Some(beatmapset) = query_beatmapset {
-        if check_valid_result(&beatmapset.0.status, beatmapset.0.time_cached) {
-            return Ok(beatmapset);
+    if let Some(query_beatmapset) = query_beatmapset {
+        if check_valid_result(&query_beatmapset.0.status, query_beatmapset.0.time_cached) {
+            return Ok(query_beatmapset);
         }
         let beatmapset = osu_client.beatmapset(id).await?;
-        cache_beatmapset(connection, beatmapset).await?;
+        let to_delete = Some(check_if_deleted(query_beatmapset, &beatmapset));
+        cache_beatmapset(connection, beatmapset, to_delete).await?;
         return Ok(beatmapsets::read(connection, i64::from(id))
             .await?
             .ok_or("Failed to fetch beatmap in get_beatmapset")?);
     }
     let beatmapset = osu_client.beatmapset(id).await?;
-    cache_beatmapset(connection, beatmapset).await?;
+    cache_beatmapset(connection, beatmapset, None).await?;
     Ok(beatmapsets::read(connection, i64::from(id))
         .await?
         .ok_or("Failed to fetch beatmap in get_beatmapset")?)
@@ -90,11 +105,35 @@ pub async fn get_updated_beatmapset(
     osu_client: Arc<Osu>,
     id: u32,
 ) -> Result<(Beatmapset, Vec<(Beatmap, OsuFile)>), Error> {
+    let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await?;
+    if let Some(query_beatmapset) = query_beatmapset {
+        let beatmapset = osu_client.beatmapset(id).await?;
+        let to_delete = Some(check_if_deleted(query_beatmapset, &beatmapset));
+        cache_beatmapset(connection, beatmapset, to_delete).await?;
+        return Ok(beatmapsets::read(connection, i64::from(id))
+            .await?
+            .ok_or("Failed to fetch beatmap in get_beatmapset")?);
+    }
     let beatmapset = osu_client.beatmapset(id).await?;
-    cache_beatmapset(connection, beatmapset).await?;
+    cache_beatmapset(connection, beatmapset, None).await?;
     Ok(beatmapsets::read(connection, i64::from(id))
         .await?
         .ok_or("Failed to fetch beatmap in get_beatmapset")?)
+}
+
+pub fn check_if_deleted(
+    query_beatmapset: (Beatmapset, Vec<(Beatmap, OsuFile)>),
+    api_beatmapset: &BeatmapsetExtended,
+) -> Vec<i64> {
+    let mut to_delete = Vec::new();
+    if let Some(ref beatmaps) = api_beatmapset.maps {
+        for beatmap in query_beatmapset.1 {
+            if !beatmaps.iter().any(|x| x.map_id.eq(&(beatmap.0.id as u32))) {
+                to_delete.push(beatmap.0.id)
+            }
+        }
+    }
+    to_delete
 }
 
 pub fn check_valid_result(status: &str, time_cached: DateTime<Utc>) -> bool {

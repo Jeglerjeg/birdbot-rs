@@ -100,15 +100,8 @@ pub async fn get_single(
         .await
 }
 
-pub async fn update(
-    db: &mut AsyncPgConnection,
-    param_id: i64,
-    beatmap: &rosu_v2::prelude::BeatmapExtended,
-) -> Result<(), Error> {
-    let item = NewBeatmap::try_from(beatmap)?;
-
-    diesel::update(beatmaps::table.find(param_id))
-        .set(item)
+pub async fn delete(db: &mut AsyncPgConnection, param_id: i64) -> Result<(), Error> {
+    diesel::delete(beatmaps::table.find(param_id))
         .execute(db)
         .await?;
 

@@ -50,11 +50,8 @@ pub async fn get_files(db: &mut AsyncPgConnection, ids: &[i64]) -> Result<Vec<Os
     Ok(osu_file)
 }
 
-pub async fn update(db: &mut AsyncPgConnection, param_id: i64, file: Vec<u8>) -> Result<(), Error> {
-    let item = NewOsuFile { id: param_id, file };
-
-    diesel::update(osu_files::table.find(param_id))
-        .set(item)
+pub async fn delete(db: &mut AsyncPgConnection, param_id: i64) -> Result<(), Error> {
+    diesel::delete(osu_files::table.find(param_id))
         .execute(db)
         .await?;
 
