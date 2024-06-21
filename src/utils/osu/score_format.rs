@@ -2,7 +2,7 @@ use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::is_perfect;
-use crate::utils::osu::misc_format::{format_beatmap_link, format_footer};
+use crate::utils::osu::misc_format::{fmt_with_settings, format_beatmap_link, format_footer};
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
 use num_format::{Locale, ToFormattedString};
@@ -148,7 +148,7 @@ pub fn format_score_info(
         remove_trailing_zeros(stars, 2)?,
         grade,
         scoreboard_rank,
-        score.mods,
+        fmt_with_settings(&score.mods)?,
         score.score.to_formatted_string(&Locale::en)
     ))
 }

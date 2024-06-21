@@ -8,7 +8,248 @@ use num_format::{Locale, ToFormattedString};
 use poise::serenity_prelude::User;
 use rosu_v2::model::beatmap::RankStatus;
 use rosu_v2::model::{GameMode, Grade};
-use rosu_v2::prelude::Score;
+use rosu_v2::prelude::{GameMod, GameMods, Score};
+
+#[inline]
+fn format_speed_change(speed_change: f32, acronym: String) -> Result<String, Error> {
+    Ok(format!(
+        "{} ({}x)",
+        acronym,
+        remove_trailing_zeros(speed_change as f64, 2)?
+    ))
+}
+
+#[inline]
+pub fn fmt_with_settings(mods: &GameMods) -> Result<String, Error> {
+    let mut formatted = Vec::new();
+    if mods.is_empty() {
+        formatted.push("NM".to_string())
+    } else {
+        for gamemod in mods.iter() {
+            let acronym = gamemod.acronym().to_string();
+            match gamemod {
+                GameMod::DoubleTimeCatch(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DoubleTimeOsu(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DoubleTimeTaiko(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DoubleTimeMania(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::NightcoreOsu(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::NightcoreCatch(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::NightcoreMania(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::NightcoreTaiko(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::HalfTimeOsu(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::HalfTimeTaiko(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::HalfTimeCatch(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::HalfTimeMania(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DaycoreOsu(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DaycoreCatch(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DaycoreTaiko(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DaycoreMania(rate_change_mod) => {
+                    if let Some(speed_change) = rate_change_mod.speed_change {
+                        formatted.push(format_speed_change(speed_change, acronym)?);
+                    } else {
+                        formatted.push(acronym.to_string())
+                    }
+                }
+                GameMod::DifficultyAdjustOsu(difficulty_adjust_mod) => {
+                    let mut settings = Vec::new();
+                    if let Some(circle_size) = difficulty_adjust_mod.circle_size {
+                        settings.push(format!(
+                            "CS{}",
+                            remove_trailing_zeros(circle_size as f64, 2)?
+                        ));
+                    }
+                    if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
+                        settings.push(format!(
+                            "OD{}",
+                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                        ));
+                    }
+                    if let Some(approach_rate) = difficulty_adjust_mod.approach_rate {
+                        settings.push(format!(
+                            "AR{}",
+                            remove_trailing_zeros(approach_rate as f64, 2)?
+                        ));
+                    }
+                    if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
+                        settings.push(format!(
+                            "HP{}",
+                            remove_trailing_zeros(drain_rate as f64, 2)?
+                        ));
+                    }
+                    if settings.is_empty() {
+                        formatted.push(acronym.to_string())
+                    } else {
+                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                    }
+                }
+                GameMod::DifficultyAdjustTaiko(difficulty_adjust_mod) => {
+                    let mut settings = Vec::new();
+                    if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
+                        settings.push(format!(
+                            "OD{}",
+                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                        ));
+                    }
+                    if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
+                        settings.push(format!(
+                            "HP{}",
+                            remove_trailing_zeros(drain_rate as f64, 2)?
+                        ));
+                    }
+                    if settings.is_empty() {
+                        formatted.push(acronym.to_string())
+                    } else {
+                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                    }
+                }
+                GameMod::DifficultyAdjustCatch(difficulty_adjust_mod) => {
+                    let mut settings = Vec::new();
+                    if let Some(circle_size) = difficulty_adjust_mod.circle_size {
+                        settings.push(format!(
+                            "CS{}",
+                            remove_trailing_zeros(circle_size as f64, 2)?
+                        ));
+                    }
+                    if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
+                        settings.push(format!(
+                            "OD{}",
+                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                        ));
+                    }
+                    if let Some(approach_rate) = difficulty_adjust_mod.approach_rate {
+                        settings.push(format!(
+                            "AR{}",
+                            remove_trailing_zeros(approach_rate as f64, 2)?
+                        ));
+                    }
+                    if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
+                        settings.push(format!(
+                            "HP{}",
+                            remove_trailing_zeros(drain_rate as f64, 2)?
+                        ));
+                    }
+                    if settings.is_empty() {
+                        formatted.push(acronym.to_string())
+                    } else {
+                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                    }
+                }
+                GameMod::DifficultyAdjustMania(difficulty_adjust_mod) => {
+                    let mut settings = Vec::new();
+                    if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
+                        settings.push(format!(
+                            "OD{}",
+                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                        ));
+                    }
+                    if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
+                        settings.push(format!(
+                            "HP{}",
+                            remove_trailing_zeros(drain_rate as f64, 2)?
+                        ));
+                    }
+                    if settings.is_empty() {
+                        formatted.push(acronym.to_string())
+                    } else {
+                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                    }
+                }
+                _ => formatted.push(acronym.to_string()),
+            }
+        }
+    }
+    Ok(formatted.join(","))
+}
 
 pub fn format_rank_status(status: RankStatus) -> String {
     match status {
