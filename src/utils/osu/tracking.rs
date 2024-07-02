@@ -105,7 +105,22 @@ impl OsuTracker {
                 .to_owned();
 
             if profile.ticks > not_playing_skip {
-                profile.ticks = 0;
+                let Ok(osu_profile) = self
+                    .osu_client
+                    .user(u32::try_from(linked_profile.osu_id)?)
+                    .mode(
+                        gamemode_from_string(&linked_profile.mode)
+                            .ok_or("Failed to parse gamemode in update_user_data function")?,
+                    )
+                    .await
+                else {
+                    return Ok(());
+                };
+
+                let mut db_profile = NewOsuUser::try_from(osu_profile)?;
+                db_profile.ticks = 0;
+                osu_users::create(connection, &db_profile).await?;
+                return Ok(());
             }
 
             if is_playing(&self.ctx, user.id, linked_profile.home_guild)?
