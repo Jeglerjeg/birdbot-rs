@@ -4,6 +4,7 @@ use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::{get_stat_diff, DiffTypes};
 use crate::utils::osu::pp::CalculateResults;
 use crate::{Context, Error};
+use aformat::{aformat, ArrayString, CapStr};
 use num_format::{Locale, ToFormattedString};
 use poise::serenity_prelude::User;
 use rosu_v2::model::beatmap::RankStatus;
@@ -12,11 +13,12 @@ use rosu_v2::prelude::{GameMod, GameMods, Score};
 
 #[inline]
 fn format_speed_change(speed_change: f32, acronym: String) -> Result<String, Error> {
-    Ok(format!(
+    Ok(aformat!(
         "{} ({}x)",
-        acronym,
-        remove_trailing_zeros(speed_change as f64, 2)?
-    ))
+        CapStr::<8>(&acronym),
+        remove_trailing_zeros(speed_change as f64, 2)?.to_arraystring()
+    )
+    .to_string())
 }
 
 #[inline]
@@ -32,216 +34,244 @@ pub fn fmt_with_settings(mods: &GameMods) -> Result<String, Error> {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DoubleTimeOsu(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DoubleTimeTaiko(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DoubleTimeMania(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::NightcoreOsu(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::NightcoreCatch(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::NightcoreMania(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::NightcoreTaiko(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::HalfTimeOsu(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::HalfTimeTaiko(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::HalfTimeCatch(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::HalfTimeMania(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DaycoreOsu(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DaycoreCatch(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DaycoreTaiko(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DaycoreMania(rate_change_mod) => {
                     if let Some(speed_change) = rate_change_mod.speed_change {
                         formatted.push(format_speed_change(speed_change, acronym)?);
                     } else {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     }
                 }
                 GameMod::DifficultyAdjustOsu(difficulty_adjust_mod) => {
                     let mut settings = Vec::new();
                     if let Some(circle_size) = difficulty_adjust_mod.circle_size {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "CS{}",
                             remove_trailing_zeros(circle_size as f64, 2)?
                         ));
                     }
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "OD{}",
                             remove_trailing_zeros(overall_difficulty as f64, 2)?
                         ));
                     }
                     if let Some(approach_rate) = difficulty_adjust_mod.approach_rate {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "AR{}",
                             remove_trailing_zeros(approach_rate as f64, 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "HP{}",
                             remove_trailing_zeros(drain_rate as f64, 2)?
                         ));
                     }
                     if settings.is_empty() {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     } else {
-                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                        formatted.push(
+                            aformat!(
+                                "{} ({})",
+                                CapStr::<8>(&acronym),
+                                CapStr::<64>(&settings.join(","))
+                            )
+                            .to_string(),
+                        )
                     }
                 }
                 GameMod::DifficultyAdjustTaiko(difficulty_adjust_mod) => {
                     let mut settings = Vec::new();
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "OD{}",
                             remove_trailing_zeros(overall_difficulty as f64, 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "HP{}",
                             remove_trailing_zeros(drain_rate as f64, 2)?
                         ));
                     }
                     if settings.is_empty() {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     } else {
-                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                        formatted.push(
+                            aformat!(
+                                "{} ({})",
+                                CapStr::<8>(&acronym),
+                                CapStr::<64>(&settings.join(","))
+                            )
+                            .to_string(),
+                        )
                     }
                 }
                 GameMod::DifficultyAdjustCatch(difficulty_adjust_mod) => {
                     let mut settings = Vec::new();
                     if let Some(circle_size) = difficulty_adjust_mod.circle_size {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "CS{}",
                             remove_trailing_zeros(circle_size as f64, 2)?
                         ));
                     }
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "OD{}",
                             remove_trailing_zeros(overall_difficulty as f64, 2)?
                         ));
                     }
                     if let Some(approach_rate) = difficulty_adjust_mod.approach_rate {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "AR{}",
                             remove_trailing_zeros(approach_rate as f64, 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "HP{}",
                             remove_trailing_zeros(drain_rate as f64, 2)?
                         ));
                     }
                     if settings.is_empty() {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     } else {
-                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                        formatted.push(
+                            aformat!(
+                                "{} ({})",
+                                CapStr::<8>(&acronym),
+                                CapStr::<64>(&settings.join(","))
+                            )
+                            .to_string(),
+                        )
                     }
                 }
                 GameMod::DifficultyAdjustMania(difficulty_adjust_mod) => {
                     let mut settings = Vec::new();
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "OD{}",
                             remove_trailing_zeros(overall_difficulty as f64, 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
-                        settings.push(format!(
+                        settings.push(aformat!(
                             "HP{}",
                             remove_trailing_zeros(drain_rate as f64, 2)?
                         ));
                     }
                     if settings.is_empty() {
-                        formatted.push(acronym.to_string())
+                        formatted.push(acronym)
                     } else {
-                        formatted.push(format!("{} ({})", acronym, settings.join(",")))
+                        formatted.push(
+                            aformat!(
+                                "{} ({})",
+                                CapStr::<8>(&acronym),
+                                CapStr::<64>(&settings.join(","))
+                            )
+                            .to_string(),
+                        )
                     }
                 }
                 _ => formatted.push(acronym.to_string()),
@@ -284,31 +314,36 @@ pub fn format_footer(
                     beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders,
                 );
                 if ((pp.pp / max_pp) * 100.0) < 99.0 {
-                    Ok(format!(
+                    Ok(aformat!(
                         "Potential: {}pp, completed {}%({}★)",
-                        remove_trailing_zeros(max_pp, 2)?,
+                        remove_trailing_zeros(max_pp, 2)?.to_arraystring(),
                         remove_trailing_zeros(
                             (f64::from(score.total_hits()) / beatmap_objects) * 100.0,
                             2
-                        )?,
-                        remove_trailing_zeros(pp.partial_stars, 2)?
-                    ))
+                        )?
+                        .to_arraystring(),
+                        remove_trailing_zeros(pp.partial_stars, 2)?.to_arraystring()
+                    )
+                    .to_string())
                 } else {
-                    Ok(format!(
+                    Ok(aformat!(
                         "Completion rate: {}%({}★)",
                         remove_trailing_zeros(
                             (f64::from(score.total_hits()) / beatmap_objects) * 100.0,
                             2
-                        )?,
-                        remove_trailing_zeros(pp.partial_stars, 2)?
-                    ))
+                        )?
+                        .to_arraystring(),
+                        remove_trailing_zeros(pp.partial_stars, 2)?.to_arraystring()
+                    )
+                    .to_string())
                 }
             } else if ((pp.pp / max_pp) * 100.0) < 99.0 {
-                Ok(format!(
-                    "Potential: {}pp, {:+}pp",
-                    remove_trailing_zeros(max_pp, 2)?,
-                    remove_trailing_zeros(max_pp - pp.pp, 2)?
-                ))
+                Ok(aformat!(
+                    "Potential: {}pp, +{}pp",
+                    remove_trailing_zeros(max_pp, 2)?.to_arraystring(),
+                    remove_trailing_zeros(max_pp - pp.pp, 2)?.to_arraystring()
+                )
+                .to_string())
             } else {
                 Ok(String::new())
             }
@@ -318,14 +353,16 @@ pub fn format_footer(
                 let beatmap_objects = f64::from(
                     beatmap.count_spinners + beatmap.count_circles + beatmap.count_sliders,
                 );
-                Ok(format!(
+                Ok(aformat!(
                     "Completion rate: {}%({}★)",
                     remove_trailing_zeros(
                         (f64::from(score.total_hits()) / beatmap_objects) * 100.0,
                         2
-                    )?,
-                    remove_trailing_zeros(pp.partial_stars, 2)?
-                ))
+                    )?
+                    .to_arraystring(),
+                    remove_trailing_zeros(pp.partial_stars, 2)?.to_arraystring()
+                )
+                .to_string())
             } else {
                 Ok(String::new())
             }
@@ -347,27 +384,30 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<Strin
     };
 
     let formatted_global_diff = if global_diff == 0.0 {
-        String::new()
+        ArrayString::<34>::new()
     } else if global_diff > 0.0 {
-        format!(
+        aformat!(
             " +{}",
-            (global_diff as i64).to_formatted_string(&Locale::en)
+            CapStr::<32>(&(global_diff as i64).to_formatted_string(&Locale::en))
         )
     } else {
-        format!(" {}", (global_diff as i64).to_formatted_string(&Locale::en))
+        aformat!(
+            " {}",
+            CapStr::<33>(&(global_diff as i64).to_formatted_string(&Locale::en))
+        )
     };
 
     let formatted_country_diff = if country_diff == 0.0 {
-        String::new()
+        ArrayString::<34>::new()
     } else if country_diff > 0.0 {
-        format!(
+        aformat!(
             " +{}",
-            (country_diff as i64).to_formatted_string(&Locale::en)
+            CapStr::<32>(&(country_diff as i64).to_formatted_string(&Locale::en))
         )
     } else {
-        format!(
+        aformat!(
             " {}",
-            (country_diff as i64).to_formatted_string(&Locale::en)
+            CapStr::<33>(&(country_diff as i64).to_formatted_string(&Locale::en))
         )
     };
 
@@ -378,11 +418,17 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<Strin
     };
 
     let formatted_score_diff = if score_diff == 0.0 {
-        String::new()
+        ArrayString::<34>::new()
     } else if score_diff > 0.0 {
-        format!(" +{}", (score_diff as i64).to_formatted_string(&Locale::en))
+        aformat!(
+            " +{}",
+            CapStr::<32>(&(score_diff as i64).to_formatted_string(&Locale::en))
+        )
     } else {
-        format!(" {}", (score_diff as i64).to_formatted_string(&Locale::en))
+        aformat!(
+            " {}",
+            CapStr::<33>(&(score_diff as i64).to_formatted_string(&Locale::en))
+        )
     };
 
     let acc_emoji = if acc_diff > 0.0 {
@@ -393,28 +439,29 @@ pub fn format_diff(new: &OsuUser, old: &OsuUser, mode: GameMode) -> Result<Strin
         "\u{1f3af}"
     };
 
-    Ok(format!(
+    Ok(aformat!(
         "`{} {}pp{}` \u{1F30D}`#{}{}` :flag_{}:`#{}{}`\n{}`{}%{}` \u{1f522}`{}{}`",
-        format_mode_abbreviation(mode),
-        remove_trailing_zeros(new.pp, 2)?,
-        formatted_pp_diff,
-        new.global_rank.to_formatted_string(&Locale::en),
+        CapStr::<12>(&format_mode_abbreviation(mode)),
+        remove_trailing_zeros(new.pp, 2)?.to_arraystring(),
+        CapStr::<32>(&formatted_pp_diff),
+        CapStr::<32>(&new.global_rank.to_formatted_string(&Locale::en)),
         formatted_global_diff,
-        new.country_code.to_lowercase(),
-        new.country_rank.to_formatted_string(&Locale::en),
+        CapStr::<8>(&new.country_code.to_lowercase()),
+        CapStr::<32>(&new.country_rank.to_formatted_string(&Locale::en)),
         formatted_country_diff,
-        acc_emoji,
-        remove_trailing_zeros(new.accuracy, 2)?,
-        formatted_acc_diff,
-        new.ranked_score.to_formatted_string(&Locale::en),
+        CapStr::<12>(acc_emoji),
+        remove_trailing_zeros(new.accuracy, 2)?.to_arraystring(),
+        CapStr::<32>(&formatted_acc_diff),
+        CapStr::<32>(&new.ranked_score.to_formatted_string(&Locale::en)),
         formatted_score_diff
-    ))
+    )
+    .to_string())
 }
 
 pub async fn format_missing_user_string(ctx: Context<'_>, user: &User) -> Result<String, Error> {
-    Ok(format!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", 
-               user.name,
-               crate::utils::db::prefix::get_guild_prefix(ctx.into()).await?.ok_or("Failed to get guild prefix in format_missing_user function")?))
+    Ok(aformat!("No osu! profile assigned to **{}**! Please assign a profile using **{}osu link <username>**", 
+               CapStr::<128>(&user.name),
+               CapStr::<4>(&crate::utils::db::prefix::get_guild_prefix(ctx.into()).await?.ok_or("Failed to get guild prefix in format_missing_user function")?)).to_string())
 }
 
 pub fn format_beatmap_link(
@@ -423,12 +470,22 @@ pub fn format_beatmap_link(
     mode: Option<&str>,
 ) -> String {
     if let (Some(beatmap_id), Some(mode)) = (beatmap_id, mode) {
-        format!("https://osu.ppy.sh/beatmapsets/{beatmapset_id}#{mode}/{beatmap_id}")
+        aformat!(
+            "https://osu.ppy.sh/beatmapsets/{}#{}/{}",
+            beatmapset_id.to_arraystring(),
+            CapStr::<16>(mode),
+            beatmap_id.to_arraystring()
+        )
+        .to_string()
     } else {
-        format!("https://osu.ppy.sh/beatmapsets/{beatmapset_id}")
+        aformat!(
+            "https://osu.ppy.sh/beatmapsets/{}",
+            beatmapset_id.to_arraystring()
+        )
+        .to_string()
     }
 }
 
 pub fn format_user_link(user_id: i64) -> String {
-    format!("https://osu.ppy.sh/users/{user_id}")
+    aformat!("https://osu.ppy.sh/users/{}", user_id.to_arraystring()).to_string()
 }

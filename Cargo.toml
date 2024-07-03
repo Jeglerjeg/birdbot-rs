@@ -37,6 +37,8 @@ base64 = "0.22"
 color_space = "0.5"
 image = "0.25"
 serde_json = "1.0"
+aformat = "0.1"
+to-arraystring = "0.2"
 
 [dependencies.tokio]
 version = "1.38"
@@ -44,7 +46,7 @@ features = ["full"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "e554f13f6b10c82654ab00cf8bf7b17a9dc204c0"
+rev = "84018119f84d2a9ca4e81afdbe7c8d4842a01cff"
 
 [dependencies.symphonia]
 version = "0.5"

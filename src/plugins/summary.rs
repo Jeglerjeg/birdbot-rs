@@ -8,6 +8,7 @@ use diesel_async::AsyncPgConnection;
 use markov::Chain;
 
 use crate::utils::db::summary_messages::construct_chain;
+use aformat::aformat;
 use itertools::Itertools;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{ChannelId, Message, UserId};
@@ -211,8 +212,14 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
     let downloaded_messages =
         summary_messages::count_entries(&mut connection, i64::from(ctx.channel_id())).await?;
 
-    ctx.say(format!("Downloaded {downloaded_messages} messages"))
-        .await?;
+    ctx.say(
+        aformat!(
+            "Downloaded {} messages",
+            downloaded_messages.to_arraystring()
+        )
+        .as_str(),
+    )
+    .await?;
 
     Ok(())
 }

@@ -1,4 +1,5 @@
 use crate::Error;
+use aformat::aformat;
 use base64::engine::general_purpose;
 use base64::Engine;
 use image::imageops::{crop, resize, FilterType};
@@ -25,10 +26,14 @@ pub async fn draw_header(
     document = draw_osu_circle(document);
     document = draw_username(document, osu_user.username.as_str());
     let level = if let Some(statistic) = &osu_user.statistics {
-        f32::from_str(&format!(
-            "{}.{}",
-            statistic.level.current, statistic.level.progress
-        ))? as u8
+        f32::from_str(
+            aformat!(
+                "{}.{}",
+                statistic.level.current.to_arraystring(),
+                statistic.level.progress.to_arraystring()
+            )
+            .as_str(),
+        )? as u8
     } else {
         0
     };

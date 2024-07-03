@@ -1,4 +1,5 @@
 use crate::{Context, Data, Error};
+use aformat::aformat;
 use dashmap::DashMap;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
@@ -418,9 +419,13 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
         if &requested >= max_queued {
             drop(playing_guild);
             drop(handler_lock);
-            ctx.say(format!(
-                "You have queued more than the maximum of {max_queued} songs."
-            ))
+            ctx.say(
+                aformat!(
+                    "You have queued more than the maximum of {} songs.",
+                    max_queued.to_arraystring()
+                )
+                .as_str(),
+            )
             .await?;
             return Ok(());
         }
@@ -651,9 +656,14 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 let skipped = queued_track.skipped.len();
                 drop(handler);
                 drop(playing_guild);
-                ctx.say(format!(
-                    "Voted to skip the current song. `{skipped}/{needed_to_skip}`",
-                ))
+                ctx.say(
+                    aformat!(
+                        "Voted to skip the current song. `{}/{}`",
+                        skipped.to_arraystring(),
+                        needed_to_skip
+                    )
+                    .as_str(),
+                )
                 .await?;
             }
         }
@@ -800,7 +810,8 @@ pub async fn volume(
             }
             drop(handler_lock);
             drop(playing_guild);
-            ctx.say(format!("Changed volume to {volume}%.")).await?;
+            ctx.say(aformat!("Changed volume to {}%.", volume.to_arraystring()).as_str())
+                .await?;
         }
     } else {
         let queue = handler_lock.queue();

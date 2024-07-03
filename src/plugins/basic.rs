@@ -1,6 +1,7 @@
 use crate::{Context, Error};
 use poise::builtins::HelpConfiguration;
 
+use aformat::{aformat, CapStr};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::small_fixed_array::FixedString;
 use poise::serenity_prelude::{Colour, CreateEmbed, User};
@@ -9,6 +10,7 @@ use rand::Rng;
 use std::fmt::Write;
 use std::time::Instant;
 use std::writeln;
+use to_arraystring::ToArrayString;
 
 pub struct OrderedMap<K, V>(pub Vec<(K, V)>);
 
@@ -113,20 +115,21 @@ async fn format_command<U: Send + Sync + 'static, E>(
         // which we will only show later
         return Ok(String::new());
     };
-    Ok(format!(
+    Ok(aformat!(
         "  {}{} {}",
-        prefix,
+        CapStr::<4>(&prefix),
         if parent.is_some() {
-            format!(
+            aformat!(
                 "{} {}",
-                parent.ok_or("Failed to unwrap parent in format_command")?,
-                &command.name
+                CapStr::<32>(&parent.ok_or("Failed to unwrap parent in format_command")?),
+                CapStr::<32>(&command.name)
             )
         } else {
-            command.name.clone()
+            CapStr::<65>(&command.name).to_arraystring()
         },
-        format_args(&command.parameters)
-    ))
+        CapStr::<64>(&format_args(&command.parameters))
+    )
+    .to_string())
 }
 
 async fn help_all_commands<U: Send + Sync + 'static, E>(
@@ -211,21 +214,25 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let information = ctx.http().get_current_application_info().await?;
     let owner = information.owner.ok_or("No application owner registered")?;
     let username = if let Some(discriminator) = owner.discriminator {
-        format!("@{}#{}", owner.name, discriminator)
+        aformat!(
+            "@{}#{}",
+            CapStr::<32>(&owner.name),
+            CapStr::<8>(&discriminator.to_string())
+        )
     } else {
-        owner.name.to_string()
+        CapStr::<42>(&owner.name).to_arraystring()
     };
 
-    let content = format!(
+    let content = aformat!(
         "```elm\n\
         Owner   : {}\n\
         Up      : {} UTC\n\
         Guilds  : {}```\
         {}",
         username,
-        ctx.data().time_started.format("%d-%m-%Y %H:%M:%S"),
-        ctx.cache().guilds().len(),
-        information.description
+        CapStr::<32>(&ctx.data().time_started.to_rfc2822()),
+        ctx.cache().guilds().len().to_arraystring(),
+        CapStr::<128>(&information.description)
     );
 
     let color = match ctx.guild() {
@@ -238,7 +245,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 
     let embed = CreateEmbed::new()
         .title(information.name)
-        .description(content)
+        .description(content.as_str())
         .colour(color);
 
     let builder = CreateReply::default().embed(embed);
@@ -287,7 +294,8 @@ pub async fn prefix(
     )
     .await?;
 
-    ctx.say(format!("Set guild prefix to {new_prefix}")).await?;
+    ctx.say(aformat!("Set guild prefix to {}", CapStr::<4>(&new_prefix)).as_str())
+        .await?;
 
     Ok(())
 }
@@ -323,7 +331,8 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     message
         .edit(
             ctx,
-            CreateReply::default().content(format!("Pong! `{}ms`", duration.as_millis())),
+            CreateReply::default()
+                .content(aformat!("Pong! `{}ms`", duration.as_millis().to_arraystring()).as_str()),
         )
         .await?;
 

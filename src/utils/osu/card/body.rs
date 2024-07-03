@@ -1,6 +1,7 @@
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::get_score_rank;
 use crate::Error;
+use aformat::aformat;
 use base64::engine::general_purpose;
 use base64::Engine;
 use num_format::{Locale, ToFormattedString};
@@ -140,9 +141,13 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
     let clears: String;
     if let Some(statistics) = &osu_user.statistics {
         pp = (statistics.pp as u32).to_formatted_string(&Locale::en);
-        play_time = format!("{}h", statistics.playtime / 3600);
+        play_time = aformat!("{}h", (statistics.playtime / 3600).to_arraystring()).to_string();
         play_count = statistics.playcount.to_formatted_string(&Locale::en);
-        accuracy = format!("{}%", remove_trailing_zeros(statistics.accuracy.into(), 2)?);
+        accuracy = aformat!(
+            "{}%",
+            remove_trailing_zeros(statistics.accuracy.into(), 2)?.to_arraystring()
+        )
+        .to_string();
         ranked_score = statistics.ranked_score.to_formatted_string(&Locale::en);
         total_score = statistics.total_score.to_formatted_string(&Locale::en);
         let clear_count = statistics.grade_counts.ssh
@@ -171,10 +176,18 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
         .set("letter-spacing", "0em")
         .set("x", 25)
         .set("y", 124.8);
-    let medal_count_statistics = Text::new(format!(
-        "{}",
-        osu_user.medals.clone().unwrap_or_default().len()
-    ))
+    let medal_count_statistics = Text::new(
+        aformat!(
+            "{}",
+            osu_user
+                .medals
+                .clone()
+                .unwrap_or_default()
+                .len()
+                .to_arraystring()
+        )
+        .as_str(),
+    )
     .set("id", "medal_count_text")
     .set("fill", "#DBF0E9")
     .set("xml:space", "preserve")
