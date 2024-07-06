@@ -1,11 +1,11 @@
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
 use rosu_pp::osu::{Osu, OsuPerformance, OsuPerformanceAttributes};
-use rosu_pp::Beatmap;
+use rosu_pp::{Beatmap, GameMods};
 
 pub fn calculate_std_pp(
     file: &[u8],
-    mods: u32,
+    mods: GameMods,
     passed: bool,
     combo: Option<u32>,
     acc: Option<f64>,
@@ -15,7 +15,6 @@ pub fn calculate_std_pp(
     n50: Option<u32>,
     nmiss: Option<u32>,
     passed_objects: Option<u32>,
-    clock_rate: Option<f32>,
 ) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;
     let map = binding
@@ -23,23 +22,13 @@ pub fn calculate_std_pp(
         .ok_or("Couldn't convert map to standard")?;
 
     let (mut result, diff_attributes, full_difficulty) = if passed {
-        let mut difficulty = OsuPerformance::from(&map).mods(mods);
-        let mut diff_attributes = map.attributes().mods(mods);
-
-        if let Some(clock_rate) = clock_rate {
-            difficulty = difficulty.clock_rate(f64::from(clock_rate));
-            diff_attributes = diff_attributes.clock_rate(f64::from(clock_rate));
-        }
+        let difficulty = OsuPerformance::from(&map).mods(mods.clone());
+        let diff_attributes = map.attributes().mods(mods.clone());
 
         (difficulty, diff_attributes.build(), None)
     } else {
-        let mut difficulty = OsuPerformance::from(&map).mods(mods);
-        let mut diff_attributes = map.attributes().mods(mods);
-
-        if let Some(clock_rate) = clock_rate {
-            difficulty = difficulty.clock_rate(f64::from(clock_rate));
-            diff_attributes = diff_attributes.clock_rate(f64::from(clock_rate));
-        }
+        let mut difficulty = OsuPerformance::from(&map).mods(mods.clone());
+        let diff_attributes = map.attributes().mods(mods.clone());
 
         let full_difficulty = difficulty.clone().calculate();
 
@@ -99,7 +88,7 @@ pub fn calculate_std_pp(
 }
 
 fn get_potential_pp(
-    mods: u32,
+    mods: GameMods,
     potential_acc: Option<f64>,
     n300: Option<u32>,
     n100: Option<u32>,

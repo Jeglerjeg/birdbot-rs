@@ -7,6 +7,7 @@ use crate::utils::osu::pp::osu::calculate_std_pp;
 use crate::utils::osu::pp::taiko::calculate_taiko_pp;
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
+use rosu_pp::GameMods;
 use rosu_v2::model::GameMode;
 
 pub fn calculate(
@@ -19,7 +20,7 @@ pub fn calculate(
         return match score.mode {
             GameMode::Osu => Ok(calculate_std_pp(
                 &osu_file.file,
-                score.mods.bits(),
+                score.mods.clone().into(),
                 score.passed,
                 Some(score.max_combo),
                 Some(f64::from(score.accuracy)),
@@ -29,11 +30,10 @@ pub fn calculate(
                 Some(score.statistics.meh),
                 Some(score.statistics.miss),
                 Some(score.total_hits()),
-                score.mods.clock_rate(),
             )?),
             GameMode::Mania => Ok(calculate_mania_pp(
                 &osu_file.file,
-                score.mods.bits(),
+                score.mods.clone().into(),
                 score.passed,
                 Some(score.statistics.perfect),
                 Some(score.statistics.great),
@@ -42,11 +42,10 @@ pub fn calculate(
                 Some(score.statistics.meh),
                 Some(score.statistics.miss),
                 Some(score.total_hits()),
-                score.mods.clock_rate(),
             )?),
             GameMode::Taiko => Ok(calculate_taiko_pp(
                 &osu_file.file,
-                score.mods.bits(),
+                score.mods.clone().into(),
                 score.passed,
                 Some(score.max_combo),
                 Some(f64::from(score.accuracy)),
@@ -54,11 +53,10 @@ pub fn calculate(
                 Some(score.statistics.ok),
                 Some(score.statistics.miss),
                 Some(score.total_hits()),
-                score.mods.clock_rate(),
             )?),
             GameMode::Catch => Ok(calculate_catch_pp(
                 &osu_file.file,
-                score.mods.bits(),
+                score.mods.clone().into(),
                 score.passed,
                 Some(score.max_combo),
                 Some(score.statistics.great),
@@ -67,7 +65,6 @@ pub fn calculate(
                 Some(score.statistics.small_tick_miss),
                 Some(score.statistics.miss),
                 Some(score.total_hits()),
-                score.mods.clock_rate(),
             )?),
         };
     }
@@ -77,9 +74,8 @@ pub fn calculate(
     {
         GameMode::Osu => Ok(calculate_std_pp(
             &osu_file.file,
-            0,
+            GameMods::default(),
             true,
-            None,
             None,
             None,
             None,
@@ -91,9 +87,8 @@ pub fn calculate(
         )?),
         GameMode::Mania => Ok(calculate_mania_pp(
             &osu_file.file,
-            0,
+            GameMods::default(),
             true,
-            None,
             None,
             None,
             None,
@@ -104,9 +99,8 @@ pub fn calculate(
         )?),
         GameMode::Taiko => Ok(calculate_taiko_pp(
             &osu_file.file,
-            0,
+            GameMods::default(),
             true,
-            None,
             None,
             None,
             None,
@@ -116,9 +110,8 @@ pub fn calculate(
         )?),
         GameMode::Catch => Ok(calculate_catch_pp(
             &osu_file.file,
-            0,
+            GameMods::default(),
             true,
-            None,
             None,
             None,
             None,

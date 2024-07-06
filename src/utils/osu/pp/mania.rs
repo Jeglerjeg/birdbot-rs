@@ -1,11 +1,11 @@
 use crate::utils::osu::pp::CalculateResults;
 use crate::Error;
 use rosu_pp::mania::{Mania, ManiaPerformance};
-use rosu_pp::Beatmap;
+use rosu_pp::{Beatmap, GameMods};
 
 pub fn calculate_mania_pp(
     file: &[u8],
-    mods: u32,
+    mods: GameMods,
     passed: bool,
     n320: Option<u32>,
     n300: Option<u32>,
@@ -14,7 +14,6 @@ pub fn calculate_mania_pp(
     n50: Option<u32>,
     nmiss: Option<u32>,
     passed_objects: Option<u32>,
-    clock_rate: Option<f32>,
 ) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;
     let map = binding
@@ -22,23 +21,13 @@ pub fn calculate_mania_pp(
         .ok_or("Couldn't convert map to mania")?;
 
     let (mut result, diff_attributes, full_difficulty) = if passed {
-        let mut difficulty = ManiaPerformance::from(&map).mods(mods);
-        let mut diff_attributes = map.attributes().mods(mods);
-
-        if let Some(clock_rate) = clock_rate {
-            difficulty = difficulty.clock_rate(f64::from(clock_rate));
-            diff_attributes = diff_attributes.clock_rate(f64::from(clock_rate));
-        }
+        let difficulty = ManiaPerformance::from(&map).mods(mods.clone());
+        let diff_attributes = map.attributes().mods(mods);
 
         (difficulty, diff_attributes.build(), None)
     } else {
-        let mut difficulty = ManiaPerformance::from(&map).mods(mods);
-        let mut diff_attributes = map.attributes().mods(mods);
-
-        if let Some(clock_rate) = clock_rate {
-            difficulty = difficulty.clock_rate(f64::from(clock_rate));
-            diff_attributes = diff_attributes.clock_rate(f64::from(clock_rate));
-        }
+        let mut difficulty = ManiaPerformance::from(&map).mods(mods.clone());
+        let diff_attributes = map.attributes().mods(mods);
 
         let full_difficulty = difficulty.clone().calculate();
 
@@ -48,14 +37,6 @@ pub fn calculate_mania_pp(
 
         (difficulty, diff_attributes.build(), Some(full_difficulty))
     };
-
-    if let Some(passed_objects) = passed_objects {
-        result = result.passed_objects(passed_objects);
-    };
-
-    if let Some(clock_rate) = clock_rate {
-        result = result.clock_rate(f64::from(clock_rate));
-    }
 
     if let Some(nmiss) = nmiss {
         result = result.misses(nmiss);

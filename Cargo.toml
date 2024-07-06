@@ -14,12 +14,12 @@ tracing-appender = "0.2"
 chrono = { version = "0.4" }
 diesel_migrations = "2.1"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "184a4f40ad17678fe53ada16fb0307ba9e6f7ad8"}
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "78bb705919a7e299bcaba2b99b88cd9d231d0e5f"}
 num-format = "0.4"
 reqwest = { version = "0.12", default-features=false, features = ["rustls-tls", "brotli", "gzip", "deflate", "http2"]}
 time = "0.3"
 dashmap = "6.0"
-rosu-pp = { version = "1.0"}
+rosu-pp = { rev = "7a3a5134f4ef32c94f8b83b0cd89aab02354620e", git = "https://github.com/MaxOhn/rosu-pp"}
 regex = "1.10"
 url = "2.5"
 diesel = { version = "2.1", features = ["chrono"]}
