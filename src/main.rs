@@ -131,7 +131,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 async fn main() {
     // This will load the environment variables located at `./.env`, relative to
     // the CWD. See `./.env.example` for an example on how to structure this.
-    dotenv::dotenv().expect("Failed to load .env file");
+    dotenvy::dotenv().expect("Failed to load .env file");
 
     let db_pool = utils::db::establish_connection::establish_connection();
 
