@@ -121,13 +121,13 @@ async fn format_command<U: Send + Sync + 'static, E>(
         if parent.is_some() {
             aformat!(
                 "{} {}",
-                CapStr::<32>(&parent.ok_or("Failed to unwrap parent in format_command")?),
-                CapStr::<32>(&command.name)
+                CapStr::<16>(&parent.ok_or("Failed to unwrap parent in format_command")?),
+                CapStr::<24>(&command.name)
             )
         } else {
-            CapStr::<65>(&command.name).to_arraystring()
+            CapStr::<41>(&command.name).to_arraystring()
         },
-        CapStr::<64>(&format_args(&command.parameters))
+        CapStr::<82>(&format_args(&command.parameters))
     )
     .to_string())
 }
@@ -216,11 +216,11 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let username = if let Some(discriminator) = owner.discriminator {
         aformat!(
             "@{}#{}",
-            CapStr::<32>(&owner.name),
-            CapStr::<8>(&discriminator.to_string())
+            CapStr::<16>(&owner.name),
+            discriminator.to_arraystring()
         )
     } else {
-        CapStr::<42>(&owner.name).to_arraystring()
+        CapStr::<23>(&owner.name).to_arraystring()
     };
 
     let content = aformat!(
@@ -230,9 +230,9 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         Guilds  : {}```\
         {}",
         username,
-        CapStr::<32>(&ctx.data().time_started.to_rfc2822()),
+        CapStr::<16>(&ctx.data().time_started.to_rfc2822()),
         ctx.cache().guilds().len().to_arraystring(),
-        CapStr::<128>(&information.description)
+        CapStr::<64>(&information.description)
     );
 
     let color = match ctx.guild() {
