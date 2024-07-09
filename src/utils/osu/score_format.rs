@@ -97,6 +97,7 @@ pub fn format_score_info(
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
     pp: &CalculateResults,
+    with_title: bool,
     scoreboard_rank: Option<&usize>,
     list_position: Option<&usize>,
 ) -> Result<String, Error> {
@@ -132,18 +133,27 @@ pub fn format_score_info(
         String::new()
     };
 
+    let title = if with_title {
+        format!(
+            "[{}{italic}{} - {} [{}]{italic}]({})\n",
+            list_position,
+            beatmapset.artist,
+            beatmapset.title,
+            beatmap.version,
+            format_beatmap_link(
+                Some(beatmap.id),
+                beatmapset.id,
+                Some(&score.mode.to_string())
+            ),
+        )
+    } else {
+        String::new()
+    };
+
     Ok(format!(
-        "{}[{italic}{} - {} [{}]{italic}]({})\n\
+        "{}\
         **{}pp {}★, {} {}+{} {}**",
-        list_position,
-        beatmapset.artist,
-        beatmapset.title,
-        beatmap.version,
-        format_beatmap_link(
-            Some(beatmap.id),
-            beatmapset.id,
-            Some(&score.mode.to_string())
-        ),
+        title,
         remove_trailing_zeros(score_pp, 2)?,
         remove_trailing_zeros(stars, 2)?,
         grade,
@@ -158,6 +168,7 @@ pub fn format_new_score(
     beatmap: &Beatmap,
     beatmapset: &Beatmapset,
     pp: &CalculateResults,
+    with_title: bool,
     scoreboard_rank: Option<&usize>,
     list_position: Option<&usize>,
 ) -> Result<String, Error> {
@@ -168,6 +179,7 @@ pub fn format_new_score(
             beatmap,
             beatmapset,
             pp,
+            with_title,
             scoreboard_rank,
             list_position
         )?,
@@ -200,7 +212,7 @@ pub fn format_score_list(
         };
 
         let formatted_score =
-            format_new_score(score, beatmap, beatmapset, pp, None, Some(position))?;
+            format_new_score(score, beatmap, beatmapset, pp, true, None, Some(position))?;
 
         formatted_list.push(format!(
             "{}<t:{}:R>{}\n",

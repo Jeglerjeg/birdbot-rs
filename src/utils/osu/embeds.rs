@@ -1,7 +1,7 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::utils::osu::misc::count_score_pages;
-use crate::utils::osu::misc_format::{format_footer, format_user_link};
+use crate::utils::osu::misc_format::{format_beatmap_link, format_footer, format_user_link};
 use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
@@ -23,6 +23,8 @@ pub fn create_embed<'a>(
     author_icon: &'a str,
     author_name: &'a str,
     author_url: &'a str,
+    title: Option<String>,
+    title_url: Option<String>,
 ) -> CreateEmbed<'a> {
     let embed = CreateEmbed::new();
 
@@ -32,12 +34,23 @@ pub fn create_embed<'a>(
         .icon_url(author_icon)
         .url(author_url);
 
-    embed
-        .thumbnail(thumbnail)
-        .color(color)
-        .description(description)
-        .footer(created_footer)
-        .author(created_author)
+    if let (Some(title), Some(title_url)) = (title, title_url) {
+        embed
+            .thumbnail(thumbnail)
+            .color(color)
+            .description(description)
+            .footer(created_footer)
+            .author(created_author)
+            .title(title)
+            .url(title_url)
+    } else {
+        embed
+            .thumbnail(thumbnail)
+            .color(color)
+            .description(description)
+            .footer(created_footer)
+            .author(created_author)
+    }
 }
 
 pub async fn send_score_embed(
@@ -53,6 +66,7 @@ pub async fn send_score_embed(
         score.1,
         score.2,
         score.3,
+        false,
         scoreboard_rank,
         None,
     )?;
@@ -70,6 +84,17 @@ pub async fn send_score_embed(
         score.0.ended_at.unix_timestamp()
     );
 
+    let title = format!(
+        "{} - {} [{}]",
+        score.2.artist, score.2.title, score.1.version,
+    );
+
+    let title_url = format_beatmap_link(
+        Some(score.1.id),
+        score.2.id,
+        Some(&score.0.mode.to_string()),
+    );
+
     let embed = create_embed(
         color,
         &score.2.list_cover,
@@ -78,6 +103,8 @@ pub async fn send_score_embed(
         &user.avatar_url,
         &user.username,
         &user_link,
+        Some(title),
+        Some(title_url),
     );
 
     let builder = CreateReply::default().embed(embed);
@@ -112,6 +139,8 @@ pub async fn send_scores_embed(
         &user.avatar_url,
         &user.username,
         &user_link,
+        None,
+        None,
     );
 
     if best_scores.len() > 5 {
@@ -227,6 +256,8 @@ impl TopScorePaginator<'_> {
             &self.user.avatar_url,
             &self.user.username,
             &user_link,
+            None,
+            None,
         );
 
         let interaction_response = CreateInteractionResponseMessage::new().embed(embed);
@@ -253,6 +284,8 @@ impl TopScorePaginator<'_> {
             &self.user.avatar_url,
             &self.user.username,
             &user_link,
+            None,
+            None,
         );
 
         let builder = CreateReply::default().embed(embed).components(vec![]);

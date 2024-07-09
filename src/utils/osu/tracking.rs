@@ -279,6 +279,8 @@ impl OsuTracker {
             &formatted_score,
             "",
             &author_text,
+            None,
+            None,
             new,
         )
         .await?;
@@ -326,10 +328,21 @@ impl OsuTracker {
         );
         let footer = format_footer(&score.0, &beatmap.0, &pp)?;
 
+        let title = format!(
+            "{} - {} [{}]",
+            beatmap.1.artist, beatmap.1.title, beatmap.0.version,
+        );
+
+        let title_url = format_beatmap_link(
+            Some(beatmap.0.id),
+            beatmap.1.id,
+            Some(&score.0.mode.to_string()),
+        );
+
         let thumbnail = beatmap.1.list_cover.clone();
         let formatted_score = format!(
             "{}{}\n<t:{}:R>",
-            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, None, None)?,
+            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, false, None, None)?,
             format_diff(new, old, gamemode)?,
             score.0.ended_at.unix_timestamp()
         );
@@ -341,6 +354,8 @@ impl OsuTracker {
             &formatted_score,
             &footer,
             &author_text,
+            Some(title),
+            Some(title_url),
             new,
         )
         .await?;
@@ -356,6 +371,8 @@ impl OsuTracker {
         formatted_score: &str,
         footer: &str,
         author_text: &str,
+        title: Option<String>,
+        title_url: Option<String>,
         new: &OsuUser,
     ) -> Result<(), Error> {
         for guild_id in self.ctx.cache.guilds() {
@@ -385,6 +402,8 @@ impl OsuTracker {
                                 &new.avatar_url,
                                 author_text,
                                 &user_link,
+                                title.clone(),
+                                title_url.clone(),
                             );
 
                             let builder = CreateMessage::new().embed(embed);
@@ -759,6 +778,7 @@ impl OsuTracker {
                 &beatmap.0,
                 &beatmap.1,
                 &pp,
+                false,
                 Some(&score.pos),
                 None
             )?,
@@ -766,6 +786,14 @@ impl OsuTracker {
         );
 
         let user_link = format_user_link(new.id);
+
+        let title = format!(
+            "{} - {} [{}]",
+            beatmap.1.artist, beatmap.1.title, beatmap.0.version,
+        );
+
+        let title_url =
+            format_beatmap_link(Some(beatmap.0.id), beatmap.1.id, Some(&mode.to_string()));
 
         for guild_id in self.ctx.cache.guilds() {
             if let Ok(guild_channels) =
@@ -792,6 +820,8 @@ impl OsuTracker {
                                 &new.avatar_url,
                                 author_text,
                                 &user_link,
+                                Some(title.clone()),
+                                Some(title_url.clone()),
                             );
 
                             let builder = CreateMessage::new().embed(embed);
