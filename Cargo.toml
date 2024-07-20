@@ -12,7 +12,7 @@ rand = "0.8"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 chrono = { version = "0.4" }
-diesel_migrations = "2.1"
+diesel_migrations = "2.2"
 serde = "1.0"
 rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "78bb705919a7e299bcaba2b99b88cd9d231d0e5f"}
 num-format = "0.4"
@@ -22,13 +22,13 @@ dashmap = "6.0"
 rosu-pp = { rev = "7a3a5134f4ef32c94f8b83b0cd89aab02354620e", git = "https://github.com/MaxOhn/rosu-pp"}
 regex = "1.10"
 url = "2.5"
-diesel = { version = "2.1", features = ["chrono"]}
-diesel-async = { version = "0.4", features = ["postgres", "mobc", "async-connection-wrapper"] }
+diesel = { version = "2.2", features = ["chrono"]}
+diesel-async = { version = "0.5", features = ["postgres", "mobc", "async-connection-wrapper"] }
 mobc = "0.8"
 markov = "1.1"
 tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"]}
-tikv-jemallocator = "0.5"
+tikv-jemallocator = "0.6"
 num_cpus = "1.16.0"
 itertools = "0.13"
 resvg = "0.42"
