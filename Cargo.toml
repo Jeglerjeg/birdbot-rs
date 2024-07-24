@@ -29,7 +29,6 @@ markov = "1.1"
 tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"]}
 tikv-jemallocator = "0.6"
-num_cpus = "1.16.0"
 itertools = "0.13"
 resvg = "0.42"
 svg = "0.17"
@@ -41,7 +40,7 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 
 [dependencies.tokio]
-version = "1.38"
+version = "1.39"
 features = ["full"]
 
 [dependencies.poise]

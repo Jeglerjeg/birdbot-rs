@@ -47,7 +47,7 @@ pub async fn construct_chain(
         .await?
         .par_then_unordered(
             ParParams {
-                num_workers: num_cpus::get(),
+                num_workers: std::thread::available_parallelism()?.get(),
                 buf_size: Some(512),
             },
             |value| async move {
