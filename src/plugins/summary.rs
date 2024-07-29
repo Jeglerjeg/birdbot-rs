@@ -237,6 +237,7 @@ pub async fn summary(
     #[min = 1]
     #[max = 10]
     number_of_summaries: Option<usize>,
+    #[description = "Defaults to true"] exact_search: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let mut connection = ctx.data().db_pool.get().await?;
@@ -250,6 +251,7 @@ pub async fn summary(
         users.into_iter().map(i64::from).collect(),
         channels.into_iter().map(i64::from).collect(),
         n_grams.unwrap_or(2),
+        exact_search.unwrap_or(true),
     )
     .await?;
 

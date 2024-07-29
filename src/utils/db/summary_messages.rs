@@ -1,8 +1,9 @@
 use crate::models::summary_messages::NewDbSummaryMessage;
 use crate::schema::summary_messages;
 use crate::Error;
-use diesel::dsl::count;
+use diesel::dsl::{count, sql};
 use diesel::prelude::{ExpressionMethods, QueryDsl};
+use diesel::sql_types::Bool;
 use diesel::{insert_into, PgTextExpressionMethods};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use markov::Chain;
@@ -28,12 +29,17 @@ pub async fn construct_chain(
     author_ids: Vec<i64>,
     channel_ids: Vec<i64>,
     n_grams: usize,
+    exact_search: bool,
 ) -> Result<Chain<String>, Error> {
     let mut query = summary_messages::table
         .filter(summary_messages::channel_id.eq_any(channel_ids))
         .into_boxed();
     if let Some(phrase) = phrase {
-        query = query.filter(summary_messages::content.ilike(format!("%{phrase}%")));
+        if exact_search {
+            query = query.filter(sql::<Bool>(&format!("content ~* '\\y{}\\y'", phrase)));
+        } else {
+            query = query.filter(summary_messages::content.ilike(format!("%{phrase}%")));
+        }
     }
     if !include_bots {
         query = query.filter(summary_messages::is_bot.eq(false));
