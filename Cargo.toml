@@ -16,7 +16,6 @@ diesel_migrations = "2.2"
 serde = "1.0"
 rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "6a4e9f918b7833c75398c0d37e2c1b4414e5fcb0"}
 num-format = "0.4"
-reqwest = { version = "0.12", default-features=false, features = ["rustls-tls", "brotli", "gzip", "deflate", "http2"]}
 time = "0.3"
 dashmap = "6.0"
 rosu-pp = "1.1"
@@ -43,6 +42,11 @@ to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 version = "1.39"
 features = ["full"]
 
+[dependencies.reqwest]
+version = "0.12"
+default-features=false
+features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2", "charset"]
+
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
 rev = "84018119f84d2a9ca4e81afdbe7c8d4842a01cff"
@@ -53,7 +57,7 @@ features = ["all-codecs", "opt-simd"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "10a03864cc71c6eb3d2f58f1b45332d6e59fad37"
+rev = "5100ffb8fd9148e5faa5ae4fd67efad8a42e2580"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
