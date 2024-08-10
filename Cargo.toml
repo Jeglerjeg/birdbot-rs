@@ -29,7 +29,7 @@ tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"]}
 tikv-jemallocator = "0.6"
 itertools = "0.13"
-resvg = "0.42"
+resvg = "0.43"
 svg = "0.17"
 base64 = "0.22"
 color_space = "0.5"
