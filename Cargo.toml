@@ -49,7 +49,7 @@ features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2", "charset
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "84018119f84d2a9ca4e81afdbe7c8d4842a01cff"
+rev = "25827eed03e085932a8982cf026a59e5f92531e5"
 
 [dependencies.symphonia]
 version = "0.5"
@@ -64,7 +64,7 @@ features = ["builtin-queue"]
 git = "https://github.com/serenity-rs/serenity"
 branch = "next"
 default-features = false
-features = ["builder", "framework", "cache", "client",  "gateway", "http", "model", "utils", "rustls_backend", "voice"]
+features = ["builder", "framework", "cache", "gateway", "http", "model", "utils", "rustls_backend", "voice"]
 
 [profile.dev]
 lto = "off"
