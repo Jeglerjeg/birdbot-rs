@@ -36,7 +36,7 @@ pub async fn construct_chain(
         .into_boxed();
     if let Some(phrase) = phrase {
         if exact_search {
-            query = query.filter(sql::<Bool>(&format!("content ~* '\\y{}\\y'", phrase)));
+            query = query.filter(sql::<Bool>(&format!("content ~* '\\y{phrase}\\y'")));
         } else {
             query = query.filter(summary_messages::content.ilike(format!("%{phrase}%")));
         }

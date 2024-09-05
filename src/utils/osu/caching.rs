@@ -129,7 +129,7 @@ pub fn check_if_deleted(
     if let Some(ref beatmaps) = api_beatmapset.maps {
         for beatmap in query_beatmapset.1 {
             if !beatmaps.iter().any(|x| x.map_id.eq(&(beatmap.0.id as u32))) {
-                to_delete.push(beatmap.0.id)
+                to_delete.push(beatmap.0.id);
             }
         }
     }

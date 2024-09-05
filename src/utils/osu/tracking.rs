@@ -481,7 +481,7 @@ impl OsuTracker {
         connection: &mut AsyncPgConnection,
         beatmapset_url: &str,
     ) -> Result<(Beatmapset, Vec<(Beatmap, OsuFile)>), Error> {
-        let beatmapset_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmapset_url))?;
+        let beatmapset_info = get_beatmap_info(&format!("https://osu.ppy.sh{beatmapset_url}"))?;
 
         let beatmapset_id = beatmapset_info
             .beatmapset_id

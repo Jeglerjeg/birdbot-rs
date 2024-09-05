@@ -39,13 +39,13 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 
 [dependencies.tokio]
-version = "1.39"
+version = "1.40"
 features = ["full"]
 
 [dependencies.reqwest]
 version = "0.12"
 default-features=false
-features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2", "charset"]
+features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
