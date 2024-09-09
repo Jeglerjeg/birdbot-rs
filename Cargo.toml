@@ -57,7 +57,7 @@ features = ["all-codecs", "opt-simd"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "5100ffb8fd9148e5faa5ae4fd67efad8a42e2580"
+rev = "bf9426302252a5878650e42e8748c412583e2400"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
