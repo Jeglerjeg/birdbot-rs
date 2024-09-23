@@ -34,7 +34,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
-use tracing::error;
+use tracing::{error, info};
 
 static UPDATE_INTERVAL: OnceLock<u64> = OnceLock::new();
 
@@ -746,7 +746,15 @@ impl OsuTracker {
             .osu_client
             .beatmap_user_score(beatmap_id, u32::try_from(new.id)?)
             .mode(*mode)
-            .await?;
+            .await;
+
+        let Ok(score) = score else {
+            info!(
+                "Couldn't retrieve user {} score on beatmap {} in notify_leaderboard_score",
+                new.id, beatmap_id
+            );
+            return Ok(());
+        };
 
         let score_id = score.score.id;
 
@@ -767,11 +775,11 @@ impl OsuTracker {
 
         let footer = format_footer(&score.score, &beatmap.0, &pp)?;
 
-        let author_text = &format!("{} set a new leaderboard score!", new.username);
+        let author_text = format!("{} set a new leaderboard score!", new.username);
 
         let thumbnail = &beatmap.1.list_cover;
 
-        let formatted_score = &format!(
+        let formatted_score = format!(
             "{}<t:{}:R>",
             format_new_score(
                 &score.score,
@@ -815,10 +823,10 @@ impl OsuTracker {
                             let embed = create_embed(
                                 color,
                                 thumbnail,
-                                formatted_score,
+                                &formatted_score,
                                 &footer,
                                 &new.avatar_url,
-                                author_text,
+                                &author_text,
                                 &user_link,
                                 Some(title.clone()),
                                 Some(title_url.clone()),
