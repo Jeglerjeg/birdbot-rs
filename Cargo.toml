@@ -53,7 +53,7 @@ rev = "25827eed03e085932a8982cf026a59e5f92531e5"
 
 [dependencies.symphonia]
 version = "0.5"
-features = ["all-codecs", "opt-simd"]
+features = ["all-codecs"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
