@@ -265,16 +265,17 @@ impl VoiceEventHandler for TrackStartNotifier {
                     .queue
                     .get(&track.1.uuid().as_u128());
                 if let Some(queued_track) = queued_track {
+                    let metadata = queued_track.metadata.clone();
+                    drop(playing_guild);
                     if let Err(why) = send_track_embed(
                         self.channel_id,
                         &self.http,
-                        &queued_track.metadata,
+                        &metadata,
                         "Now playing:",
                         None,
                     )
                     .await
                     {
-                        drop(playing_guild);
                         error!("Failed to send track starting message: {}", why);
                     }
                 }
