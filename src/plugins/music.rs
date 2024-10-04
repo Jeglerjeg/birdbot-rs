@@ -3,7 +3,8 @@ use aformat::aformat;
 use dashmap::DashMap;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User};
-use poise::CreateReply;
+use serenity::all::CreateMessage;
+use serenity::http::Http;
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{Event, EventContext, EventHandler as VoiceEventHandler, Songbird, TrackEvent};
@@ -120,16 +121,12 @@ fn format_track(metadata: &AuxMetadata, play_time: Option<Duration>) -> String {
 }
 
 async fn send_track_embed(
-    ctx: Context<'_>,
+    channel_id: ChannelId,
+    http: &Arc<Http>,
     metadata: &AuxMetadata,
     action: &str,
     play_time: Option<Duration>,
 ) -> Result<(), Error> {
-    let color = match ctx.author_member().await {
-        None => BLUE,
-        Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
-    };
-
     let thumbnail_url = match &metadata.thumbnail {
         Some(thumbnail) => thumbnail,
         _ => "",
@@ -137,12 +134,12 @@ async fn send_track_embed(
 
     let embed = CreateEmbed::new()
         .description(format!("{}\n{}", action, format_track(metadata, play_time)))
-        .color(color)
+        .color(BLUE)
         .thumbnail(thumbnail_url);
 
-    let builder = CreateReply::default().embed(embed);
+    let builder = CreateMessage::default().embed(embed);
 
-    ctx.send(builder).await?;
+    channel_id.send_message(http, builder).await?;
 
     Ok(())
 }
@@ -239,6 +236,54 @@ impl VoiceEventHandler for TrackErrorNotifier {
     }
 }
 
+struct TrackStartNotifier {
+    guild_id: GuildId,
+    channel_id: ChannelId,
+    http: Arc<Http>,
+}
+
+#[async_trait]
+impl VoiceEventHandler for TrackStartNotifier {
+    async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
+        if let EventContext::Track(track_list) = ctx {
+            if let Some(track) = track_list.first() {
+                let playing_guild = match PLAYING_GUILDS
+                    .get_or_init(|| PlayingGuilds {
+                        guilds: DashMap::new(),
+                    })
+                    .guilds
+                    .get(&self.guild_id)
+                {
+                    None => {
+                        error!("Failed to get playing guild in voice handler");
+                        return None;
+                    }
+                    Some(playing_guild) => playing_guild,
+                };
+                let queued_track = playing_guild
+                    .queued_tracks
+                    .queue
+                    .get(&track.1.uuid().as_u128());
+                if let Some(queued_track) = queued_track {
+                    if let Err(why) = send_track_embed(
+                        self.channel_id,
+                        &self.http,
+                        &queued_track.metadata,
+                        "Now playing:",
+                        None,
+                    )
+                    .await
+                    {
+                        drop(playing_guild);
+                        error!("Failed to send track starting message: {}", why);
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
 struct TrackEndNotifier {
     guild_id: GuildId,
     ctx: poise::serenity_prelude::Context,
@@ -322,12 +367,20 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
                 },
             );
 
-        let leave_context = ctx.serenity_context().clone();
         handle.add_global_event(
             Event::Track(TrackEvent::End),
             TrackEndNotifier {
                 guild_id,
-                ctx: leave_context,
+                ctx: ctx.serenity_context().clone(),
+            },
+        );
+
+        handle.add_global_event(
+            Event::Track(TrackEvent::Playable),
+            TrackStartNotifier {
+                guild_id,
+                channel_id: ctx.channel_id(),
+                http: ctx.serenity_context().http.clone(),
             },
         );
 
@@ -353,10 +406,12 @@ pub(crate) async fn music(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(), Error> {
-    // Here, we use lazy restartable sources to make sure that we don't pay
-    // for decoding, playback on tracks which aren't actually live yet.
-
+async fn queue(
+    ctx: Context<'_>,
+    mut url: String,
+    guild_id: GuildId,
+    first_queue: bool,
+) -> Result<(), Error> {
     let http_client = get_http_client(ctx);
 
     if !url.starts_with("http") {
@@ -478,7 +533,16 @@ async fn queue(ctx: Context<'_>, mut url: String, guild_id: GuildId) -> Result<(
 
     drop(playing_guild);
 
-    send_track_embed(ctx, &metadata, "Queued:", None).await?;
+    if !first_queue {
+        send_track_embed(
+            ctx.channel_id(),
+            &ctx.serenity_context().http,
+            &metadata,
+            "Queued:",
+            None,
+        )
+        .await?;
+    }
 
     Ok(())
 }
@@ -507,7 +571,7 @@ pub async fn play(
     let manager = get_manager(ctx.serenity_context());
 
     if manager.get(guild_id).is_some() {
-        match queue(ctx, url_or_name, guild_id).await {
+        match queue(ctx, url_or_name, guild_id, false).await {
             Ok(()) => {}
             Err(why) => {
                 ctx.say(format!("Couldn't queue item: {why}")).await?;
@@ -519,7 +583,7 @@ pub async fn play(
         }
 
         if manager.get(guild_id).is_some() {
-            match queue(ctx, url_or_name, guild_id).await {
+            match queue(ctx, url_or_name, guild_id, true).await {
                 Ok(()) => {}
                 Err(why) => {
                     ctx.say(format!("Couldn't queue item: {why}")).await?;
@@ -622,7 +686,14 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             let metadata = queued_track.metadata.clone();
             drop(handler);
             drop(playing_guild);
-            send_track_embed(ctx, &metadata, "Skipped:", None).await?;
+            send_track_embed(
+                ctx.channel_id(),
+                &ctx.serenity_context().http,
+                &metadata,
+                "Skipped:",
+                None,
+            )
+            .await?;
         } else {
             if queued_track.skipped.contains(&ctx.author().id.get()) {
                 drop(handler);
@@ -651,7 +722,14 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 let metadata = queued_track.metadata.clone();
                 drop(handler);
                 drop(playing_guild);
-                send_track_embed(ctx, &metadata, "Skipped:", None).await?;
+                send_track_embed(
+                    ctx.channel_id(),
+                    &ctx.serenity_context().http,
+                    &metadata,
+                    "Skipped:",
+                    None,
+                )
+                .await?;
             } else {
                 let skipped = queued_track.skipped.len();
                 drop(handler);
@@ -737,7 +815,14 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
 
             drop(handler);
             drop(playing_guild);
-            send_track_embed(ctx, &metadata, "Undid:", None).await?;
+            send_track_embed(
+                ctx.channel_id(),
+                &ctx.serenity_context().http,
+                &metadata,
+                "Undid:",
+                None,
+            )
+            .await?;
         }
     } else {
         ctx.say("Not in a voice channel to play in").await?;
@@ -950,7 +1035,8 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
             drop(playing_guilds);
 
             send_track_embed(
-                ctx,
+                ctx.channel_id(),
+                &ctx.serenity_context().http,
                 &metadata,
                 "Now playing:",
                 Some(track.get_info().await?.play_time),
