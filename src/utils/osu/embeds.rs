@@ -144,13 +144,15 @@ pub async fn send_scores_embed(
     );
 
     if best_scores.len() > 5 {
-        let components = vec![CreateActionRow::Buttons(vec![
+        let buttons = [
             CreateButton::new("last_page").label("<"),
             CreateButton::new("next_page").label(">"),
             CreateButton::new("reset").label("⭯"),
-        ])];
+        ];
 
-        let builder = CreateReply::default().embed(embed).components(components);
+        let components = [CreateActionRow::buttons(&buttons)];
+
+        let builder = CreateReply::default().embed(embed).components(&components);
 
         let reply = ctx.send(builder).await?;
 
