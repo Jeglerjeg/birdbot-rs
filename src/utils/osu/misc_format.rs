@@ -16,7 +16,7 @@ fn format_speed_change(speed_change: f32, acronym: &str) -> Result<String, Error
     Ok(aformat!(
         "{} ({}x)",
         CapStr::<8>(acronym),
-        remove_trailing_zeros(speed_change as f64, 2)?.to_arraystring()
+        remove_trailing_zeros(f64::from(speed_change), 2)?.to_arraystring()
     )
     .to_string())
 }
@@ -147,25 +147,25 @@ pub fn fmt_with_settings(mods: &GameMods) -> Result<String, Error> {
                     if let Some(circle_size) = difficulty_adjust_mod.circle_size {
                         settings.push(aformat!(
                             "CS{}",
-                            remove_trailing_zeros(circle_size as f64, 2)?
+                            remove_trailing_zeros(f64::from(circle_size), 2)?
                         ));
                     }
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
                         settings.push(aformat!(
                             "OD{}",
-                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                            remove_trailing_zeros(f64::from(overall_difficulty), 2)?
                         ));
                     }
                     if let Some(approach_rate) = difficulty_adjust_mod.approach_rate {
                         settings.push(aformat!(
                             "AR{}",
-                            remove_trailing_zeros(approach_rate as f64, 2)?
+                            remove_trailing_zeros(f64::from(approach_rate), 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
                         settings.push(aformat!(
                             "HP{}",
-                            remove_trailing_zeros(drain_rate as f64, 2)?
+                            remove_trailing_zeros(f64::from(drain_rate), 2)?
                         ));
                     }
                     if settings.is_empty() {
@@ -186,13 +186,13 @@ pub fn fmt_with_settings(mods: &GameMods) -> Result<String, Error> {
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
                         settings.push(aformat!(
                             "OD{}",
-                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                            remove_trailing_zeros(f64::from(overall_difficulty), 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
                         settings.push(aformat!(
                             "HP{}",
-                            remove_trailing_zeros(drain_rate as f64, 2)?
+                            remove_trailing_zeros(f64::from(drain_rate), 2)?
                         ));
                     }
                     if settings.is_empty() {
@@ -213,25 +213,25 @@ pub fn fmt_with_settings(mods: &GameMods) -> Result<String, Error> {
                     if let Some(circle_size) = difficulty_adjust_mod.circle_size {
                         settings.push(aformat!(
                             "CS{}",
-                            remove_trailing_zeros(circle_size as f64, 2)?
+                            remove_trailing_zeros(f64::from(circle_size), 2)?
                         ));
                     }
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
                         settings.push(aformat!(
                             "OD{}",
-                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                            remove_trailing_zeros(f64::from(overall_difficulty), 2)?
                         ));
                     }
                     if let Some(approach_rate) = difficulty_adjust_mod.approach_rate {
                         settings.push(aformat!(
                             "AR{}",
-                            remove_trailing_zeros(approach_rate as f64, 2)?
+                            remove_trailing_zeros(f64::from(approach_rate), 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
                         settings.push(aformat!(
                             "HP{}",
-                            remove_trailing_zeros(drain_rate as f64, 2)?
+                            remove_trailing_zeros(f64::from(drain_rate), 2)?
                         ));
                     }
                     if settings.is_empty() {
@@ -252,13 +252,13 @@ pub fn fmt_with_settings(mods: &GameMods) -> Result<String, Error> {
                     if let Some(overall_difficulty) = difficulty_adjust_mod.overall_difficulty {
                         settings.push(aformat!(
                             "OD{}",
-                            remove_trailing_zeros(overall_difficulty as f64, 2)?
+                            remove_trailing_zeros(f64::from(overall_difficulty), 2)?
                         ));
                     }
                     if let Some(drain_rate) = difficulty_adjust_mod.drain_rate {
                         settings.push(aformat!(
                             "HP{}",
-                            remove_trailing_zeros(drain_rate as f64, 2)?
+                            remove_trailing_zeros(f64::from(drain_rate), 2)?
                         ));
                     }
                     if settings.is_empty() {
