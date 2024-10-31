@@ -18,8 +18,8 @@ rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "1f959f166bf6d09edf
 num-format = "0.4"
 time = "0.3"
 dashmap = "6.0"
-rosu-pp = "1.1"
-regex = "1.10"
+rosu-pp = {git = "https://github.com/MaxOhn/rosu-pp", rev = "4053623d372be71c5ea34e936c22d57b42ca4500"}
+regex = "1.11"
 url = "2.5"
 diesel = { version = "2.2", features = ["chrono"]}
 diesel-async = { version = "0.5", features = ["postgres", "mobc", "async-connection-wrapper"] }
@@ -39,7 +39,7 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 
 [dependencies.tokio]
-version = "1.40"
+version = "1.41"
 features = ["full"]
 
 [dependencies.reqwest]
