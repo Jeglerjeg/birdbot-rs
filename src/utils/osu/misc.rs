@@ -67,11 +67,20 @@ pub fn gamemode_from_string(mode: &str) -> Option<GameMode> {
 pub fn calculate_potential_acc(score: &Score) -> Option<f64> {
     match score.mode {
         GameMode::Osu => {
-            let total_hits = score.statistics.total_hits(GameMode::Osu);
-            let total_points = (score.statistics.meh * 50)
-                + (score.statistics.ok * 100)
-                + (score.statistics.great + score.statistics.miss) * 300;
-            Some((f64::from(total_points) / (f64::from(total_hits) * 300.0)) * 100.0)
+            let numerator = 300 * score.statistics.great
+                + 100 * score.statistics.good
+                + 50 * score.statistics.meh
+                + 150 * score.statistics.large_tick_hit
+                + 30 * score.statistics.small_tick_hit;
+
+            let denominator = 300 * score.statistics.great
+                + 300 * score.statistics.good
+                + 300 * score.statistics.meh
+                + 300 * score.statistics.miss
+                + 150 * score.statistics.large_tick_hit
+                + 30 * score.statistics.small_tick_hit;
+
+            Some(f64::from(numerator) / f64::from(denominator))
         }
         _ => None,
     }

@@ -1,64 +1,53 @@
-use crate::utils::osu::pp::CalculateResults;
+use crate::utils::osu::pp::{CalculateResults, CatchScore};
 use crate::Error;
 use rosu_pp::catch::{Catch, CatchPerformance};
-use rosu_pp::{Beatmap, GameMods};
+use rosu_pp::Beatmap;
 
-pub fn calculate_catch_pp(
-    file: &[u8],
-    mods: GameMods,
-    passed: bool,
-    combo: Option<u32>,
-    fruits: Option<u32>,
-    droplets: Option<u32>,
-    tiny_droplets: Option<u32>,
-    tiny_droplet_misses: Option<u32>,
-    nmiss: Option<u32>,
-    passed_objects: Option<u32>,
-) -> Result<CalculateResults, Error> {
+pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;
     let map = binding
         .try_as_converted::<Catch>()
         .ok_or("Couldn't convert map to catch")?;
 
-    let (mut result, diff_attributes, full_difficulty) = if passed {
-        let difficulty = CatchPerformance::from(&map).mods(mods.clone());
-        let diff_attributes = map.attributes().mods(mods);
+    let (mut result, diff_attributes, full_difficulty) = if score_state.passed {
+        let difficulty = CatchPerformance::from(&map).mods(score_state.mods.clone());
+        let diff_attributes = map.attributes().mods(score_state.mods);
 
         (difficulty, diff_attributes.build(), None)
     } else {
-        let mut difficulty = CatchPerformance::from(&map).mods(mods.clone());
-        let diff_attributes = map.attributes().mods(mods);
+        let mut difficulty = CatchPerformance::from(&map).mods(score_state.mods.clone());
+        let diff_attributes = map.attributes().mods(score_state.mods);
 
         let full_difficulty = difficulty.clone().calculate();
 
-        if let Some(passed_objects) = passed_objects {
+        if let Some(passed_objects) = score_state.passed_objects {
             difficulty = difficulty.passed_objects(passed_objects);
         }
 
         (difficulty, diff_attributes.build(), Some(full_difficulty))
     };
 
-    if let Some(combo) = combo {
+    if let Some(combo) = score_state.combo {
         result = result.combo(combo);
     };
 
-    if let Some(nmiss) = nmiss {
+    if let Some(nmiss) = score_state.nmiss {
         result = result.misses(nmiss);
     };
 
-    if let Some(fruits) = fruits {
+    if let Some(fruits) = score_state.fruits {
         result = result.fruits(fruits);
     };
 
-    if let Some(droplets) = droplets {
+    if let Some(droplets) = score_state.droplets {
         result = result.droplets(droplets);
     };
 
-    if let Some(tiny_droplets) = tiny_droplets {
+    if let Some(tiny_droplets) = score_state.tiny_droplets {
         result = result.tiny_droplets(tiny_droplets);
     };
 
-    if let Some(tiny_droplet_misses) = tiny_droplet_misses {
+    if let Some(tiny_droplet_misses) = score_state.tiny_droplet_misses {
         result = result.tiny_droplet_misses(tiny_droplet_misses);
     };
 

@@ -1,60 +1,50 @@
-use crate::utils::osu::pp::CalculateResults;
+use crate::utils::osu::pp::{CalculateResults, TaikoScore};
 use crate::Error;
 use rosu_pp::taiko::Taiko;
 use rosu_pp::taiko::TaikoPerformance;
-use rosu_pp::{Beatmap, GameMods};
+use rosu_pp::Beatmap;
 
-pub fn calculate_taiko_pp(
-    file: &[u8],
-    mods: GameMods,
-    passed: bool,
-    combo: Option<u32>,
-    acc: Option<f64>,
-    n300: Option<u32>,
-    n100: Option<u32>,
-    nmiss: Option<u32>,
-    passed_objects: Option<u32>,
-) -> Result<CalculateResults, Error> {
+pub fn calculate_taiko_pp(file: &[u8], score_state: TaikoScore) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;
     let map = binding
         .try_as_converted::<Taiko>()
         .ok_or("Couldn't convert map to taiko")?;
 
-    let (mut result, diff_attributes, full_difficulty) = if passed {
-        let difficulty = TaikoPerformance::from(&map).mods(mods.clone());
-        let diff_attributes = map.attributes().mods(mods);
+    let (mut result, diff_attributes, full_difficulty) = if score_state.passed {
+        let difficulty = TaikoPerformance::from(&map).mods(score_state.mods.clone());
+        let diff_attributes = map.attributes().mods(score_state.mods);
 
         (difficulty, diff_attributes.build(), None)
     } else {
-        let mut difficulty = TaikoPerformance::from(&map).mods(mods.clone());
-        let diff_attributes = map.attributes().mods(mods);
+        let mut difficulty = TaikoPerformance::from(&map).mods(score_state.mods.clone());
+        let diff_attributes = map.attributes().mods(score_state.mods);
 
         let full_difficulty = difficulty.clone().calculate();
 
-        if let Some(passed_objects) = passed_objects {
+        if let Some(passed_objects) = score_state.passed_objects {
             difficulty = difficulty.passed_objects(passed_objects);
         }
 
         (difficulty, diff_attributes.build(), Some(full_difficulty))
     };
 
-    if let Some(combo) = combo {
+    if let Some(combo) = score_state.combo {
         result = result.combo(combo);
     };
 
-    if let Some(nmiss) = nmiss {
+    if let Some(nmiss) = score_state.nmiss {
         result = result.misses(nmiss);
     };
 
-    if let Some(n300) = n300 {
+    if let Some(n300) = score_state.n300 {
         result = result.n300(n300);
     };
 
-    if let Some(n100) = n100 {
+    if let Some(n100) = score_state.n100 {
         result = result.n100(n100);
     };
 
-    if let Some(acc) = acc {
+    if let Some(acc) = score_state.acc {
         result = result.accuracy(acc);
     };
 
