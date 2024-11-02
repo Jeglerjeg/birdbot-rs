@@ -32,7 +32,7 @@ pub fn calculate(
                     passed_objects: Some(score.total_hits()),
                     n_slider_ticks: Some(score.statistics.small_tick_hit),
                     n_slider_ends: Some(score.statistics.large_tick_hit),
-                    lazer: score.build_id.is_some(),
+                    lazer: score.set_on_lazer,
                 },
             )?),
             GameMode::Mania => Ok(calculate_mania_pp(
