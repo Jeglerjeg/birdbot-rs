@@ -8,11 +8,6 @@ pub fn calculate_std_pp(
     file: &[u8],
     score_state: StandardScore,
 ) -> Result<CalculateResults, Error> {
-    info!(
-        "{} {}",
-        score_state.n_slider_ends.unwrap(),
-        score_state.n_slider_ticks.unwrap()
-    );
     let binding = Beatmap::from_bytes(file)?;
     let map = binding
         .try_as_converted::<Osu>()
