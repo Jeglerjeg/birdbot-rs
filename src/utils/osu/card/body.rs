@@ -140,7 +140,7 @@ pub fn draw_statistics(document: Document, osu_user: &UserExtended) -> Result<Do
     let total_score: String;
     let clears: String;
     if let Some(statistics) = &osu_user.statistics {
-        pp = (statistics.pp as u32).to_formatted_string(&Locale::en);
+        pp = (statistics.pp.ceil() as u32).to_formatted_string(&Locale::en);
         play_time = aformat!("{}h", (statistics.playtime / 3600).to_arraystring()).to_string();
         play_count = statistics.playcount.to_formatted_string(&Locale::en);
         accuracy = aformat!(
