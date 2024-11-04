@@ -70,15 +70,15 @@ pub fn calculate_potential_acc(score: &Score) -> Option<f64> {
             let numerator = 300 * score.statistics.great
                 + 100 * score.statistics.good
                 + 50 * score.statistics.meh
-                + 150 * score.statistics.large_tick_hit
-                + 30 * score.statistics.small_tick_hit;
+                + 150 * score.statistics.slider_tail_hit
+                + 30 * score.statistics.large_tick_hit;
 
             let denominator = 300 * score.statistics.great
                 + 300 * score.statistics.good
                 + 300 * score.statistics.meh
                 + 300 * score.statistics.miss
-                + 150 * score.statistics.large_tick_hit
-                + 30 * score.statistics.small_tick_hit;
+                + 150 * score.statistics.slider_tail_hit
+                + 30 * score.statistics.large_tick_hit;
 
             Some(f64::from(numerator) / f64::from(denominator))
         }
