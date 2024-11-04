@@ -2,7 +2,6 @@ use crate::utils::osu::pp::{CalculateResults, StandardScore};
 use crate::Error;
 use rosu_pp::osu::{Osu, OsuPerformance, OsuPerformanceAttributes};
 use rosu_pp::Beatmap;
-use tracing::info;
 
 pub fn calculate_std_pp(
     file: &[u8],
