@@ -5,26 +5,26 @@ use crate::utils::db::{
     beatmaps, beatmapsets, linked_osu_profiles, osu_file, osu_guild_channels, osu_notifications,
     osu_users,
 };
+use crate::utils::misc::get_reply;
 use crate::utils::osu::caching::{get_beatmap, get_beatmapset};
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::card::render_card;
+use crate::utils::osu::embeds::{send_score_embed, send_scores_embed};
+use crate::utils::osu::map_format::format_map_status;
 use crate::utils::osu::misc::{
     calculate_potential_acc, find_beatmap_link, get_osu_user, get_user, is_playing,
     set_up_score_list, sort_scores, wipe_profile_data,
 };
 use crate::utils::osu::misc_format::format_missing_user_string;
+use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 use crate::{Context, Error};
 use chrono::Utc;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
-    CreateAttachment, CreateEmbed, CreateEmbedAuthor, GuildChannel, UserId,
+    CreateAttachment, CreateEmbed, CreateEmbedAuthor, GetMessages, GuildChannel, UserId,
 };
 use poise::CreateReply;
 use rosu_v2::model::GameMode;
-
-use crate::utils::osu::embeds::{send_score_embed, send_scores_embed};
-use crate::utils::osu::map_format::format_map_status;
-use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
 
 /// Display information about your osu! user.
 #[poise::command(
@@ -263,13 +263,28 @@ pub async fn mapinfo(
     let connection = &mut ctx.data().db_pool.get().await?;
 
     let beatmap_info: BeatmapInfo;
+    let reply = get_reply(ctx);
+
     if let Some(beatmap_url) = beatmap_url {
         beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
         let Some(_) = beatmap_info.beatmapset_id else {
             ctx.say("Please link to a beatmapset.").await?;
             return Ok(());
         };
-    } else if let Some(found_info) = find_beatmap_link(ctx).await? {
+    } else if let Some(reply) = reply {
+        if let Some(found_info) = find_beatmap_link(vec![reply]).await? {
+            beatmap_info = found_info;
+        } else {
+            ctx.say("No beatmap link found.").await?;
+            return Ok(());
+        }
+    } else if let Some(found_info) = find_beatmap_link(
+        ctx.channel_id()
+            .messages(ctx.http(), GetMessages::new().limit(100))
+            .await?,
+    )
+    .await?
+    {
         beatmap_info = found_info;
     } else {
         ctx.say("No beatmap link found.").await?;
@@ -323,6 +338,8 @@ pub async fn score(
     };
 
     let beatmap_info: BeatmapInfo;
+    let reply = get_reply(ctx);
+
     if let Some(beatmap_url) = beatmap_url {
         beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
         let Some(_) = beatmap_info.beatmap_id else {
@@ -330,7 +347,20 @@ pub async fn score(
                 .await?;
             return Ok(());
         };
-    } else if let Some(found_info) = find_beatmap_link(ctx).await? {
+    } else if let Some(reply) = reply {
+        if let Some(found_info) = find_beatmap_link(vec![reply]).await? {
+            beatmap_info = found_info;
+        } else {
+            ctx.say("No beatmap link found.").await?;
+            return Ok(());
+        }
+    } else if let Some(found_info) = find_beatmap_link(
+        ctx.channel_id()
+            .messages(ctx.http(), GetMessages::new().limit(100))
+            .await?,
+    )
+    .await?
+    {
         beatmap_info = found_info;
     } else {
         ctx.say("No beatmap link found.").await?;
@@ -413,6 +443,8 @@ pub async fn scores(
     };
 
     let beatmap_info: BeatmapInfo;
+    let reply = get_reply(ctx);
+
     if let Some(beatmap_url) = beatmap_url {
         beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
         let Some(_) = beatmap_info.beatmap_id else {
@@ -420,7 +452,20 @@ pub async fn scores(
                 .await?;
             return Ok(());
         };
-    } else if let Some(found_info) = find_beatmap_link(ctx).await? {
+    } else if let Some(reply) = reply {
+        if let Some(found_info) = find_beatmap_link(vec![reply]).await? {
+            beatmap_info = found_info;
+        } else {
+            ctx.say("No beatmap link found.").await?;
+            return Ok(());
+        }
+    } else if let Some(found_info) = find_beatmap_link(
+        ctx.channel_id()
+            .messages(ctx.http(), GetMessages::new().limit(100))
+            .await?,
+    )
+    .await?
+    {
         beatmap_info = found_info;
     } else {
         ctx.say("No beatmap link found.").await?;

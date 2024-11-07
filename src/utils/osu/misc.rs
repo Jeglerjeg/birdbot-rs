@@ -16,6 +16,7 @@ use poise::serenity_prelude::{Context, GuildId, Presence, User, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, ScoreStatistics, UserExtended};
 use serde::{Deserialize, Serialize};
+use serenity::all::Message;
 
 pub enum DiffTypes {
     Pp,
@@ -329,9 +330,8 @@ pub fn get_osu_user(
     Ok(user)
 }
 
-pub async fn find_beatmap_link(ctx: crate::Context<'_>) -> Result<Option<BeatmapInfo>, Error> {
-    let builder = poise::serenity_prelude::GetMessages::new().limit(100);
-    for message in ctx.channel_id().messages(ctx.http(), builder).await? {
+pub async fn find_beatmap_link(messages: Vec<Message>) -> Result<Option<BeatmapInfo>, Error> {
+    for message in messages {
         let mut to_search = message.content.to_string();
         for embed in message.embeds {
             if let Some(description) = embed.description {
@@ -340,6 +340,10 @@ pub async fn find_beatmap_link(ctx: crate::Context<'_>) -> Result<Option<Beatmap
 
             if let Some(title) = embed.title {
                 to_search.push_str(&title);
+            }
+
+            if let Some(url) = embed.url {
+                to_search.push_str(&url);
             }
 
             if let Some(footer) = embed.footer {
