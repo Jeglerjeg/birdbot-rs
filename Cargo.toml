@@ -18,7 +18,7 @@ rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "330dfc06fd3352a4c6
 num-format = "0.4"
 time = "0.3"
 dashmap = "6.0"
-rosu-pp = {git = "https://github.com/MaxOhn/rosu-pp", rev = "9e4db4096e56809281b68cb983578a66590053b7"}
+rosu-pp = {git = "https://github.com/MaxOhn/rosu-pp", rev = "0448980cd575176cac994853aed5acfef1241864"}
 regex = "1.11"
 url = "2.5"
 diesel = { version = "2.2", features = ["chrono"]}
@@ -49,7 +49,7 @@ features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "917741c29ec77fdcda1f98566b1145036db84c91"
+rev = "4b7b5d23ecaea405da749a5ac7dcfeb79045f59a"
 
 [dependencies.symphonia]
 version = "0.5"
@@ -57,7 +57,7 @@ features = ["all-codecs"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "bf9426302252a5878650e42e8748c412583e2400"
+rev = "371fae6b00bf8c0a89e382d1f481d6a49d44f913"
 features = ["builtin-queue"]
 
 [dependencies.serenity]

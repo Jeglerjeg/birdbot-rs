@@ -1,3 +1,4 @@
+use crate::utils::misc::get_guild_channel;
 use crate::{Context, Data, Error};
 use aformat::aformat;
 use dashmap::DashMap;
@@ -168,10 +169,8 @@ pub async fn check_for_empty_channel(
                 .ok_or("Failed to parse channel ID in check_for_empty_channel")?
                 .get(),
         );
-        let guild = ctx.http.get_guild(guild_id).await?;
-        let guild_channels = guild.channels(&ctx.http).await?;
-        let channel = guild_channels
-            .get(&channel_id)
+        let channel = get_guild_channel(&ctx.http, &ctx.cache, channel_id, guild_id)
+            .await?
             .ok_or("Failed to get guild channel in check_for_empty")?;
         if channel.members(&ctx.cache)?.len() <= 1 {
             leave(ctx, Some(guild_id)).await?;
@@ -703,7 +702,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
                 return Ok(());
             }
 
-            let guild_channels = guild.channels(ctx.http()).await?;
+            let guild_channels = guild.id.channels(ctx.http()).await?;
 
             let needed_to_skip = match guild_channels.get(&channel_id) {
                 None => {
