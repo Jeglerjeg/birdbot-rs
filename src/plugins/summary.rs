@@ -8,11 +8,13 @@ use diesel_async::AsyncPgConnection;
 use markov::Chain;
 
 use crate::utils::db::summary_messages::construct_chain;
+use crate::utils::misc::content_safe;
 use aformat::aformat;
 use itertools::Itertools;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{Cache, ChannelId, GuildId, Message, UserId};
 use std::sync::OnceLock;
+use tracing::info;
 use tracing::log::error;
 
 pub struct SummaryEnabledGuilds {
@@ -46,8 +48,11 @@ pub async fn download_messages(
                 if message.content.is_empty() {
                     continue;
                 }
+                info!("Content: {}", message.content);
+                info!("Message mentions: {:?}", message.mentions);
+                info!("Safe Content: {}", content_safe(&message, ctx.cache()));
                 downloaded_messages.push(NewDbSummaryMessage {
-                    content: message.content_safe(ctx.cache()),
+                    content: content_safe(&message, ctx.cache()),
                     discord_id: i64::from(message.id),
                     is_bot: message.author.bot(),
                     author_id: i64::from(message.author.id),
@@ -97,7 +102,7 @@ pub async fn add_message(message: &Message, data: &Data, cache: &Cache) -> Resul
                 summary_messages::create(
                     connection,
                     &vec![NewDbSummaryMessage {
-                        content: message.content_safe(cache),
+                        content: content_safe(message, cache),
                         discord_id: i64::from(message.id),
                         is_bot: message.author.bot(),
                         author_id: i64::from(message.author.id),
