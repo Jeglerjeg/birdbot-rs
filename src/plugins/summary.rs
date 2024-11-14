@@ -14,7 +14,6 @@ use itertools::Itertools;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{Cache, ChannelId, GuildId, Message, UserId};
 use std::sync::OnceLock;
-use tracing::info;
 use tracing::log::error;
 
 pub struct SummaryEnabledGuilds {
@@ -48,9 +47,6 @@ pub async fn download_messages(
                 if message.content.is_empty() {
                     continue;
                 }
-                info!("Content: {}", message.content);
-                info!("Message mentions: {:?}", message.mentions);
-                info!("Safe Content: {}", content_safe(&message, ctx.cache()));
                 downloaded_messages.push(NewDbSummaryMessage {
                     content: content_safe(&message, ctx.cache()),
                     discord_id: i64::from(message.id),
