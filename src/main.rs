@@ -61,8 +61,12 @@ async fn event_listener(
             });
         }
         FullEvent::Message { new_message, .. } => {
-            match plugins::summary::add_message(new_message, &ctx.serenity_context.data::<Data>())
-                .await
+            match plugins::summary::add_message(
+                new_message,
+                &ctx.serenity_context.data::<Data>(),
+                &ctx.serenity_context.cache,
+            )
+            .await
             {
                 Ok(()) => {}
                 Err(e) => error!("{e}"),

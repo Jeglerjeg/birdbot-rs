@@ -11,7 +11,7 @@ use crate::utils::db::summary_messages::construct_chain;
 use aformat::aformat;
 use itertools::Itertools;
 use poise::futures_util::StreamExt;
-use poise::serenity_prelude::{ChannelId, Message, UserId};
+use poise::serenity_prelude::{Cache, ChannelId, Message, UserId};
 use std::sync::OnceLock;
 use tracing::log::error;
 
@@ -29,18 +29,6 @@ impl SummaryEnabledGuilds {
 
 static SUMMARY_ENABLED_GUILDS: OnceLock<SummaryEnabledGuilds> = OnceLock::new();
 
-impl From<Message> for NewDbSummaryMessage {
-    fn from(discord_message: Message) -> NewDbSummaryMessage {
-        NewDbSummaryMessage {
-            content: discord_message.content.to_string(),
-            discord_id: i64::from(discord_message.id),
-            is_bot: discord_message.author.bot(),
-            author_id: i64::from(discord_message.author.id),
-            channel_id: i64::from(discord_message.channel_id),
-        }
-    }
-}
-
 pub async fn download_messages(
     ctx: &Context<'_>,
     connection: &mut AsyncPgConnection,
@@ -57,7 +45,13 @@ pub async fn download_messages(
                 if message.content.is_empty() {
                     continue;
                 }
-                downloaded_messages.push(message.into());
+                downloaded_messages.push(NewDbSummaryMessage {
+                    content: message.content_safe(ctx.cache()),
+                    discord_id: i64::from(message.id),
+                    is_bot: message.author.bot(),
+                    author_id: i64::from(message.author.id),
+                    channel_id: i64::from(message.channel_id),
+                });
             }
             Err(error) => error!("{error}"),
         }
@@ -68,7 +62,7 @@ pub async fn download_messages(
     Ok(())
 }
 
-pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
+pub async fn add_message(message: &Message, data: &Data, cache: &Cache) -> Result<(), Error> {
     let Some(guild_id) = message.guild_id else {
         return Ok(());
     };
@@ -77,7 +71,6 @@ pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
     }
 
     let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(SummaryEnabledGuilds::new);
-
     match enabled_guilds.guilds.get(&i64::from(guild_id)) {
         None => {
             enabled_guilds.guilds.insert(i64::from(guild_id), {
@@ -102,7 +95,13 @@ pub async fn add_message(message: &Message, data: &Data) -> Result<(), Error> {
                 let connection = &mut data.db_pool.get().await?;
                 summary_messages::create(
                     connection,
-                    &vec![NewDbSummaryMessage::from(message.clone())],
+                    &vec![NewDbSummaryMessage {
+                        content: message.content_safe(cache),
+                        discord_id: i64::from(message.id),
+                        is_bot: message.author.bot(),
+                        author_id: i64::from(message.author.id),
+                        channel_id: i64::from(message.channel_id),
+                    }],
                 )
                 .await?;
             } else {
