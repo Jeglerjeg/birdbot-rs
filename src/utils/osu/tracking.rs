@@ -61,7 +61,6 @@ impl OsuTracker {
         ));
         loop {
             interval.tick().await;
-            info!("Ticked tracking");
             let connection = &mut self.pool.get().await?;
             let profiles = match linked_osu_profiles::get_all(connection).await {
                 Ok(profiles) => profiles,
