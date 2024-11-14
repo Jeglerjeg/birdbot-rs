@@ -11,7 +11,7 @@ use crate::utils::db::summary_messages::construct_chain;
 use aformat::aformat;
 use itertools::Itertools;
 use poise::futures_util::StreamExt;
-use poise::serenity_prelude::{Cache, ChannelId, Message, UserId};
+use poise::serenity_prelude::{Cache, ChannelId, GuildId, Message, UserId};
 use std::sync::OnceLock;
 use tracing::log::error;
 
@@ -32,9 +32,10 @@ static SUMMARY_ENABLED_GUILDS: OnceLock<SummaryEnabledGuilds> = OnceLock::new();
 pub async fn download_messages(
     ctx: &Context<'_>,
     connection: &mut AsyncPgConnection,
+    channel_id: ChannelId,
 ) -> Result<(), Error> {
     let mut downloaded_messages: Vec<NewDbSummaryMessage> = Vec::new();
-    let mut message_iterator = ctx.channel_id().messages_iter(ctx.http()).boxed();
+    let mut message_iterator = channel_id.messages_iter(ctx.http()).boxed();
     while let Some(message) = message_iterator.next().await {
         if downloaded_messages.len() == 1000 {
             summary_messages::create(connection, &downloaded_messages).await?;
@@ -163,33 +164,47 @@ pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 #[poise::command(prefix_command, owners_only, guild_only, hide_in_help)]
-pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn summary_enable(
+    ctx: Context<'_>,
+    guild_id: Option<u64>,
+    channel_id: Option<u64>,
+) -> Result<(), Error> {
     ctx.defer().await?;
-    let guild_id = ctx
-        .guild_id()
-        .ok_or("Failed to get guild id in summary_enable")?;
+
+    let guild_id = if let Some(guild_id) = guild_id {
+        GuildId::from(guild_id)
+    } else {
+        ctx.guild_id()
+            .ok_or("Failed to get guild id in summary_enable")?
+    };
+
+    let channel_id = if let Some(channel_id) = channel_id {
+        ChannelId::from(channel_id)
+    } else {
+        ctx.channel_id()
+    };
+
     let mut connection = ctx.data().db_pool.get().await?;
     let enabled_guild = summary_enabled_guilds::read(&mut connection, i64::from(guild_id)).await;
 
     let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(SummaryEnabledGuilds::new);
 
     if let Ok(mut guild) = enabled_guild {
-        guild.channel_ids.push(Some(i64::from(ctx.channel_id())));
+        guild.channel_ids.push(Some(i64::from(channel_id)));
         let new_guild = NewSummaryEnabledGuild {
             guild_id: i64::from(guild_id),
             channel_ids: guild.channel_ids,
         };
         summary_enabled_guilds::update(&mut connection, guild.id, &new_guild).await?;
-
         enabled_guilds
             .guilds
             .entry(i64::from(guild_id))
             .or_default()
-            .push(i64::from(ctx.channel_id()));
+            .push(i64::from(channel_id));
     } else {
         let new_guild = NewSummaryEnabledGuild {
             guild_id: i64::from(guild_id),
-            channel_ids: vec![Some(i64::from(ctx.channel_id()))],
+            channel_ids: vec![Some(i64::from(channel_id))],
         };
         let inserted_guild = summary_enabled_guilds::create(&mut connection, &new_guild).await?;
 
@@ -204,21 +219,24 @@ pub async fn summary_enable(ctx: Context<'_>) -> Result<(), Error> {
         );
     }
 
-    ctx.say("Downloading messages, this may take a while.")
+    channel_id
+        .say(ctx.http(), "Downloading messages, this may take a while.")
         .await?;
 
-    download_messages(&ctx, &mut connection).await?;
+    download_messages(&ctx, &mut connection, channel_id).await?;
     let downloaded_messages =
-        summary_messages::count_entries(&mut connection, i64::from(ctx.channel_id())).await?;
+        summary_messages::count_entries(&mut connection, i64::from(channel_id)).await?;
 
-    ctx.say(
-        aformat!(
-            "Downloaded {} messages",
-            downloaded_messages.to_arraystring()
+    channel_id
+        .say(
+            ctx.http(),
+            aformat!(
+                "Downloaded {} messages",
+                downloaded_messages.to_arraystring()
+            )
+            .as_str(),
         )
-        .as_str(),
-    )
-    .await?;
+        .await?;
 
     Ok(())
 }
