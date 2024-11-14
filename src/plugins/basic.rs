@@ -1,5 +1,5 @@
 use crate::{Context, Error};
-use poise::builtins::HelpConfiguration;
+use std::borrow::Cow;
 
 use aformat::{aformat, CapStr};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
@@ -11,6 +11,18 @@ use std::fmt::Write;
 use std::time::Instant;
 use std::writeln;
 use to_arraystring::ToArrayString;
+
+/// Optional configuration for how the help message from [`help()`] looks
+#[derive(Default)]
+pub struct HelpConfiguration<'a> {
+    /// Extra text displayed at the bottom of your message. Can be used for help and tips specific
+    /// to your bot
+    pub extra_text_at_bottom: &'a str,
+    /// Whether to list context menu commands as well
+    pub show_context_menu_commands: bool,
+    #[doc(hidden)]
+    pub __non_exhaustive: (),
+}
 
 pub struct OrderedMap<K, V>(pub Vec<(K, V)>);
 
@@ -79,19 +91,19 @@ async fn help_single_command<U: Send + Sync + 'static, E>(
 }
 
 fn format_args<U, E>(arguments: &[poise::CommandParameter<U, E>]) -> String {
-    return arguments.iter().fold(String::new(), |acc, arg| {
+    arguments.iter().fold(String::new(), |acc, arg| {
         acc + &*if arg.required {
             format!("{} ", arg.name)
         } else {
             format!("<{}> ", arg.name)
         }
-    });
+    })
 }
 
 async fn format_command<U: Send + Sync + 'static, E>(
     ctx: poise::Context<'_, U, E>,
     command: &Command<U, E>,
-    parent: Option<String>,
+    parent: Option<Cow<'_, str>>,
 ) -> Result<String, Error> {
     let prefix = if command.prefix_action.is_some() {
         let options = &ctx.framework().options().prefix_options;
@@ -102,14 +114,14 @@ async fn format_command<U: Send + Sync + 'static, E>(
                 Some(dynamic_prefix_callback) => {
                     match dynamic_prefix_callback(PartialContext::from(ctx)).await {
                         Ok(Some(dynamic_prefix)) => dynamic_prefix,
-                        Err(_) | Ok(None) => std::borrow::Cow::Borrowed(""),
+                        Err(_) | Ok(None) => Cow::Borrowed(""),
                     }
                 }
-                None => std::borrow::Cow::Borrowed(""),
+                None => Cow::Borrowed(""),
             },
         }
     } else if command.slash_action.is_some() {
-        std::borrow::Cow::Borrowed("/")
+        Cow::Borrowed("/")
     } else {
         // This is not a prefix or slash command, i.e. probably a context menu only command
         // which we will only show later
@@ -136,7 +148,7 @@ async fn help_all_commands<U: Send + Sync + 'static, E>(
     ctx: poise::Context<'_, U, E>,
     config: HelpConfiguration<'_>,
 ) -> Result<(), Error> {
-    let mut categories = OrderedMap::<&Option<String>, Vec<&Command<U, E>>>::new();
+    let mut categories = OrderedMap::<&Option<Cow<'_, str>>, Vec<&Command<U, E>>>::new();
     for cmd in &ctx.framework().options().commands {
         categories
             .get_or_insert_with(&cmd.category, Vec::new)
@@ -145,7 +157,7 @@ async fn help_all_commands<U: Send + Sync + 'static, E>(
 
     let mut menu = String::from("```\n");
     for (category_name, commands) in categories {
-        menu += category_name.as_ref().unwrap_or(&"Commands".to_string());
+        menu += category_name.as_ref().unwrap_or(&Cow::from("Commands"));
         menu += ":\n";
         for command in commands {
             if command.hide_in_help {
@@ -176,7 +188,10 @@ async fn help_all_commands<U: Send + Sync + 'static, E>(
                 Some(ContextMenuCommandAction::Message(_)) => "message",
                 _ => continue,
             };
-            let name = command.context_menu_name.as_ref().unwrap_or(&command.name);
+            let name = command
+                .context_menu_name
+                .clone()
+                .unwrap_or(command.name.clone());
             writeln!(menu, "  {name} (on {kind})")?;
         }
     }
