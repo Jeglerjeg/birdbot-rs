@@ -49,18 +49,19 @@ pub struct OsuTracker {
 }
 impl OsuTracker {
     pub async fn tracking_loop(&mut self) -> Result<(), Error> {
+        let mut interval = tokio::time::interval(Duration::from_secs(
+            UPDATE_INTERVAL
+                .get_or_init(|| {
+                    env::var("UPDATE_INTERVAL")
+                        .unwrap_or_else(|_| String::from("30"))
+                        .parse::<u64>()
+                        .expect("Failed to parse tracking update interval.")
+                })
+                .to_owned(),
+        ));
         loop {
-            sleep(Duration::from_secs(
-                UPDATE_INTERVAL
-                    .get_or_init(|| {
-                        env::var("UPDATE_INTERVAL")
-                            .unwrap_or_else(|_| String::from("30"))
-                            .parse::<u64>()
-                            .expect("Failed to parse tracking update interval.")
-                    })
-                    .to_owned(),
-            ))
-            .await;
+            interval.tick().await;
+            info!("Ticked tracking");
             let connection = &mut self.pool.get().await?;
             let profiles = match linked_osu_profiles::get_all(connection).await {
                 Ok(profiles) => profiles,
