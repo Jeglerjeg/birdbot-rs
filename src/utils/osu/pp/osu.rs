@@ -1,6 +1,7 @@
 use crate::utils::osu::pp::{CalculateResults, StandardScore};
 use crate::Error;
-use rosu_pp::osu::{Osu, OsuPerformance, OsuPerformanceAttributes};
+use rosu_pp::model::mode::GameMode;
+use rosu_pp::osu::{OsuPerformance, OsuPerformanceAttributes};
 use rosu_pp::Beatmap;
 
 pub fn calculate_std_pp(
@@ -8,9 +9,7 @@ pub fn calculate_std_pp(
     score_state: StandardScore,
 ) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;
-    let map = binding
-        .try_as_converted::<Osu>()
-        .ok_or("Couldn't convert map to standard")?;
+    let map = binding.convert(GameMode::Osu, &score_state.mods)?;
 
     let (mut result, diff_attributes, full_difficulty) = if score_state.passed {
         let difficulty = OsuPerformance::from(&map).mods(score_state.mods.clone());
@@ -21,7 +20,7 @@ pub fn calculate_std_pp(
         let mut difficulty = OsuPerformance::from(&map).mods(score_state.mods.clone());
         let diff_attributes = map.attributes().mods(score_state.mods.clone());
 
-        let full_difficulty = difficulty.clone().calculate();
+        let full_difficulty = difficulty.clone().calculate()?;
 
         if let Some(passed_objects) = score_state.passed_objects {
             difficulty = difficulty.passed_objects(passed_objects);
@@ -56,7 +55,7 @@ pub fn calculate_std_pp(
         };
 
         if let Some(n_slider_ticks) = score_state.n_slider_ticks {
-            result = result.n_slider_ticks(n_slider_ticks);
+            result = result.large_tick_hits(n_slider_ticks);
         };
     }
 
@@ -64,7 +63,7 @@ pub fn calculate_std_pp(
         result = result.accuracy(acc);
     };
 
-    let result = result.calculate();
+    let result = result.calculate()?;
 
     let (full_calc, potential_result) = if let Some(full_difficulty) = full_difficulty {
         (
@@ -82,7 +81,7 @@ pub fn calculate_std_pp(
         total_stars: full_calc.stars(),
         partial_stars: result.stars(),
         pp: result.pp,
-        max_pp: Some(potential_result),
+        max_pp: Some(potential_result?),
         max_combo: full_calc.max_combo(),
         clock_rate: diff_attributes.clock_rate,
     })
@@ -91,7 +90,7 @@ pub fn calculate_std_pp(
 fn get_potential_pp(
     score_state: StandardScore,
     difficulty_attribs: OsuPerformanceAttributes,
-) -> f64 {
+) -> Result<f64, Error> {
     let potential_result;
     if let (
         Some(n300),
@@ -115,7 +114,7 @@ fn get_potential_pp(
                 .n100(n100)
                 .n50(n50)
                 .n_slider_ends(n_slider_ends)
-                .n_slider_ticks(n_slider_ticks);
+                .large_tick_hits(n_slider_ticks);
         } else {
             potential_result = OsuPerformance::new(difficulty_attribs)
                 .mods(score_state.mods)
@@ -130,5 +129,5 @@ fn get_potential_pp(
     } else {
         potential_result = OsuPerformance::new(difficulty_attribs).mods(score_state.mods);
     }
-    potential_result.calculate().pp()
+    Ok(potential_result.calculate()?.pp())
 }

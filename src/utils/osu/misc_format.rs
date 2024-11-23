@@ -12,11 +12,11 @@ use rosu_v2::model::{GameMode, Grade};
 use rosu_v2::prelude::{GameMod, GameMods, Score};
 
 #[inline]
-fn format_speed_change(speed_change: f32, acronym: &str) -> Result<String, Error> {
+fn format_speed_change(speed_change: f64, acronym: &str) -> Result<String, Error> {
     Ok(aformat!(
         "{} ({}x)",
         CapStr::<8>(acronym),
-        remove_trailing_zeros(f64::from(speed_change), 2)?.to_arraystring()
+        remove_trailing_zeros(speed_change, 2)?.to_arraystring()
     )
     .to_string())
 }

@@ -14,7 +14,7 @@ use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use mobc::Pool;
-use poise::serenity_prelude::FullEvent;
+use poise::serenity_prelude::{FullEvent, Token};
 use poise::FrameworkContext;
 use rosu_v2::prelude::Osu;
 use std::env;
@@ -208,7 +208,7 @@ async fn main() {
         .with_writer(non_blocking)
         .init();
 
-    let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    let token = Token::from_env("DISCORD_TOKEN").unwrap();
 
     let intents = serenity::prelude::GatewayIntents::GUILD_MEMBERS
         | serenity::prelude::GatewayIntents::GUILD_VOICE_STATES
@@ -235,7 +235,7 @@ async fn main() {
 
     let manager = songbird::Songbird::serenity();
 
-    let mut client = serenity::Client::builder(&token, intents)
+    let mut client = serenity::Client::builder(token, intents)
         .framework(framework)
         .voice_manager::<songbird::Songbird>(manager.clone())
         .data(Arc::new(Data {

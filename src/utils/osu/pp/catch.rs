@@ -1,13 +1,12 @@
 use crate::utils::osu::pp::{CalculateResults, CatchScore};
 use crate::Error;
-use rosu_pp::catch::{Catch, CatchPerformance};
+use rosu_pp::catch::CatchPerformance;
+use rosu_pp::model::mode::GameMode;
 use rosu_pp::Beatmap;
 
 pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;
-    let map = binding
-        .try_as_converted::<Catch>()
-        .ok_or("Couldn't convert map to catch")?;
+    let map = binding.convert(GameMode::Catch, &score_state.mods)?;
 
     let (mut result, diff_attributes, full_difficulty) = if score_state.passed {
         let difficulty = CatchPerformance::from(&map).mods(score_state.mods.clone());
@@ -18,7 +17,7 @@ pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<Calcul
         let mut difficulty = CatchPerformance::from(&map).mods(score_state.mods.clone());
         let diff_attributes = map.attributes().mods(score_state.mods);
 
-        let full_difficulty = difficulty.clone().calculate();
+        let full_difficulty = difficulty.clone().calculate()?;
 
         if let Some(passed_objects) = score_state.passed_objects {
             difficulty = difficulty.passed_objects(passed_objects);
@@ -51,7 +50,7 @@ pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<Calcul
         result = result.tiny_droplet_misses(tiny_droplet_misses);
     };
 
-    let result = result.calculate();
+    let result = result.calculate()?;
 
     let full_calc = if let Some(full_difficulty) = full_difficulty {
         full_difficulty
