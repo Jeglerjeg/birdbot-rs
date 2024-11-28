@@ -95,7 +95,7 @@ pub fn is_perfect(statistics: &ScoreStatistics) -> bool {
 }
 
 pub fn count_score_pages(score_count: usize, scores_per_page: usize) -> usize {
-    (score_count + scores_per_page - 1) / scores_per_page
+    score_count.div_ceil(scores_per_page)
 }
 
 pub async fn wipe_profile_data(db: &mut AsyncPgConnection, user_id: i64) -> Result<(), Error> {

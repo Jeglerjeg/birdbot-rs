@@ -55,7 +55,7 @@ pub fn calculate_std_pp(
         };
 
         if let Some(n_slider_ticks) = score_state.n_slider_ticks {
-            result = result.large_tick_hits(n_slider_ticks);
+            result = result.n_large_ticks(n_slider_ticks);
         };
     }
 
@@ -114,7 +114,7 @@ fn get_potential_pp(
                 .n100(n100)
                 .n50(n50)
                 .n_slider_ends(n_slider_ends)
-                .large_tick_hits(n_slider_ticks);
+                .n_large_ticks(n_slider_ticks);
         } else {
             potential_result = OsuPerformance::new(difficulty_attribs)
                 .mods(score_state.mods)
