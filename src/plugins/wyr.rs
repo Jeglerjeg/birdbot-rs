@@ -7,8 +7,8 @@ use poise::futures_util::StreamExt;
 use poise::serenity_prelude::ButtonStyle;
 use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::{
-    CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage, Mentionable, User,
+    CollectModalInteractions, CreateActionRow, CreateButton, CreateEmbed,
+    CreateInteractionResponse, CreateInteractionResponseMessage, Mentionable, User,
 };
 use poise::{CreateReply, ReplyHandle};
 use rand::seq::SliceRandom;
@@ -90,7 +90,7 @@ async fn handle_interaction_responses(
         .message()
         .await?
         .id
-        .await_component_interaction(ctx.serenity_context().shard.clone())
+        .collect_modal_interactions(ctx.serenity_context().shard.clone())
         .timeout(Duration::from_secs(30))
         .stream();
 

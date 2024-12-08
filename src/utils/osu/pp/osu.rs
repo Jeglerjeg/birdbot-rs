@@ -12,12 +12,16 @@ pub fn calculate_std_pp(
     let map = binding.convert(GameMode::Osu, &score_state.mods)?;
 
     let (mut result, diff_attributes, full_difficulty) = if score_state.passed {
-        let difficulty = OsuPerformance::from(&map).mods(score_state.mods.clone());
+        let difficulty = OsuPerformance::from(&map)
+            .mods(score_state.mods.clone())
+            .lazer(score_state.lazer);
         let diff_attributes = map.attributes().mods(score_state.mods.clone());
 
         (difficulty, diff_attributes.build(), None)
     } else {
-        let mut difficulty = OsuPerformance::from(&map).mods(score_state.mods.clone());
+        let mut difficulty = OsuPerformance::from(&map)
+            .mods(score_state.mods.clone())
+            .lazer(score_state.lazer);
         let diff_attributes = map.attributes().mods(score_state.mods.clone());
 
         let full_difficulty = difficulty.clone().calculate()?;
@@ -49,15 +53,17 @@ pub fn calculate_std_pp(
         result = result.n50(n50);
     };
 
-    if score_state.lazer {
-        if let Some(n_slider_ends) = score_state.n_slider_ends {
-            result = result.n_slider_ends(n_slider_ends);
-        };
+    if let Some(n_slider_ends) = score_state.n_slider_ends {
+        result = result.slider_end_hits(n_slider_ends);
+    };
 
-        if let Some(n_slider_ticks) = score_state.n_slider_ticks {
-            result = result.n_large_ticks(n_slider_ticks);
-        };
-    }
+    if let Some(n_small_tick_hits) = score_state.n_small_tick_hit {
+        result = result.small_tick_hits(n_small_tick_hits);
+    };
+
+    if let Some(n_slider_ticks) = score_state.n_slider_ticks {
+        result = result.large_tick_hits(n_slider_ticks);
+    };
 
     if let Some(acc) = score_state.acc {
         result = result.accuracy(acc);
@@ -98,6 +104,7 @@ fn get_potential_pp(
         Some(n50),
         Some(nmiss),
         Some(n_slider_ends),
+        Some(n_small_tick_hits),
         Some(n_slider_ticks),
     ) = (
         score_state.n300,
@@ -105,23 +112,18 @@ fn get_potential_pp(
         score_state.n50,
         score_state.nmiss,
         score_state.n_slider_ends,
+        score_state.n_small_tick_hit,
         score_state.n_slider_ticks,
     ) {
-        if score_state.lazer {
-            potential_result = OsuPerformance::new(difficulty_attribs)
-                .mods(score_state.mods)
-                .n300(n300 + nmiss)
-                .n100(n100)
-                .n50(n50)
-                .n_slider_ends(n_slider_ends)
-                .n_large_ticks(n_slider_ticks);
-        } else {
-            potential_result = OsuPerformance::new(difficulty_attribs)
-                .mods(score_state.mods)
-                .n300(n300 + nmiss)
-                .n100(n100)
-                .n50(n50);
-        }
+        potential_result = OsuPerformance::new(difficulty_attribs)
+            .mods(score_state.mods)
+            .lazer(score_state.lazer)
+            .n300(n300 + nmiss)
+            .n100(n100)
+            .n50(n50)
+            .slider_end_hits(n_slider_ends)
+            .small_tick_hits(n_small_tick_hits)
+            .large_tick_hits(n_slider_ticks);
     } else if let Some(potential_acc) = score_state.potential_acc {
         potential_result = OsuPerformance::new(difficulty_attribs)
             .mods(score_state.mods)

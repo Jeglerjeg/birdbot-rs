@@ -31,6 +31,7 @@ pub fn calculate(
                     nmiss: Some(score.statistics.miss),
                     passed_objects: Some(score.total_hits()),
                     n_slider_ticks: Some(score.statistics.large_tick_hit),
+                    n_small_tick_hit: Some(score.statistics.small_tick_hit),
                     n_slider_ends: Some(score.statistics.slider_tail_hit),
                     lazer: score.build_id.is_some(),
                 },

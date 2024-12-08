@@ -8,8 +8,8 @@ use crate::{Context, Error};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::{
-    Colour, ComponentInteraction, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor,
-    CreateEmbedFooter, CreateInteractionResponseMessage,
+    CollectComponentInteractions, Colour, ComponentInteraction, CreateActionRow, CreateButton,
+    CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateInteractionResponseMessage,
 };
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, UserExtended};
@@ -206,7 +206,7 @@ impl TopScorePaginator<'_> {
             .message()
             .await?
             .id
-            .await_component_interaction(self.ctx.serenity_context().shard.clone())
+            .collect_component_interactions(self.ctx.serenity_context().shard.clone())
             .timeout(Duration::from_secs(15))
             .await
         {

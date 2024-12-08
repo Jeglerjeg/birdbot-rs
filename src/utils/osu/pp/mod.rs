@@ -26,6 +26,7 @@ pub struct StandardScore {
     pub nmiss: Option<u32>,
     pub passed_objects: Option<u32>,
     pub n_slider_ticks: Option<u32>,
+    pub n_small_tick_hit: Option<u32>,
     pub n_slider_ends: Option<u32>,
     pub lazer: bool,
 }
@@ -44,6 +45,7 @@ impl Default for StandardScore {
             nmiss: None,
             passed_objects: None,
             n_slider_ends: None,
+            n_small_tick_hit: None,
             n_slider_ticks: None,
             lazer: false,
         }
