@@ -2,13 +2,21 @@ use crate::utils::osu::misc::gamemode_from_string;
 use crate::Error;
 use regex::Regex;
 use rosu_v2::prelude::GameMode;
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
-static BEATMAP_URL_PATTERN_V1: OnceLock<Regex> = OnceLock::new();
+static BEATMAP_URL_PATTERN_V1: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"https?://(osu|old)\.ppy\.sh/(?P<type>[bs])/(?P<id>\d+)(?:\?m=(?P<mode>\d))?")
+        .unwrap()
+});
 
-static BEATMAPSET_URL_PATTERN_V2: OnceLock<Regex> = OnceLock::new();
+static BEATMAPSET_URL_PATTERN_V2: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"https?://osu\.ppy\.sh/beatmapsets/(?P<beatmapset_id>\d+)/?(?:#(?P<mode>\w+)/(?P<beatmap_id>\d+))?").unwrap()
+});
 
-static BEATMAP_URL_PATTERN_V2: OnceLock<Regex> = OnceLock::new();
+static BEATMAP_URL_PATTERN_V2: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"https?://osu\.ppy\.sh/beatmaps/(?P<beatmap_id>\d+)(?:\?mode=(?P<mode>\w+))?")
+        .unwrap()
+});
 
 pub struct BeatmapInfo {
     pub beatmapset_id: Option<i64>,
@@ -17,17 +25,11 @@ pub struct BeatmapInfo {
 }
 
 pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
-    let beatmap_v1_pattern = BEATMAP_URL_PATTERN_V1.get_or_init(|| {
-        Regex::new(r"https?://(osu|old)\.ppy\.sh/(?P<type>[bs])/(?P<id>\d+)(?:\?m=(?P<mode>\d))?")
-            .unwrap()
-    });
+    let beatmap_v1_pattern = &*BEATMAP_URL_PATTERN_V1;
 
-    let beatmapset_v2_pattern = BEATMAPSET_URL_PATTERN_V2.get_or_init(|| Regex::new(r"https?://osu\.ppy\.sh/beatmapsets/(?P<beatmapset_id>\d+)/?(?:#(?P<mode>\w+)/(?P<beatmap_id>\d+))?").unwrap());
+    let beatmapset_v2_pattern = &*BEATMAPSET_URL_PATTERN_V2;
 
-    let beatmap_v2_pattern = BEATMAP_URL_PATTERN_V2.get_or_init(|| {
-        Regex::new(r"https?://osu\.ppy\.sh/beatmaps/(?P<beatmap_id>\d+)(?:\?mode=(?P<mode>\w+))?")
-            .unwrap()
-    });
+    let beatmap_v2_pattern = &*BEATMAP_URL_PATTERN_V2;
     if beatmap_v2_pattern.is_match(url) {
         let info = beatmap_v2_pattern
             .captures(url)
