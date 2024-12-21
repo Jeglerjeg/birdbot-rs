@@ -39,7 +39,7 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 
 [dependencies.tokio]
-version = "1.42"
+version = "1.41"
 features = ["full"]
 
 [dependencies.reqwest]

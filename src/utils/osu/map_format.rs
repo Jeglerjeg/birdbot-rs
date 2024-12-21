@@ -10,18 +10,18 @@ use serenity::all::{Color, CreateEmbed};
 use serenity::builder::CreateEmbedAuthor;
 use std::collections::HashMap;
 use std::env;
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
-static MAX_DIFF_LENGTH: LazyLock<usize> = LazyLock::new(|| {
-    env::var("MAX_DIFF_LENGTH")
-        .unwrap_or_else(|_| String::from("19"))
-        .parse::<usize>()
-        .expect("Failed to parse max diff length.")
-});
+static MAX_DIFF_LENGTH: OnceLock<usize> = OnceLock::new();
 
 pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String, Error> {
     let mut diff_length = 0;
-    let max_diff_length = &*MAX_DIFF_LENGTH;
+    let max_diff_length = MAX_DIFF_LENGTH.get_or_init(|| {
+        env::var("MAX_DIFF_LENGTH")
+            .unwrap_or_else(|_| String::from("19"))
+            .parse::<usize>()
+            .expect("Failed to parse max diff length.")
+    });
     let mut calculated_beatmaps = HashMap::new();
     for (beatmap, osu_file) in &beatmaps {
         if beatmap.version.len() > diff_length {

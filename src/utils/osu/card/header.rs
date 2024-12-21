@@ -10,7 +10,9 @@ use serenity::all::Colour;
 use std::cmp::min;
 use std::io::Cursor;
 use std::str::FromStr;
-use svg::node::element::{Circle, Definitions, Image, LinearGradient, Mask, Path, RadialGradient, Rectangle, Stop, Text};
+use svg::node::element::{
+    Definitions, Image, LinearGradient, Mask, Path, RadialGradient, Rectangle, Stop, Text,
+};
 use svg::Document;
 use time::OffsetDateTime;
 

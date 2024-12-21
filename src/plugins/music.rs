@@ -11,7 +11,7 @@ use songbird::tracks::{PlayMode, Track};
 use songbird::{Event, EventContext, EventHandler as VoiceEventHandler, Songbird, TrackEvent};
 use std::collections::HashMap;
 use std::env;
-use std::sync::{Arc, LazyLock, OnceLock};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tracing::{error, info};
 
@@ -34,9 +34,7 @@ pub struct QueuedTrack {
     pub metadata: AuxMetadata,
 }
 
-static PLAYING_GUILDS: LazyLock<PlayingGuilds> = LazyLock::new(|| PlayingGuilds {
-    guilds: DashMap::new(),
-});
+static PLAYING_GUILDS: OnceLock<PlayingGuilds> = OnceLock::new();
 
 static MAX_SONGS_QUEUED: OnceLock<u16> = OnceLock::new();
 
@@ -202,7 +200,9 @@ pub async fn leave(
         manager.remove(guild_id).await?;
     };
 
-    let playing_guilds = &*PLAYING_GUILDS;
+    let playing_guilds = PLAYING_GUILDS.get_or_init(|| PlayingGuilds {
+        guilds: DashMap::new(),
+    });
 
     if playing_guilds.guilds.get(&guild_id).is_some() {
         playing_guilds.guilds.remove(&guild_id);
@@ -246,7 +246,13 @@ impl VoiceEventHandler for TrackStartNotifier {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         if let EventContext::Track(track_list) = ctx {
             if let Some(track) = track_list.first() {
-                let playing_guild = match PLAYING_GUILDS.guilds.get(&self.guild_id) {
+                let playing_guild = match PLAYING_GUILDS
+                    .get_or_init(|| PlayingGuilds {
+                        guilds: DashMap::new(),
+                    })
+                    .guilds
+                    .get(&self.guild_id)
+                {
                     None => {
                         error!("Failed to get playing guild in voice handler");
                         return None;
@@ -297,7 +303,13 @@ impl VoiceEventHandler for TrackEndNotifier {
                         error!("Failed to leave voice channel: {}", why);
                     };
                 } else {
-                    let mut playing_guild = match PLAYING_GUILDS.guilds.get_mut(&self.guild_id) {
+                    let mut playing_guild = match PLAYING_GUILDS
+                        .get_or_init(|| PlayingGuilds {
+                            guilds: DashMap::new(),
+                        })
+                        .guilds
+                        .get_mut(&self.guild_id)
+                    {
                         None => {
                             drop(handler);
                             error!("Failed to get playing guild in voice handler");
@@ -340,15 +352,20 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
 
     if let Ok(handle_lock) = manager.join(guild_id, connect_to).await {
         let mut handle = handle_lock.lock().await;
-        PLAYING_GUILDS.guilds.insert(
-            guild_id,
-            Guild {
-                queued_tracks: Queue {
-                    queue: HashMap::new(),
+        PLAYING_GUILDS
+            .get_or_init(|| PlayingGuilds {
+                guilds: DashMap::new(),
+            })
+            .guilds
+            .insert(
+                guild_id,
+                Guild {
+                    queued_tracks: Queue {
+                        queue: HashMap::new(),
+                    },
+                    volume: 0.6,
                 },
-                volume: 0.6,
-            },
-        );
+            );
 
         handle.add_global_event(
             Event::Track(TrackEvent::End),
@@ -424,7 +441,13 @@ async fn queue(
         Some(guild_id) => guild_id,
     };
 
-    let mut playing_guild = match PLAYING_GUILDS.guilds.get_mut(&guild_id) {
+    let mut playing_guild = match PLAYING_GUILDS
+        .get_or_init(|| PlayingGuilds {
+            guilds: DashMap::new(),
+        })
+        .guilds
+        .get_mut(&guild_id)
+    {
         None => {
             drop(handler_lock);
             error!("Failed to get playing guild in queue function");
@@ -629,7 +652,13 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
             }
             Some(track) => track,
         };
-        let mut playing_guild = match PLAYING_GUILDS.guilds.get_mut(&guild_id) {
+        let mut playing_guild = match PLAYING_GUILDS
+            .get_or_init(|| PlayingGuilds {
+                guilds: DashMap::new(),
+            })
+            .guilds
+            .get_mut(&guild_id)
+        {
             None => {
                 drop(handler);
                 error!("Failed to get playing guilds in skip function");
@@ -752,7 +781,13 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
                 }
                 Some(removed_item) => removed_item,
             };
-            let playing_guild = match PLAYING_GUILDS.guilds.get(&guild_id) {
+            let playing_guild = match PLAYING_GUILDS
+                .get_or_init(|| PlayingGuilds {
+                    guilds: DashMap::new(),
+                })
+                .guilds
+                .get(&guild_id)
+            {
                 None => {
                     drop(handler);
                     error!("Failed to get playing guild in undo function");
@@ -831,7 +866,13 @@ pub async fn volume(
         }
 
         let adjusted_volume = f32::from(volume) / 100.0;
-        let mut playing_guild = match PLAYING_GUILDS.guilds.get_mut(&guild_id) {
+        let mut playing_guild = match PLAYING_GUILDS
+            .get_or_init(|| PlayingGuilds {
+                guilds: DashMap::new(),
+            })
+            .guilds
+            .get_mut(&guild_id)
+        {
             None => {
                 drop(handler_lock);
                 error!("Failed to get playing guild in volume function");
@@ -971,6 +1012,9 @@ pub async fn now_playing(ctx: Context<'_>) -> Result<(), Error> {
             drop(handler);
 
             let playing_guilds = PLAYING_GUILDS
+                .get_or_init(|| PlayingGuilds {
+                    guilds: DashMap::new(),
+                })
                 .guilds
                 .get(&guild_id)
                 .ok_or("Failed to get playing guild in now_playing function.")?;

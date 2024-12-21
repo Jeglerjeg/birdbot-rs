@@ -13,7 +13,7 @@ use aformat::aformat;
 use itertools::Itertools;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{Cache, ChannelId, GuildId, Message, UserId};
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 use tracing::log::error;
 
 pub struct SummaryEnabledGuilds {
@@ -28,8 +28,7 @@ impl SummaryEnabledGuilds {
     }
 }
 
-static SUMMARY_ENABLED_GUILDS: LazyLock<SummaryEnabledGuilds> =
-    LazyLock::new(SummaryEnabledGuilds::new);
+static SUMMARY_ENABLED_GUILDS: OnceLock<SummaryEnabledGuilds> = OnceLock::new();
 
 pub async fn download_messages(
     ctx: &Context<'_>,
@@ -73,7 +72,7 @@ pub async fn add_message(message: &Message, data: &Data, cache: &Cache) -> Resul
         return Ok(());
     }
 
-    let enabled_guilds = &*SUMMARY_ENABLED_GUILDS;
+    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(SummaryEnabledGuilds::new);
     match enabled_guilds.guilds.get(&i64::from(guild_id)) {
         None => {
             enabled_guilds.guilds.insert(i64::from(guild_id), {
@@ -189,7 +188,7 @@ pub async fn summary_enable(
     let mut connection = ctx.data().db_pool.get().await?;
     let enabled_guild = summary_enabled_guilds::read(&mut connection, i64::from(guild_id)).await;
 
-    let enabled_guilds = &*SUMMARY_ENABLED_GUILDS;
+    let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(SummaryEnabledGuilds::new);
 
     if let Ok(mut guild) = enabled_guild {
         guild.channel_ids.push(Some(i64::from(channel_id)));
