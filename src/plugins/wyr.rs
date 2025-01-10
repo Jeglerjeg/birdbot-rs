@@ -181,7 +181,7 @@ async fn handle_interaction_responses(
     Ok(())
 }
 
-async fn add_recent_question<'a>(
+async fn add_recent_question(
     connection: &mut AsyncPgConnection,
     mut previous_questions: RefMut<'_, u64, Vec<i32>>,
     id: i32,

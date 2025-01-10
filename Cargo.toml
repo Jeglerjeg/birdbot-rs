@@ -28,7 +28,7 @@ markov = "1.1"
 tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"] }
 tikv-jemallocator = "0.6"
-itertools = "0.13"
+itertools = "0.14"
 resvg = "0.44"
 svg = "0.18"
 base64 = "0.22"
@@ -39,7 +39,7 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 
 [dependencies.tokio]
-version = "1.41"
+version = "1.43"
 features = ["full"]
 
 [dependencies.reqwest]
@@ -48,8 +48,8 @@ default-features=false
 features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
-git = "https://github.com/jamesbt365/poise"
-rev = "8d12bb892a40ab36d24cca1987abbfa54f4c52fd"
+git = "https://github.com/serenity-rs/poise"
+rev = "6fc03ae030a60f44a83ec27666e91c14ef1f3fdf"
 
 [dependencies.symphonia]
 version = "0.5"
@@ -57,7 +57,7 @@ features = ["all-codecs"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "35e453919768df2df5f65db23cffe26b5195ae3a"
+rev = "616ad3fb4db03733e3fff27f984fcd63245952f0"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
