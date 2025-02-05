@@ -321,7 +321,7 @@ pub async fn roll(
     ctx: Context<'_>,
     #[description = "Range of numbers to roll"] range: Option<u128>,
 ) -> Result<(), Error> {
-    let random_number = rand::thread_rng().gen_range(0..range.unwrap_or(100));
+    let random_number = rand::rng().random_range(0..range.unwrap_or(100));
 
     ctx.say(random_number.to_string()).await?;
 

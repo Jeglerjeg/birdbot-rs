@@ -8,16 +8,16 @@ edition = "2021"
 [dependencies]
 dotenvy = "0.15"
 tracing = "0.1"
-rand = "0.8"
+rand = "0.9"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 chrono = "0.4"
 diesel_migrations = "2.2"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "6855f89e4293ee37c5668f9d945107d765f4c8cf" }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "8b151dcfb8ec7b7b2711cf29637cac77efd719d4" }
 num-format = "0.4"
 time = "0.3"
-dashmap = "6.0"
+dashmap = "6.1"
 rosu-pp = "2.0"
 regex = "1.11"
 url = "2.5"
@@ -48,8 +48,8 @@ default-features=false
 features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
-git = "https://github.com/serenity-rs/poise"
-rev = "6fc03ae030a60f44a83ec27666e91c14ef1f3fdf"
+git = "https://github.com/jamesbt365/poise"
+rev = "ca598b4d12d084769af5fb2adce532c9ae3999cd"
 
 [dependencies.symphonia]
 version = "0.5"
