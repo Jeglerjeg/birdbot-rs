@@ -1,13 +1,13 @@
+use crate::Error;
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_files::OsuFile;
 use crate::utils::db::beatmapsets;
 use crate::utils::db::{beatmaps, osu_file};
-use crate::Error;
 use chrono::{DateTime, Utc};
 use diesel_async::AsyncPgConnection;
-use rosu_v2::prelude::BeatmapsetExtended;
 use rosu_v2::Osu;
+use rosu_v2::prelude::BeatmapsetExtended;
 use std::sync::Arc;
 
 pub async fn cache_beatmapset(

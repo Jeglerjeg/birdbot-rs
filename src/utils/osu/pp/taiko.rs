@@ -1,8 +1,8 @@
-use crate::utils::osu::pp::{CalculateResults, TaikoScore};
 use crate::Error;
+use crate::utils::osu::pp::{CalculateResults, TaikoScore};
+use rosu_pp::Beatmap;
 use rosu_pp::model::mode::GameMode;
 use rosu_pp::taiko::TaikoPerformance;
-use rosu_pp::Beatmap;
 
 pub fn calculate_taiko_pp(file: &[u8], score_state: TaikoScore) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;

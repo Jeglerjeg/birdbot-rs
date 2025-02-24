@@ -1,8 +1,8 @@
-use crate::utils::osu::pp::{CalculateResults, CatchScore};
 use crate::Error;
+use crate::utils::osu::pp::{CalculateResults, CatchScore};
+use rosu_pp::Beatmap;
 use rosu_pp::catch::CatchPerformance;
 use rosu_pp::model::mode::GameMode;
-use rosu_pp::Beatmap;
 
 pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;

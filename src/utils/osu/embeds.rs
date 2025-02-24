@@ -5,8 +5,8 @@ use crate::utils::osu::misc_format::{format_beatmap_link, format_footer, format_
 use crate::utils::osu::pp::CalculateResults;
 use crate::utils::osu::score_format::format_score_list;
 use crate::{Context, Error};
-use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
+use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     CollectComponentInteractions, Colour, ComponentInteraction, CreateActionRow, CreateButton,
     CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateInteractionResponseMessage,

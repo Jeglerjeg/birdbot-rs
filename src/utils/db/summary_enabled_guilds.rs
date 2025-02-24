@@ -1,6 +1,6 @@
+use crate::Error;
 use crate::models::summary_enabled_guilds::{NewSummaryEnabledGuild, SummaryEnabledGuild};
 use crate::schema::summary_enabled_guilds;
-use crate::Error;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};

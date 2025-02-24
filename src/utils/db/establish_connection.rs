@@ -1,6 +1,6 @@
-use diesel_async::pooled_connection::mobc::Pool;
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::pooled_connection::mobc::Pool;
 use std::env;
 use std::sync::OnceLock;
 

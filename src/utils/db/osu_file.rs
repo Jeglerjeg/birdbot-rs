@@ -1,10 +1,10 @@
+use crate::Error;
 use crate::models::osu_files::{NewOsuFile, OsuFile};
 use crate::schema::osu_files;
-use crate::Error;
 use diesel::dsl::count;
 use diesel::prelude::QueryDsl;
 use diesel::upsert::excluded;
-use diesel::{insert_into, ExpressionMethods};
+use diesel::{ExpressionMethods, insert_into};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 pub async fn create(

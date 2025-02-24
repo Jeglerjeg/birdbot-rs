@@ -1,8 +1,8 @@
 use crate::{Context, Error};
+use poise::PrefixContext;
 use poise::serenity_prelude::{
     Cache, ChannelId, GuildChannel, GuildId, Http, Mentionable, Message,
 };
-use poise::PrefixContext;
 use std::fmt::Write;
 
 pub fn remove_trailing_zeros(number: f64, precision: usize) -> Result<f64, Error> {

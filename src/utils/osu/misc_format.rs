@@ -1,10 +1,10 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::osu_users::OsuUser;
 use crate::utils::misc::remove_trailing_zeros;
-use crate::utils::osu::misc::{get_stat_diff, DiffTypes};
+use crate::utils::osu::misc::{DiffTypes, get_stat_diff};
 use crate::utils::osu::pp::CalculateResults;
 use crate::{Context, Error};
-use aformat::{aformat, ArrayString, CapStr};
+use aformat::{ArrayString, CapStr, aformat};
 use num_format::{Locale, ToFormattedString};
 use poise::serenity_prelude::User;
 use rosu_v2::model::beatmap::RankStatus;

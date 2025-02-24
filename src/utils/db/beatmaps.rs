@@ -1,9 +1,9 @@
+use crate::Error;
 use crate::models::beatmaps::{Beatmap, NewBeatmap};
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_files::OsuFile;
 use crate::schema::beatmapsets;
 use crate::schema::{beatmaps, osu_files};
-use crate::Error;
 use diesel::dsl::count;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl};

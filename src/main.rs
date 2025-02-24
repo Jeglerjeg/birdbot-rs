@@ -9,13 +9,13 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
 use diesel::Connection;
+use diesel_async::AsyncPgConnection;
 use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use diesel_async::AsyncPgConnection;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use mobc::Pool;
-use poise::serenity_prelude::{FullEvent, Token};
 use poise::FrameworkContext;
+use poise::serenity_prelude::{FullEvent, Token};
 use rosu_v2::prelude::Osu;
 use std::env;
 use std::sync::Arc;
@@ -44,11 +44,9 @@ async fn event_listener(
     match event {
         FullEvent::Ready { data_about_bot } => {
             info!("{} is connected!", data_about_bot.user.name);
-        }
-        FullEvent::CacheReady { guilds } => {
-            info!("Cache ready: {} guilds cached.", guilds.len());
             let mut osu_tracker = OsuTracker {
-                ctx: ctx.serenity_context.clone(),
+                cache: ctx.serenity_context.cache.clone(),
+                http: ctx.serenity_context.http.clone(),
                 osu_client: ctx.serenity_context.data::<Data>().osu_client.clone(),
                 pool: ctx.serenity_context.data::<Data>().db_pool.clone(),
             };
@@ -59,6 +57,9 @@ async fn event_listener(
                     Err(why) => error!("{why}"),
                 };
             });
+        }
+        FullEvent::CacheReady { guilds } => {
+            info!("Cache ready: {} guilds cached.", guilds.len());
         }
         FullEvent::Message { new_message, .. } => {
             match plugins::summary::add_message(

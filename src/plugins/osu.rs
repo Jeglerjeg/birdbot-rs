@@ -16,14 +16,14 @@ use crate::utils::osu::misc::{
     set_up_score_list, sort_scores, wipe_profile_data,
 };
 use crate::utils::osu::misc_format::format_missing_user_string;
-use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
+use crate::utils::osu::regex::{BeatmapInfo, get_beatmap_info};
 use crate::{Context, Error};
 use chrono::Utc;
+use poise::CreateReply;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     CreateAttachment, CreateEmbed, CreateEmbedAuthor, GetMessages, GuildChannel, UserId,
 };
-use poise::CreateReply;
 use rosu_v2::model::GameMode;
 
 /// Display information about your osu! user.
@@ -1025,12 +1025,16 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
             .any(|x| x.id == linked_profile.osu_id)
         {
             let user = get_osu_user(
-                ctx.serenity_context(),
+                &ctx.serenity_context().cache,
                 UserId::from(u64::try_from(linked_profile.id)?),
                 u64::try_from(linked_profile.home_guild)?,
             )?;
             if let Some(user) = user {
-                if is_playing(ctx.serenity_context(), user.id, linked_profile.home_guild)? {
+                if is_playing(
+                    &ctx.serenity_context().cache,
+                    user.id,
+                    linked_profile.home_guild,
+                )? {
                     playing_users.push(format!("`{}`", user.name));
                 }
             };

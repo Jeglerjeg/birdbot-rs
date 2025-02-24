@@ -1,5 +1,5 @@
-use crate::utils::osu::misc::gamemode_from_string;
 use crate::Error;
+use crate::utils::osu::misc::gamemode_from_string;
 use regex::Regex;
 use rosu_v2::prelude::GameMode;
 use std::sync::OnceLock;

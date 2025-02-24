@@ -1,3 +1,4 @@
+use crate::Error;
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_files::OsuFile;
@@ -7,12 +8,11 @@ use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate;
 use crate::utils::osu::pp::CalculateResults;
-use crate::utils::osu::regex::{get_beatmap_info, BeatmapInfo};
-use crate::Error;
+use crate::utils::osu::regex::{BeatmapInfo, get_beatmap_info};
 use diesel_async::AsyncPgConnection;
 use par_stream::ParStreamExt;
 use poise::futures_util::StreamExt;
-use poise::serenity_prelude::{Context, GuildId, Presence, User, UserId, Message};
+use poise::serenity_prelude::{Cache, GuildId, Message, Presence, User, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, ScoreStatistics, UserExtended};
 use serde::{Deserialize, Serialize};
@@ -109,9 +109,9 @@ pub async fn wipe_profile_data(db: &mut AsyncPgConnection, user_id: i64) -> Resu
     Ok(())
 }
 
-pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
+pub fn is_playing(cache: &Cache, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
     let mut presence: Option<Presence> = None;
-    if let Some(guild_ref) = ctx.cache.guild(GuildId::new(u64::try_from(home_guild)?)) {
+    if let Some(guild_ref) = cache.guild(GuildId::new(u64::try_from(home_guild)?)) {
         if guild_ref.members.contains_key(&user_id) {
             let presences = &guild_ref.presences;
             presence = presences.get(&user_id).cloned();
@@ -119,16 +119,15 @@ pub fn is_playing(ctx: &Context, user_id: UserId, home_guild: i64) -> Result<boo
     }
 
     if presence.is_none() {
-        for guild in ctx.cache.guilds() {
-            if ctx
-                .cache
+        for guild in cache.guilds() {
+            if cache
                 .guild(guild)
                 .ok_or("Failed to get guild from cache")?
                 .members
                 .contains_key(&user_id)
             {
                 presence = guild
-                    .to_guild_cached(&ctx.cache)
+                    .to_guild_cached(cache)
                     .ok_or("Failed to get user presences in is_playing function")?
                     .presences
                     .get(&user_id)
@@ -218,8 +217,8 @@ pub async fn set_up_score_list(
     let mut stream = tokio_stream::iter(process_list).par_then(None, move |score| async move {
         let calculated = calculate::calculate(
             Some(&score.0),
-            &score.1 .0,
-            &score.1 .2,
+            &score.1.0,
+            &score.1.2,
             calculate_potential_acc(&score.0),
         )?;
 
@@ -231,7 +230,7 @@ pub async fn set_up_score_list(
     while let Some(value) = stream.next().await {
         pos += 1;
         let value = value?;
-        score_list.push((value.0, pos, value.1 .0, value.1 .1, value.2));
+        score_list.push((value.0, pos, value.1.0, value.1.1, value.2));
     }
     typing.stop();
 
@@ -301,21 +300,20 @@ pub async fn get_user(
 }
 
 pub fn get_osu_user(
-    ctx: &Context,
+    cache: &Cache,
     user_id: UserId,
     home_guild: u64,
 ) -> Result<Option<User>, Error> {
     let mut user: Option<User> = None;
-    if let Some(guild_ref) = ctx.cache.guild(GuildId::new(home_guild)) {
+    if let Some(guild_ref) = cache.guild(GuildId::new(home_guild)) {
         if let Some(guild_user) = guild_ref.members.get(&user_id) {
             user = Some(guild_user.user.clone());
         }
     }
 
     if user.is_none() {
-        for guild in ctx.cache.guilds() {
-            if let Some(guild_user) = ctx
-                .cache
+        for guild in cache.guilds() {
+            if let Some(guild_user) = cache
                 .guild(guild)
                 .ok_or("Failed to get guild from cache")?
                 .members

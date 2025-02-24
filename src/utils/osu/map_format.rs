@@ -1,3 +1,4 @@
+use crate::Error;
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_files::OsuFile;
@@ -5,7 +6,6 @@ use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::misc::gamemode_from_string;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_mode_abbreviation};
-use crate::Error;
 use poise::serenity_prelude::{Color, CreateEmbed, CreateEmbedAuthor};
 use std::collections::HashMap;
 use std::env;

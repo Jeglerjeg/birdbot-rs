@@ -1,6 +1,6 @@
+use crate::Error;
 use crate::models::osu_guild_channels::{NewOsuGuildChannel, OsuGuildChannel};
 use crate::schema::osu_guild_channels;
-use crate::Error;
 use diesel::dsl::count;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};

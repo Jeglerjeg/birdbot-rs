@@ -1,10 +1,10 @@
+use crate::Error;
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::is_perfect;
 use crate::utils::osu::misc_format::{fmt_with_settings, format_beatmap_link, format_footer};
 use crate::utils::osu::pp::CalculateResults;
-use crate::Error;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::Score;

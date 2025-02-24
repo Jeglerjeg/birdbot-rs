@@ -1,3 +1,4 @@
+use crate::Error;
 use crate::models::beatmaps::Beatmap;
 use crate::models::osu_files::OsuFile;
 use crate::utils::osu::misc::gamemode_from_string;
@@ -6,7 +7,6 @@ use crate::utils::osu::pp::mania::calculate_mania_pp;
 use crate::utils::osu::pp::osu::calculate_std_pp;
 use crate::utils::osu::pp::taiko::calculate_taiko_pp;
 use crate::utils::osu::pp::{CalculateResults, CatchScore, ManiaScore, StandardScore, TaikoScore};
-use crate::Error;
 use rosu_v2::model::GameMode;
 
 pub fn calculate(

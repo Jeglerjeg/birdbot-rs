@@ -1,6 +1,6 @@
+use crate::Error;
 use crate::models::questions::{NewQuestion, Question};
 use crate::schema::questions;
-use crate::Error;
 use diesel::dsl::{count, sql};
 use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};

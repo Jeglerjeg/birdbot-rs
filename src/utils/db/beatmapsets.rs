@@ -1,11 +1,11 @@
+use crate::Error;
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::{Beatmapset, NewBeatmapset};
 use crate::models::osu_files::OsuFile;
 use crate::schema::{beatmapsets, osu_files};
-use crate::Error;
 use diesel::dsl::count;
 use diesel::prelude::{BelongingToDsl, ExpressionMethods, QueryDsl};
-use diesel::{insert_into, SelectableHelper};
+use diesel::{SelectableHelper, insert_into};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use rosu_v2::prelude::BeatmapsetExtended;
 

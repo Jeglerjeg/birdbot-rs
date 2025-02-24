@@ -1,10 +1,10 @@
+use crate::Error;
 use crate::models::summary_messages::NewDbSummaryMessage;
 use crate::schema::summary_messages;
-use crate::Error;
 use diesel::dsl::{count, sql};
 use diesel::prelude::{ExpressionMethods, QueryDsl};
 use diesel::sql_types::Bool;
-use diesel::{insert_into, PgTextExpressionMethods};
+use diesel::{PgTextExpressionMethods, insert_into};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use markov::Chain;
 use par_stream::{ParParams, ParStreamExt};

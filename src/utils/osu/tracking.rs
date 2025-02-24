@@ -21,13 +21,15 @@ use crate::utils::osu::score_format::{format_new_score, format_score_list};
 use crate::{Error, Pool};
 use chrono::Utc;
 use dashmap::DashMap;
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{ChannelId, Context, CreateMessage, UserId, CreateEmbed};
+use poise::serenity_prelude::{
+    Cache, CacheHttp, ChannelId, CreateEmbed, CreateMessage, Http, UserId,
+};
+use rosu_v2::Osu;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, RankStatus, Score};
-use rosu_v2::Osu;
 use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -42,7 +44,8 @@ static NOT_PLAYING_SKIP: OnceLock<i32> = OnceLock::new();
 static SCORE_NOTIFICATIONS: OnceLock<DashMap<i64, Vec<u64>>> = OnceLock::new();
 
 pub struct OsuTracker {
-    pub ctx: Context,
+    pub cache: Arc<Cache>,
+    pub http: Arc<Http>,
     pub osu_client: Arc<Osu>,
     pub pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>>,
 }
@@ -83,7 +86,7 @@ impl OsuTracker {
         connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
         let user = match get_osu_user(
-            &self.ctx,
+            &self.cache,
             UserId::from(u64::try_from(linked_profile.id)?),
             u64::try_from(linked_profile.home_guild)?,
         )? {
@@ -122,7 +125,7 @@ impl OsuTracker {
                 return Ok(());
             }
 
-            if is_playing(&self.ctx, user.id, linked_profile.home_guild)?
+            if is_playing(&self.cache, user.id, linked_profile.home_guild)?
                 || (profile.ticks.eq(&not_playing_skip))
             {
                 osu_users::update_ticks(connection, profile.id, profile.ticks).await?;
@@ -374,7 +377,7 @@ impl OsuTracker {
         title_url: Option<String>,
         new: &OsuUser,
     ) -> Result<(), Error> {
-        for guild_id in self.ctx.cache.guilds() {
+        for guild_id in self.cache.guilds() {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
             {
@@ -386,10 +389,13 @@ impl OsuTracker {
                         .collect::<Vec<i64>>()
                     {
                         if let Ok(member) = guild_id
-                            .member(&self.ctx, UserId::new(u64::try_from(linked_profile.id)?))
+                            .member(
+                                (Some(&self.cache), self.http.http()),
+                                UserId::new(u64::try_from(linked_profile.id)?),
+                            )
                             .await
                         {
-                            let color = member.colour(&self.ctx.cache).unwrap_or(BLUE);
+                            let color = member.colour(&self.cache).unwrap_or(BLUE);
 
                             let user_link = format_user_link(new.id);
 
@@ -408,7 +414,7 @@ impl OsuTracker {
                             let builder = CreateMessage::new().embed(embed);
 
                             ChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.ctx.http, builder)
+                                .send_message(&self.http, builder)
                                 .await?;
                         }
                     }
@@ -691,7 +697,7 @@ impl OsuTracker {
 
         embed = embed.image(beatmapset.0.cover).description(description);
 
-        for guild_id in self.ctx.cache.guilds() {
+        for guild_id in self.cache.guilds() {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
             {
@@ -703,14 +709,17 @@ impl OsuTracker {
                         .collect::<Vec<i64>>()
                     {
                         if guild_id
-                            .member(&self.ctx, UserId::new(u64::try_from(linked_profile.id)?))
+                            .member(
+                                (Some(&self.cache), self.http.http()),
+                                UserId::new(u64::try_from(linked_profile.id)?),
+                            )
                             .await
                             .is_ok()
                         {
                             let builder = CreateMessage::new().embed(embed.clone());
 
                             ChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.ctx.http, builder)
+                                .send_message(&self.http, builder)
                                 .await?;
                         }
                     }
@@ -802,7 +811,7 @@ impl OsuTracker {
         let title_url =
             format_beatmap_link(Some(beatmap.0.id), beatmap.1.id, Some(&mode.to_string()));
 
-        for guild_id in self.ctx.cache.guilds() {
+        for guild_id in self.cache.guilds() {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
             {
@@ -814,10 +823,13 @@ impl OsuTracker {
                         .collect::<Vec<i64>>()
                     {
                         if let Ok(member) = guild_id
-                            .member(&self.ctx, UserId::new(u64::try_from(linked_profile.id)?))
+                            .member(
+                                (Some(&self.cache), self.http.http()),
+                                UserId::new(u64::try_from(linked_profile.id)?),
+                            )
                             .await
                         {
-                            let color = member.colour(&self.ctx.cache).unwrap_or(BLUE);
+                            let color = member.colour(&self.cache).unwrap_or(BLUE);
 
                             let embed = create_embed(
                                 color,
@@ -834,7 +846,7 @@ impl OsuTracker {
                             let builder = CreateMessage::new().embed(embed);
 
                             ChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.ctx.http, builder)
+                                .send_message(&self.http, builder)
                                 .await?;
                         }
                     }

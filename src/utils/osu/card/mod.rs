@@ -3,12 +3,12 @@ pub mod header;
 
 use crate::Error;
 use color_space::{FromRgb, Hsv, Rgb};
+use poise::serenity_prelude::Colour;
 use resvg::tiny_skia::Pixmap;
 use resvg::usvg::fontdb::Database;
 use resvg::usvg::{Transform, Tree};
 use resvg::{render, usvg};
 use rosu_v2::prelude::UserExtended;
-use poise::serenity_prelude::Colour;
 use std::sync::Arc;
 use svg::Document;
 

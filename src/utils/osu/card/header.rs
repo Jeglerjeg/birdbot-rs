@@ -1,19 +1,19 @@
 use crate::Error;
 use aformat::aformat;
-use base64::engine::general_purpose;
 use base64::Engine;
-use image::imageops::{crop, resize, FilterType};
+use base64::engine::general_purpose;
 use image::EncodableLayout;
+use image::imageops::{FilterType, crop, resize};
 use num_format::{Locale, ToFormattedString};
-use rosu_v2::prelude::UserExtended;
 use poise::serenity_prelude::Colour;
+use rosu_v2::prelude::UserExtended;
 use std::cmp::min;
 use std::io::Cursor;
 use std::str::FromStr;
+use svg::Document;
 use svg::node::element::{
     Definitions, Image, LinearGradient, Mask, Path, RadialGradient, Rectangle, Stop, Text,
 };
-use svg::Document;
 use time::OffsetDateTime;
 
 pub async fn draw_header(

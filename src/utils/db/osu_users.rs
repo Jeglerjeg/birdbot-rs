@@ -1,6 +1,6 @@
+use crate::Error;
 use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::schema::osu_users;
-use crate::Error;
 use chrono::Utc;
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};

@@ -1,13 +1,13 @@
+use crate::Error;
 use crate::utils::misc::remove_trailing_zeros;
 use crate::utils::osu::misc::get_score_rank;
-use crate::Error;
 use aformat::aformat;
-use base64::engine::general_purpose;
 use base64::Engine;
+use base64::engine::general_purpose;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::prelude::{GradeCounts, UserExtended};
-use svg::node::element::{Image, Mask, Rectangle, Text};
 use svg::Document;
+use svg::node::element::{Image, Mask, Rectangle, Text};
 
 pub async fn draw_body(mut document: Document, osu_user: &UserExtended) -> Result<Document, Error> {
     document = draw_ranks(document, osu_user).await?;

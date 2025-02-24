@@ -1,8 +1,8 @@
-use crate::utils::osu::pp::{CalculateResults, StandardScore};
 use crate::Error;
+use crate::utils::osu::pp::{CalculateResults, StandardScore};
+use rosu_pp::Beatmap;
 use rosu_pp::model::mode::GameMode;
 use rosu_pp::osu::{OsuPerformance, OsuPerformanceAttributes};
-use rosu_pp::Beatmap;
 
 pub fn calculate_std_pp(
     file: &[u8],

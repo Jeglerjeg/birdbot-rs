@@ -1,8 +1,8 @@
-use crate::utils::osu::pp::{CalculateResults, ManiaScore};
 use crate::Error;
+use crate::utils::osu::pp::{CalculateResults, ManiaScore};
+use rosu_pp::Beatmap;
 use rosu_pp::mania::ManiaPerformance;
 use rosu_pp::model::mode::GameMode;
-use rosu_pp::Beatmap;
 
 pub fn calculate_mania_pp(file: &[u8], score_state: ManiaScore) -> Result<CalculateResults, Error> {
     let binding = Beatmap::from_bytes(file)?;

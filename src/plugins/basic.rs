@@ -1,7 +1,7 @@
 use crate::{Context, Error};
 use std::borrow::Cow;
 
-use aformat::{aformat, CapStr};
+use aformat::{CapStr, aformat};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::small_fixed_array::FixedString;
 use poise::serenity_prelude::{Colour, CreateEmbed, User};

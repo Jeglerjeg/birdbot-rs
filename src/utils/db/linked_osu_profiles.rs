@@ -1,5 +1,5 @@
-use crate::models::linked_osu_profiles::{LinkedOsuProfile, NewLinkedOsuProfile};
 use crate::Error;
+use crate::models::linked_osu_profiles::{LinkedOsuProfile, NewLinkedOsuProfile};
 use diesel::insert_into;
 use diesel::prelude::{ExpressionMethods, QueryDsl, QueryResult};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};

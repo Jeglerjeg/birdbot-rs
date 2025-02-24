@@ -3,7 +3,9 @@ use crate::{Context, Data, Error};
 use aformat::aformat;
 use dashmap::DashMap;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
-use poise::serenity_prelude::{async_trait, ChannelId, CreateEmbed, GuildId, User, CreateMessage, Http};
+use poise::serenity_prelude::{
+    ChannelId, CreateEmbed, CreateMessage, GuildId, Http, User, async_trait,
+};
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{Event, EventContext, EventHandler as VoiceEventHandler, Songbird, TrackEvent};
