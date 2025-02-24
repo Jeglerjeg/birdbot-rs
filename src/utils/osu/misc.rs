@@ -12,11 +12,10 @@ use crate::Error;
 use diesel_async::AsyncPgConnection;
 use par_stream::ParStreamExt;
 use poise::futures_util::StreamExt;
-use poise::serenity_prelude::{Context, GuildId, Presence, User, UserId};
+use poise::serenity_prelude::{Context, GuildId, Presence, User, UserId, Message};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, ScoreStatistics, UserExtended};
 use serde::{Deserialize, Serialize};
-use serenity::all::Message;
 
 pub enum DiffTypes {
     Pp,

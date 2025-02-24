@@ -6,5 +6,4 @@ osu_files
 *.db
 *.db-shm
 *.db-wal
-Cargo.lock
 pcbot-rs.iml

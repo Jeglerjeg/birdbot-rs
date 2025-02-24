@@ -6,7 +6,7 @@ use image::imageops::{crop, resize, FilterType};
 use image::EncodableLayout;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::prelude::UserExtended;
-use serenity::all::Colour;
+use poise::serenity_prelude::Colour;
 use std::cmp::min;
 use std::io::Cursor;
 use std::str::FromStr;

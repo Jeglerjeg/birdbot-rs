@@ -8,7 +8,7 @@ use resvg::usvg::fontdb::Database;
 use resvg::usvg::{Transform, Tree};
 use resvg::{render, usvg};
 use rosu_v2::prelude::UserExtended;
-use serenity::all::Colour;
+use poise::serenity_prelude::Colour;
 use std::sync::Arc;
 use svg::Document;
 
