@@ -14,7 +14,6 @@ use poise::{CreateReply, ReplyHandle};
 use rand::prelude::IndexedRandom;
 use std::sync::OnceLock;
 use std::time::Duration;
-use tracing::info;
 
 pub struct PreviousServerQuestions {
     pub recent_questions: DashMap<u64, Vec<i32>>,
@@ -86,7 +85,6 @@ async fn handle_interaction_responses(
     let mut responses: Vec<String> = vec![];
     let mut replies: Vec<u64> = vec![];
 
-    info!("Here 1");
     // Wait for multiple interactions
     let mut interaction_stream = reply
         .message()
@@ -95,9 +93,7 @@ async fn handle_interaction_responses(
         .collect_component_interactions(ctx.serenity_context().shard.clone())
         .timeout(Duration::from_secs(30))
         .stream();
-    info!("Here 2");
     while let Some(interaction) = interaction_stream.next().await {
-        info!("Here 3");
         if replies.contains(&interaction.user.id.get()) {
             interaction
                 .create_response(
@@ -115,7 +111,6 @@ async fn handle_interaction_responses(
         let choice = &interaction.data.custom_id;
         match choice.as_str() {
             "choice_1" => {
-                info!("Choice 1");
                 replies.push(interaction.user.id.get());
                 responses.push(format_response(&interaction.user, &question.choice1));
                 question.choice1_answers += 1;
@@ -137,7 +132,6 @@ async fn handle_interaction_responses(
                     .await?;
             }
             "choice_2" => {
-                info!("Choice 2");
                 replies.push(interaction.user.id.get());
                 responses.push(format_response(&interaction.user, &question.choice2));
                 question.choice2_answers += 1;
