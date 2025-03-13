@@ -17,7 +17,7 @@ serde = "1.0"
 rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "536b9f5d2b05745e4e18ee5d024d2487c99661e7" }
 num-format = "0.4"
 time = "0.3"
-dashmap = "7.0.0-rc1"
+dashmap = "7.0.0-rc2"
 rosu-pp = "2.0"
 regex = "1.11"
 url = "2.5"
@@ -29,7 +29,7 @@ tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"] }
 tikv-jemallocator = "0.6"
 itertools = "0.14"
-resvg = "0.44"
+resvg = "0.45"
 svg = "0.18"
 base64 = "0.22"
 color_space = "0.5"
@@ -39,7 +39,7 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 
 [dependencies.tokio]
-version = "1.43"
+version = "1.44"
 features = ["full"]
 
 [dependencies.reqwest]

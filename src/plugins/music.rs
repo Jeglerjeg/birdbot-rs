@@ -295,14 +295,15 @@ impl VoiceEventHandler for TrackEndNotifier {
         if let EventContext::Track(track_list) = ctx {
             let manager = get_manager(&self.ctx);
 
-            if let Some(handler_lock) = manager.get(self.guild_id) {
-                let handler = handler_lock.lock().await;
-                if handler.queue().is_empty() {
-                    drop(handler);
+            if let Some(handler) = manager.get(self.guild_id) {
+                let handler_lock = handler.lock().await;
+                if handler_lock.queue().is_empty() {
+                    drop(handler_lock);
                     if let Err(why) = leave(&self.ctx, Option::from(self.guild_id)).await {
                         error!("Failed to leave voice channel: {}", why);
                     };
                 } else {
+                    drop(handler_lock);
                     let mut playing_guild = match PLAYING_GUILDS
                         .get_or_init(|| PlayingGuilds {
                             guilds: DashMap::new(),
@@ -311,7 +312,6 @@ impl VoiceEventHandler for TrackEndNotifier {
                         .get_mut(&self.guild_id)
                     {
                         None => {
-                            drop(handler);
                             error!("Failed to get playing guild in voice handler");
                             return None;
                         }
@@ -350,8 +350,29 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
 
     let manager = get_manager(ctx.serenity_context());
 
-    if let Ok(handle_lock) = manager.join(guild_id, connect_to).await {
-        let mut handle = handle_lock.lock().await;
+    if let Ok(handler) = manager.join(guild_id, connect_to).await {
+        let mut handler_lock = handler.lock().await;
+
+        handler_lock.add_global_event(
+            Event::Track(TrackEvent::End),
+            TrackEndNotifier {
+                guild_id,
+                ctx: ctx.serenity_context().clone(),
+            },
+        );
+
+        handler_lock.add_global_event(
+            Event::Track(TrackEvent::Playable),
+            TrackStartNotifier {
+                guild_id,
+                channel_id: ctx.channel_id(),
+                http: ctx.serenity_context().http.clone(),
+            },
+        );
+
+        handler_lock.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
+        drop(handler_lock);
+
         PLAYING_GUILDS
             .get_or_init(|| PlayingGuilds {
                 guilds: DashMap::new(),
@@ -366,26 +387,6 @@ async fn join(ctx: Context<'_>) -> Result<bool, Error> {
                     volume: 0.6,
                 },
             );
-
-        handle.add_global_event(
-            Event::Track(TrackEvent::End),
-            TrackEndNotifier {
-                guild_id,
-                ctx: ctx.serenity_context().clone(),
-            },
-        );
-
-        handle.add_global_event(
-            Event::Track(TrackEvent::Playable),
-            TrackStartNotifier {
-                guild_id,
-                channel_id: ctx.channel_id(),
-                http: ctx.serenity_context().http.clone(),
-            },
-        );
-
-        handle.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
-        drop(handle);
     }
 
     Ok(true)
@@ -427,6 +428,30 @@ async fn queue(
     let Some(handler) = manager.get(guild_id) else {
         return Ok(());
     };
+
+    if let Some(duration) = metadata.duration {
+        let max_duration = MAX_MUSIC_DURATION.get_or_init(|| {
+            Duration::from_secs(
+                env::var("MAX_MUSIC_DURATION")
+                    .unwrap_or_else(|_| String::from("600"))
+                    .parse::<u64>()
+                    .expect("Failed to parse max music duration.")
+                    * 60,
+            )
+        });
+        if &duration > max_duration {
+            let empty = handler.lock().await.queue().is_empty();
+            ctx.say(format!(
+                "Song is longer than the max allowed duration of {}",
+                format_duration(max_duration, None)
+            ))
+                .await?;
+            if empty {
+                leave(ctx.serenity_context(), ctx.guild_id()).await?;
+            }
+            return Ok(());
+        }
+    }
 
     let mut handler_lock = handler.lock().await;
 
@@ -473,7 +498,6 @@ async fn queue(
         });
         if &requested >= max_queued {
             drop(playing_guild);
-            drop(handler_lock);
             ctx.say(
                 aformat!(
                     "You have queued more than the maximum of {} songs.",
@@ -482,32 +506,6 @@ async fn queue(
                 .as_str(),
             )
             .await?;
-            return Ok(());
-        }
-    }
-
-    if let Some(duration) = metadata.duration {
-        let max_duration = MAX_MUSIC_DURATION.get_or_init(|| {
-            Duration::from_secs(
-                env::var("MAX_MUSIC_DURATION")
-                    .unwrap_or_else(|_| String::from("600"))
-                    .parse::<u64>()
-                    .expect("Failed to parse max music duration.")
-                    * 60,
-            )
-        });
-        if &duration > max_duration {
-            let empty = handler_lock.queue().is_empty();
-            drop(handler_lock);
-            drop(playing_guild);
-            ctx.say(format!(
-                "Song is longer than the max allowed duration of {}",
-                format_duration(max_duration, None)
-            ))
-            .await?;
-            if empty {
-                leave(ctx.serenity_context(), ctx.guild_id()).await?;
-            }
             return Ok(());
         }
     }
