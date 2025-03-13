@@ -75,7 +75,7 @@ pub async fn add_message(message: &Message, data: &Data, cache: &Cache) -> Resul
     let enabled_guilds = SUMMARY_ENABLED_GUILDS.get_or_init(SummaryEnabledGuilds::new);
     match enabled_guilds.guilds.get(&i64::from(guild_id)) {
         None => {
-            enabled_guilds.guilds.insert(i64::from(guild_id), {
+            let value = {
                 let connection = &mut data.db_pool.get().await?;
                 match summary_enabled_guilds::read(connection, i64::from(guild_id)).await {
                     Ok(guild) => guild
@@ -86,7 +86,8 @@ pub async fn add_message(message: &Message, data: &Data, cache: &Cache) -> Resul
                         .collect::<Vec<i64>>(),
                     Err(_) => Vec::new(),
                 }
-            });
+            };
+            enabled_guilds.guilds.insert(i64::from(guild_id), value);
         }
         Some(summary_enabled_guild) => {
             if summary_enabled_guild
