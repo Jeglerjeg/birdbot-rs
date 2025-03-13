@@ -445,7 +445,7 @@ async fn queue(
                 "Song is longer than the max allowed duration of {}",
                 format_duration(max_duration, None)
             ))
-                .await?;
+            .await?;
             if empty {
                 leave(ctx.serenity_context(), ctx.guild_id()).await?;
             }

@@ -224,15 +224,17 @@ impl OsuTracker {
         old: &OsuUser,
         connection: &mut AsyncPgConnection,
     ) -> Result<(), Error> {
+        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> = Vec::new();
+
+        let mut to_calculate: Vec<(Score, usize)> = Vec::new();
+
+        let gamemode = gamemode_from_string(&linked_profile.mode)
+            .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
+
         let mut recent_scores = SCORE_NOTIFICATIONS
             .get_or_init(DashMap::new)
             .entry(linked_profile.osu_id)
             .or_default();
-
-        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> = Vec::new();
-
-        let gamemode = gamemode_from_string(&linked_profile.mode)
-            .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
 
         for score in new_scores {
             let score_id = score.0.id;
@@ -242,6 +244,15 @@ impl OsuTracker {
             }
             recent_scores.push(score_id);
 
+            to_calculate.push((score.0.clone(), score.1));
+        }
+        drop(recent_scores);
+
+        if to_calculate.is_empty() {
+            return Ok(());
+        }
+
+        for score in to_calculate {
             let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
             let calculated_results = calculate(
@@ -305,16 +316,16 @@ impl OsuTracker {
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to parse gamemode in notify_single_score function")?;
 
-        let score_notifications = SCORE_NOTIFICATIONS.get_or_init(DashMap::new);
+        let mut recent_scores = SCORE_NOTIFICATIONS
+            .get_or_init(DashMap::new)
+            .entry(linked_profile.osu_id)
+            .or_default();
 
-        if let Some(mut recent_scores) = score_notifications.get_mut(&linked_profile.osu_id) {
-            if recent_scores.value().contains(&score_id) {
-                return Ok(());
-            }
-            recent_scores.push(score_id);
-        } else {
-            score_notifications.insert(linked_profile.osu_id, vec![score_id]);
-        };
+        if recent_scores.value().contains(&score_id) {
+            return Ok(());
+        }
+        recent_scores.push(score_id);
+        drop(recent_scores);
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
@@ -737,11 +748,6 @@ impl OsuTracker {
         connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
     ) -> Result<(), Error> {
-        let mut recent_scores = SCORE_NOTIFICATIONS
-            .get_or_init(DashMap::new)
-            .entry(linked_profile.osu_id)
-            .or_default();
-
         let beatmap_info = get_beatmap_info(&format!("https://osu.ppy.sh{}", beatmap.url))?;
 
         let beatmap_id = u32::try_from(
@@ -766,11 +772,17 @@ impl OsuTracker {
 
         let score_id = score.score.id;
 
+        let mut recent_scores = SCORE_NOTIFICATIONS
+            .get_or_init(DashMap::new)
+            .entry(linked_profile.osu_id)
+            .or_default();
+
         if recent_scores.contains(&score_id) {
             return Ok(());
         }
 
         recent_scores.push(score_id);
+        drop(recent_scores);
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), beatmap_id).await?;
 
