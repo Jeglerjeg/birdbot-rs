@@ -52,34 +52,42 @@ pub async fn get_guild_prefix(ctx: PartialContext<'_>) -> Result<Option<Cow<'sta
         }))));
     };
 
-    Ok(Some(Cow::from(
+    let guild_prefix = if let Some(guild_prefix) = GUILD_PREFIX
+        .get_or_init(|| GuildPrefix {
+            guild_prefix: DashMap::new(),
+        })
+        .guild_prefix
+        .get(&guild_id)
+    {
+        guild_prefix.clone()
+    } else {
+        let prefix = match prefix::table
+            .find(i64::try_from(guild_id.get())?)
+            .first::<Prefix>(
+                &mut ctx
+                    .framework
+                    .serenity_context
+                    .data::<Data>()
+                    .db_pool
+                    .get()
+                    .await?,
+            )
+            .await
+        {
+            Ok(prefix) => prefix.guild_prefix,
+            _ => DEFAULT_PREFIX
+                .get_or_init(|| env::var("PREFIX").unwrap_or_else(|_| String::from(">")))
+                .to_owned(),
+        };
+
         GUILD_PREFIX
             .get_or_init(|| GuildPrefix {
                 guild_prefix: DashMap::new(),
             })
             .guild_prefix
-            .entry(guild_id)
-            .or_insert(
-                match prefix::table
-                    .find(i64::try_from(guild_id.get())?)
-                    .first::<Prefix>(
-                        &mut ctx
-                            .framework
-                            .serenity_context
-                            .data::<Data>()
-                            .db_pool
-                            .get()
-                            .await?,
-                    )
-                    .await
-                {
-                    Ok(prefix) => prefix.guild_prefix,
-                    _ => DEFAULT_PREFIX
-                        .get_or_init(|| env::var("PREFIX").unwrap_or_else(|_| String::from(">")))
-                        .to_owned(),
-                },
-            )
-            .value()
-            .to_owned(),
-    )))
+            .insert(guild_id, prefix.clone());
+        prefix
+    };
+
+    Ok(Some(Cow::from(guild_prefix)))
 }
