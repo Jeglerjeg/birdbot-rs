@@ -206,7 +206,7 @@ impl TopScorePaginator<'_> {
             .message()
             .await?
             .id
-            .collect_component_interactions(self.ctx.serenity_context().shard.clone())
+            .collect_component_interactions(self.ctx.serenity_context())
             .timeout(Duration::from_secs(15))
             .await
         {

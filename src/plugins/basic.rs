@@ -332,7 +332,7 @@ pub async fn roll(
 pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("Shutting down the bot.").await?;
 
-    ctx.framework().shard_manager.shutdown_all().await;
+    ctx.serenity_context().shutdown_all();
 
     Ok(())
 }

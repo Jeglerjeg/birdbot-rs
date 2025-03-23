@@ -14,8 +14,7 @@ use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use mobc::Pool;
-use poise::FrameworkContext;
-use poise::serenity_prelude::{FullEvent, Token};
+use poise::serenity_prelude::{EventHandler, FullEvent, Token, async_trait};
 use rosu_v2::prelude::Osu;
 use std::env;
 use std::sync::Arc;
@@ -37,55 +36,49 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 
 type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
-async fn event_listener(
-    ctx: FrameworkContext<'_, Data, Error>,
-    event: &FullEvent,
-) -> Result<(), Error> {
-    match event {
-        FullEvent::Ready { data_about_bot } => {
-            info!("{} is connected!", data_about_bot.user.name);
-            let mut osu_tracker = OsuTracker {
-                cache: ctx.serenity_context.cache.clone(),
-                http: ctx.serenity_context.http.clone(),
-                osu_client: ctx.serenity_context.data::<Data>().osu_client.clone(),
-                pool: ctx.serenity_context.data::<Data>().db_pool.clone(),
-            };
+struct Handler;
 
-            tokio::spawn(async move {
-                match osu_tracker.tracking_loop().await {
-                    Ok(()) => {}
-                    Err(why) => error!("{why}"),
+#[async_trait]
+impl EventHandler for Handler {
+    async fn dispatch(&self, ctx: &serenity::all::Context, event: &FullEvent) {
+        match event {
+            FullEvent::Ready { data_about_bot, .. } => {
+                info!("{} is connected!", data_about_bot.user.name);
+                let mut osu_tracker = OsuTracker {
+                    cache: ctx.cache.clone(),
+                    http: ctx.http.clone(),
+                    osu_client: ctx.data::<Data>().osu_client.clone(),
+                    pool: ctx.data::<Data>().db_pool.clone(),
                 };
-            });
-        }
-        FullEvent::CacheReady { guilds } => {
-            info!("Cache ready: {} guilds cached.", guilds.len());
-        }
-        FullEvent::Message { new_message, .. } => {
-            match plugins::summary::add_message(
-                new_message,
-                &ctx.serenity_context.data::<Data>(),
-                &ctx.serenity_context.cache,
-            )
-            .await
-            {
-                Ok(()) => {}
-                Err(e) => error!("{e}"),
-            }
-        }
-        FullEvent::VoiceStateUpdate { old, .. } => {
-            let Some(voice) = old else { return Ok(()) };
-            match plugins::music::check_for_empty_channel(ctx.serenity_context, voice.guild_id)
-                .await
-            {
-                Ok(()) => {}
-                Err(e) => error!("{e}"),
-            }
-        }
-        _ => {}
-    }
 
-    Ok(())
+                tokio::spawn(async move {
+                    match osu_tracker.tracking_loop().await {
+                        Ok(()) => {}
+                        Err(why) => error!("{why}"),
+                    };
+                });
+            }
+            FullEvent::CacheReady { guilds, .. } => {
+                info!("Cache ready: {} guilds cached.", guilds.len());
+            }
+            FullEvent::Message { new_message, .. } => {
+                match plugins::summary::add_message(new_message, &ctx.data::<Data>(), &ctx.cache)
+                    .await
+                {
+                    Ok(()) => {}
+                    Err(e) => error!("{e}"),
+                }
+            }
+            FullEvent::VoiceStateUpdate { old, .. } => {
+                let Some(voice) = old else { return };
+                match plugins::music::check_for_empty_channel(ctx, voice.guild_id).await {
+                    Ok(()) => {}
+                    Err(e) => error!("{e}"),
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 async fn pre_command(ctx: Context<'_>) {
@@ -116,13 +109,6 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
             {
                 error!("Error while handling error: {}", why);
             }
-        }
-        poise::FrameworkError::EventHandler { error, event, .. } => {
-            error!(
-                "Listener returned error during {:?} event: {:?}",
-                event.snake_case_name(),
-                error
-            );
         }
         error => {
             if let Err(e) = poise::builtins::on_error(error).await {
@@ -182,7 +168,6 @@ async fn main() {
             plugins::summary::summary_enable(),
             plugins::summary::summary_disable(),
         ],
-        event_handler: |ctx, event| Box::pin(event_listener(ctx, event)),
         on_error: |error| Box::pin(on_error(error)),
         // Set a function to be called prior to each command execution. This
         // provides all context of the command that would also be passed to the actual command code
@@ -239,6 +224,7 @@ async fn main() {
     let mut client = serenity::Client::builder(token, intents)
         .framework(framework)
         .voice_manager::<songbird::Songbird>(manager.clone())
+        .event_handler(Handler)
         .data(Arc::new(Data {
             time_started: Utc::now(),
             osu_client,
@@ -248,14 +234,6 @@ async fn main() {
         }))
         .await
         .unwrap();
-
-    let shard_manager = client.shard_manager.clone();
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("Could not register ctrl+c handler");
-        shard_manager.shutdown_all().await;
-    });
 
     if let Err(why) = client.start_autosharded().await {
         error!("Client error: {:?}", why);

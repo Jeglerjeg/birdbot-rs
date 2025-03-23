@@ -14,7 +14,7 @@ tracing-appender = "0.2"
 chrono = "0.4"
 diesel_migrations = "2.2"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "4cea64abcaf3ff2ccd915a9295c410ec9bdf8cde" }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "445f5f262ea756e4a306ea0163b4cf922fb4aac2" }
 num-format = "0.4"
 time = "0.3"
 dashmap = "7.0.0-rc2"
@@ -49,7 +49,7 @@ features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "d6747b9202a6927ce53b2a4f0cdacc46c8a7804b"
+rev = "2a10bf958ef83b40ad7d7c6db29af6687c1b8628"
 
 [dependencies.symphonia]
 version = "0.5"
@@ -57,7 +57,7 @@ features = ["all-codecs"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "1e5b26924fabb9968aae90226384a6f4848a8302"
+rev = "874160875559d47743a1579f8c9dce2efa83dc25"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
