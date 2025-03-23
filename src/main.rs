@@ -57,6 +57,15 @@ impl EventHandler for Handler {
                         Err(why) => error!("{why}"),
                     };
                 });
+
+                let cloned_ctx = ctx.clone();
+                tokio::spawn(async move {
+                    tokio::signal::ctrl_c()
+                        .await
+                        .expect("Could not register ctrl+c handler");
+
+                    cloned_ctx.shutdown_all();
+                });
             }
             FullEvent::CacheReady { guilds, .. } => {
                 info!("Cache ready: {} guilds cached.", guilds.len());
