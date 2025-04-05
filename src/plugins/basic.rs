@@ -393,7 +393,7 @@ pub async fn avatar(
             name = ctx.author().name.clone();
             avatar = ctx.author().face();
         }
-    };
+    }
 
     let embed = CreateEmbed::new().title(name).image(avatar).color(color);
 

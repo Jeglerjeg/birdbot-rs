@@ -28,27 +28,27 @@ pub fn calculate_mania_pp(file: &[u8], score_state: ManiaScore) -> Result<Calcul
 
     if let Some(nmiss) = score_state.nmiss {
         result = result.misses(nmiss);
-    };
+    }
 
     if let Some(n320) = score_state.n320 {
         result = result.n320(n320);
-    };
+    }
 
     if let Some(n300) = score_state.n300 {
         result = result.n300(n300);
-    };
+    }
 
     if let Some(n200) = score_state.n200 {
         result = result.n100(n200);
-    };
+    }
 
     if let Some(n100) = score_state.n100 {
         result = result.n100(n100);
-    };
+    }
 
     if let Some(n50) = score_state.n50 {
         result = result.n50(n50);
-    };
+    }
 
     let result = result.calculate()?;
 

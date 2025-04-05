@@ -175,7 +175,7 @@ pub async fn check_for_empty_channel(
         if channel.members(&ctx.cache)?.len() <= 1 {
             leave(ctx, Some(guild_id)).await?;
         }
-    };
+    }
 
     Ok(())
 }
@@ -198,7 +198,7 @@ pub async fn leave(
             return Ok(());
         }
         manager.remove(guild_id).await?;
-    };
+    }
 
     let playing_guilds = PLAYING_GUILDS.get_or_init(|| PlayingGuilds {
         guilds: DashMap::new(),
@@ -206,7 +206,7 @@ pub async fn leave(
 
     if playing_guilds.guilds.get(&guild_id).is_some() {
         playing_guilds.guilds.remove(&guild_id);
-    };
+    }
 
     Ok(())
 }
@@ -301,7 +301,7 @@ impl VoiceEventHandler for TrackEndNotifier {
                     drop(handler_lock);
                     if let Err(why) = leave(&self.ctx, Option::from(self.guild_id)).await {
                         error!("Failed to leave voice channel: {}", why);
-                    };
+                    }
                 } else {
                     drop(handler_lock);
                     let mut playing_guild = match PLAYING_GUILDS

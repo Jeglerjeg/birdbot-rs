@@ -150,7 +150,7 @@ pub fn check_valid_result(status: &str, time_cached: DateTime<Utc>) -> bool {
             }
         }
         _ => {}
-    };
+    }
 
     true
 }

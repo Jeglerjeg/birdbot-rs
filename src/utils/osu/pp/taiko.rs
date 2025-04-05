@@ -28,23 +28,23 @@ pub fn calculate_taiko_pp(file: &[u8], score_state: TaikoScore) -> Result<Calcul
 
     if let Some(combo) = score_state.combo {
         result = result.combo(combo);
-    };
+    }
 
     if let Some(nmiss) = score_state.nmiss {
         result = result.misses(nmiss);
-    };
+    }
 
     if let Some(n300) = score_state.n300 {
         result = result.n300(n300);
-    };
+    }
 
     if let Some(n100) = score_state.n100 {
         result = result.n100(n100);
-    };
+    }
 
     if let Some(acc) = score_state.acc {
         result = result.accuracy(acc);
-    };
+    }
 
     let result = result.calculate()?;
 

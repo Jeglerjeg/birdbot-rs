@@ -238,7 +238,7 @@ impl TopScorePaginator<'_> {
                     self.update_page(&interaction).await?;
                 }
                 _ => {}
-            };
+            }
         }
         self.stop_paginator().await?;
         Ok(())

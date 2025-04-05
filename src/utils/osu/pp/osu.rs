@@ -35,39 +35,39 @@ pub fn calculate_std_pp(
 
     if let Some(combo) = score_state.combo {
         result = result.combo(combo);
-    };
+    }
 
     if let Some(nmiss) = score_state.nmiss {
         result = result.misses(nmiss);
-    };
+    }
 
     if let Some(n300) = score_state.n300 {
         result = result.n300(n300);
-    };
+    }
 
     if let Some(n100) = score_state.n100 {
         result = result.n100(n100);
-    };
+    }
 
     if let Some(n50) = score_state.n50 {
         result = result.n50(n50);
-    };
+    }
 
     if let Some(n_slider_ends) = score_state.n_slider_ends {
         result = result.slider_end_hits(n_slider_ends);
-    };
+    }
 
     if let Some(n_small_tick_hits) = score_state.n_small_tick_hit {
         result = result.small_tick_hits(n_small_tick_hits);
-    };
+    }
 
     if let Some(n_slider_ticks) = score_state.n_slider_ticks {
         result = result.large_tick_hits(n_slider_ticks);
-    };
+    }
 
     if let Some(acc) = score_state.acc {
         result = result.accuracy(acc);
-    };
+    }
 
     let result = result.calculate()?;
 

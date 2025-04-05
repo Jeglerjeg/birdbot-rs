@@ -55,7 +55,7 @@ impl EventHandler for Handler {
                     match osu_tracker.tracking_loop().await {
                         Ok(()) => {}
                         Err(why) => error!("{why}"),
-                    };
+                    }
                 });
 
                 let cloned_ctx = ctx.clone();

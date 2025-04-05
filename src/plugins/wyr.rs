@@ -106,7 +106,7 @@ async fn handle_interaction_responses(
                 )
                 .await?;
             continue;
-        };
+        }
 
         let choice = &interaction.data.custom_id;
         match choice.as_str() {
@@ -190,7 +190,7 @@ async fn add_recent_question(
     let previous_len = crate::utils::db::questions::count_entries(connection).await?;
     if previous_questions.len() as i64 > (previous_len / 2) {
         previous_questions.remove(0);
-    };
+    }
 
     Ok(())
 }
@@ -205,14 +205,14 @@ async fn check_for_duplicates(
         .is_ok()
     {
         return false;
-    };
+    }
 
     if crate::utils::db::questions::get_question(connection, choice_2, choice_1)
         .await
         .is_ok()
     {
         return false;
-    };
+    }
 
     true
 }
@@ -232,7 +232,7 @@ pub async fn wyr(
         let split_question: Vec<&str> = question.split(" or ").collect();
         choice_1 = Some(String::from(split_question[0]));
         choice_2 = Some(String::from(split_question[1]));
-    };
+    }
 
     if let (Some(choice_1), Some(choice_2)) = (choice_1, choice_2) {
         if choice_1 == choice_2 {

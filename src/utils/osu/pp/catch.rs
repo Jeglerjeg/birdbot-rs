@@ -28,27 +28,27 @@ pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<Calcul
 
     if let Some(combo) = score_state.combo {
         result = result.combo(combo);
-    };
+    }
 
     if let Some(nmiss) = score_state.nmiss {
         result = result.misses(nmiss);
-    };
+    }
 
     if let Some(fruits) = score_state.fruits {
         result = result.fruits(fruits);
-    };
+    }
 
     if let Some(droplets) = score_state.droplets {
         result = result.droplets(droplets);
-    };
+    }
 
     if let Some(tiny_droplets) = score_state.tiny_droplets {
         result = result.tiny_droplets(tiny_droplets);
-    };
+    }
 
     if let Some(tiny_droplet_misses) = score_state.tiny_droplet_misses {
         result = result.tiny_droplet_misses(tiny_droplet_misses);
-    };
+    }
 
     let result = result.calculate()?;
 

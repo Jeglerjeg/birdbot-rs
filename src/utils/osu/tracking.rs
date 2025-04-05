@@ -74,7 +74,6 @@ impl OsuTracker {
             for profile in profiles {
                 if let Err(why) = self.update_user_data(&profile, connection).await {
                     error!("Error occurred while running tracking loop: {}", why);
-                    continue;
                 }
             }
         }
@@ -211,7 +210,7 @@ impl OsuTracker {
 
             self.notify_multiple_scores(&new_scores, linked_profile, &new, old, connection)
                 .await?;
-        };
+        }
 
         Ok(())
     }
@@ -486,7 +485,7 @@ impl OsuTracker {
 
             if let Err(why) = osu_notifications::update(connection, osu_id, &item).await {
                 error!("Error occurred while running tracking loop: {}", why);
-            };
+            }
         }
 
         Ok(new_scores)
@@ -689,7 +688,7 @@ impl OsuTracker {
                 osu_notifications::update(connection, linked_profile.osu_id, &item).await
             {
                 error!("Error occurred while running tracking loop: {}", why);
-            };
+            }
         }
 
         Ok(())

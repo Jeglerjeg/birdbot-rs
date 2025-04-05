@@ -172,7 +172,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
             ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
                 .await?;
         }
-    };
+    }
 
     Ok(())
 }
@@ -1002,7 +1002,7 @@ pub async fn delete_guild_config(ctx: Context<'_>) -> Result<(), Error> {
         Err(_) => {
             ctx.say("Your guild doesn't have a config stored.").await?;
         }
-    };
+    }
 
     Ok(())
 }
@@ -1037,7 +1037,7 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
                 )? {
                     playing_users.push(format!("`{}`", user.name));
                 }
-            };
+            }
         }
     }
 
