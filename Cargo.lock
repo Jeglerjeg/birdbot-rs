@@ -3060,8 +3060,9 @@ dependencies = [
 
 [[package]]
 name = "rosu-map"
-version = "0.2.0"
-source = "git+https://github.com/MaxOhn/rosu-map#952bacc3115304c2a62f1db406fc6f677dc2d03b"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b92ea634d8b3eaa4d7fba7bd12045dda1a50ce81401c96af0d9c851b0737544"
 
 [[package]]
 name = "rosu-mods"
@@ -3075,8 +3076,9 @@ dependencies = [
 
 [[package]]
 name = "rosu-pp"
-version = "2.0.0"
-source = "git+https://github.com/MaxOhn/rosu-pp?rev=05b6fcd317416358f1f75944c1490c334fd014c5#05b6fcd317416358f1f75944c1490c334fd014c5"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66725aa2b679d3bd206ca70d88d4f9b42127493208a9335d9cc6abe861b619cf"
 dependencies = [
  "rosu-map",
  "rosu-mods",
@@ -3438,7 +3440,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.12.4"
-source = "git+https://github.com/serenity-rs/serenity?branch=next#da271c87f736be3e32cabcac7bd8ccf1058d1ee0"
+source = "git+https://github.com/serenity-rs/serenity?branch=next#bd4d91dd02dac0a78bc90ee7e7dc709a1ed60edf"
 dependencies = [
  "aformat",
  "arrayvec",
