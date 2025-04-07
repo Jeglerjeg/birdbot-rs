@@ -12,8 +12,8 @@ use crate::utils::osu::card::render_card;
 use crate::utils::osu::embeds::{send_score_embed, send_scores_embed};
 use crate::utils::osu::map_format::format_map_status;
 use crate::utils::osu::misc::{
-    calculate_potential_acc, find_beatmap_link, get_osu_user, get_user, is_playing,
-    set_up_score_list, sort_scores, wipe_profile_data,
+    add_profile_data, calculate_potential_acc, find_beatmap_link, get_osu_user, get_user,
+    is_playing, set_up_score_list, sort_scores, wipe_profile_data,
 };
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::utils::osu::regex::{BeatmapInfo, get_beatmap_info};
@@ -248,6 +248,14 @@ pub async fn mode(
 
             linked_osu_profiles::update(connection, profile.id, &query_item).await?;
             wipe_profile_data(connection, profile.osu_id).await?;
+
+            add_profile_data(
+                ctx.data().osu_client.clone(),
+                u32::try_from(profile.id)?,
+                mode,
+                connection,
+            )
+            .await?;
 
             ctx.say(format!("Updated your osu! mode to {mode}."))
                 .await?;
