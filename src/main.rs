@@ -14,6 +14,7 @@ use diesel_async::AsyncPgConnection;
 use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mobc::Pool;
 use poise::serenity_prelude::{EventHandler, FullEvent, Token, async_trait};
 use rosu_v2::prelude::Osu;
@@ -45,6 +46,8 @@ impl EventHandler for Handler {
         match event {
             FullEvent::Ready { data_about_bot, .. } => {
                 info!("{} is connected!", data_about_bot.user.name);
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
                 let mut osu_tracker = OsuTracker {
                     cache: ctx.cache.clone(),
                     http: ctx.http.clone(),
@@ -163,6 +166,16 @@ async fn main() {
     if let Err(why) = res {
         panic!("Couldn't run migrations: {why:?}");
     }
+
+    let builder = PrometheusBuilder::new();
+
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
+    builder
+        .install()
+        .expect("failed to install recorder/exporter");
 
     let options = poise::FrameworkOptions {
         commands: vec![

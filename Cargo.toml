@@ -14,7 +14,7 @@ tracing-appender = "0.2"
 chrono = "0.4"
 diesel_migrations = "2.2"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "445f5f262ea756e4a306ea0163b4cf922fb4aac2" }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "445f5f262ea756e4a306ea0163b4cf922fb4aac2", features = ["metrics"] }
 num-format = "0.4"
 time = "0.3"
 dashmap = "7.0.0-rc2"
@@ -39,6 +39,8 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
+metrics-exporter-prometheus = "0.16"
+rustls = "0.23.25"
 
 [dependencies.tokio]
 version = "1.44"

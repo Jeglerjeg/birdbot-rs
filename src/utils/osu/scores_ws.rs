@@ -178,6 +178,29 @@ impl ScoresWs {
 
             let users = tracked_user.unwrap().clone();
 
+            let last_notifications = if let Ok(updates) =
+                osu_notifications::read(connection, i64::from(score.user_id)).await
+            {
+                updates
+            } else {
+                let item = NewOsuNotification {
+                    id: i64::from(score.user_id),
+                    last_pp: Utc::now(),
+                    last_event: Utc::now(),
+                };
+                match osu_notifications::create(connection, &item).await {
+                    Ok(last_notifications) => last_notifications,
+                    Err(why) => {
+                        error!("{}", why);
+                        continue;
+                    }
+                }
+            };
+
+            if score.ended_at.unix_timestamp() <= last_notifications.last_pp.timestamp() {
+                continue;
+            }
+
             for osu_user_id in users {
                 let linked_profile = match linked_osu_profiles::read(connection, osu_user_id).await
                 {
@@ -203,29 +226,6 @@ impl ScoresWs {
                     continue;
                 }
 
-                let last_notifications = if let Ok(updates) =
-                    osu_notifications::read(connection, linked_profile.osu_id).await
-                {
-                    updates
-                } else {
-                    let item = NewOsuNotification {
-                        id: linked_profile.osu_id,
-                        last_pp: Utc::now(),
-                        last_event: Utc::now(),
-                    };
-                    match osu_notifications::create(connection, &item).await {
-                        Ok(last_notifications) => last_notifications,
-                        Err(why) => {
-                            error!("{}", why);
-                            continue;
-                        }
-                    }
-                };
-
-                if score.ended_at.unix_timestamp() < last_notifications.last_pp.timestamp() {
-                    continue;
-                }
-
                 let osu_user = match self.get_osu_user(connection, &linked_profile, mode).await {
                     Ok(osu_user) => osu_user,
                     Err(why) => {
@@ -234,7 +234,7 @@ impl ScoresWs {
                     }
                 };
 
-                if score.pp.unwrap_or(0.0) < osu_user.min_pp as f32 {
+                if (score.pp.unwrap_or(0.0) as f64) < osu_user.min_pp {
                     continue;
                 }
 
@@ -361,7 +361,7 @@ impl ScoresWs {
 
         let item = NewOsuNotification {
             id: linked_profile.osu_id,
-            last_pp: Utc.timestamp_nanos(score.0.ended_at.unix_timestamp()),
+            last_pp: Utc.timestamp_nanos(i64::try_from(score.0.ended_at.unix_timestamp_nanos())?),
             last_event: last_notifications.last_event,
         };
 
