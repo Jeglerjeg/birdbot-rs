@@ -28,6 +28,7 @@ impl TryFrom<UserExtended> for NewOsuUser {
             ticks: 0,
             ranked_score: i64::try_from(statistic.ranked_score)?,
             time_cached: Utc::now(),
+            min_pp: 0.0,
         })
     }
 }

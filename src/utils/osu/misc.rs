@@ -2,7 +2,7 @@ use crate::Error;
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
 use crate::models::osu_files::OsuFile;
-use crate::models::osu_users::OsuUser;
+use crate::models::osu_users::{NewOsuUser, OsuUser};
 use crate::plugins::osu::{GameModeChoices, SortChoices};
 use crate::utils::db::{linked_osu_profiles, osu_notifications, osu_users};
 use crate::utils::osu::caching::get_beatmap;
@@ -16,6 +16,7 @@ use poise::serenity_prelude::{Cache, GuildId, Message, Presence, User, UserId};
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Score, ScoreStatistics, UserExtended};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub enum DiffTypes {
     Pp,
@@ -354,4 +355,49 @@ pub async fn find_beatmap_link(messages: Vec<Message>) -> Result<Option<BeatmapI
         }
     }
     Ok(None)
+}
+
+pub fn get_score_position(score: &Score, mut score_list: Vec<Score>) -> Result<usize, Error> {
+    let mut found_index = None;
+    for (i, list_score) in score_list.iter().enumerate() {
+        if score.id == list_score.id {
+            found_index = Some(i + 1);
+            break;
+        }
+    }
+
+    if let Some(found_index) = found_index {
+        return Ok(found_index);
+    }
+
+    score_list.push(score.clone());
+    score_list.sort_by(|a, b| b.pp.unwrap_or(0.0).total_cmp(&a.pp.unwrap_or(0.0)));
+    Ok(score_list
+        .iter()
+        .position(|x| x.id == score.id)
+        .ok_or("Failed to find score position")?)
+}
+
+pub async fn add_profile_data(
+    osu_client: Arc<rosu_v2::Osu>,
+    profile_id: u32,
+    mode: GameMode,
+    db: &mut AsyncPgConnection,
+) -> Result<OsuUser, Error> {
+    let osu_user = osu_client.user(profile_id).mode(mode).await?;
+
+    let mut top_100 = osu_client
+        .user_scores(profile_id)
+        .best()
+        .mode(mode)
+        .limit(100)
+        .await?;
+
+    top_100.sort_by(|a, b| b.pp.unwrap_or(0.0).total_cmp(&a.pp.unwrap_or(0.0)));
+
+    let mut new_user = NewOsuUser::try_from(osu_user)?;
+
+    new_user.min_pp = f64::from(top_100[top_100.len() - 1].pp.unwrap_or(0.0));
+
+    osu_users::create(db, &new_user).await
 }

@@ -6,6 +6,7 @@ mod utils;
 #[global_allocator]
 static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+use crate::utils::osu::scores_ws::ScoresWs;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
 use diesel::Connection;
@@ -53,6 +54,20 @@ impl EventHandler for Handler {
 
                 tokio::spawn(async move {
                     match osu_tracker.tracking_loop().await {
+                        Ok(()) => {}
+                        Err(why) => error!("{why}"),
+                    }
+                });
+
+                let mut scores_ws = ScoresWs {
+                    cache: ctx.cache.clone(),
+                    http: ctx.http.clone(),
+                    osu_client: ctx.data::<Data>().osu_client.clone(),
+                    pool: ctx.data::<Data>().db_pool.clone(),
+                };
+
+                tokio::spawn(async move {
+                    match scores_ws.connect_websocket().await {
                         Ok(()) => {}
                         Err(why) => error!("{why}"),
                     }

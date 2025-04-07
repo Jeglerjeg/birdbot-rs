@@ -17,6 +17,7 @@ use crate::utils::osu::misc::{
 };
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::utils::osu::regex::{BeatmapInfo, get_beatmap_info};
+use crate::utils::osu::scores_ws;
 use crate::{Context, Error};
 use chrono::Utc;
 use poise::CreateReply;
@@ -116,6 +117,7 @@ pub async fn link(
         linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await
     {
         linked_osu_profiles::delete(connection, profile.id).await?;
+        scores_ws::remove_tracked_user(profile.id, profile.osu_id);
         wipe_profile_data(connection, profile.osu_id).await?;
     }
 
@@ -138,6 +140,11 @@ pub async fn link(
     osu_notifications::create(connection, &notification_item).await?;
 
     linked_osu_profiles::create(connection, &query_item).await?;
+
+    scores_ws::add_tracked_user(
+        i64::try_from(ctx.author().id.get())?,
+        i64::from(user.user_id),
+    );
 
     ctx.say(format!(
         "Set your osu! profile to `{}`.",
@@ -166,6 +173,7 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
         Ok(profile) => {
             linked_osu_profiles::delete(connection, profile.id).await?;
             wipe_profile_data(connection, profile.osu_id).await?;
+            scores_ws::remove_tracked_user(profile.id, profile.osu_id);
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {

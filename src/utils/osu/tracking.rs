@@ -3,21 +3,18 @@ use crate::models::beatmapsets::Beatmapset;
 use crate::models::linked_osu_profiles::LinkedOsuProfile;
 use crate::models::osu_files::OsuFile;
 use crate::models::osu_notifications::NewOsuNotification;
-use crate::models::osu_users::{NewOsuUser, OsuUser};
+use crate::models::osu_users::OsuUser;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
 use crate::utils::osu::caching::{get_beatmap, get_updated_beatmapset};
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::embeds::create_embed;
 use crate::utils::osu::map_format::format_beatmapset;
 use crate::utils::osu::misc::{
-    calculate_potential_acc, gamemode_from_string, get_osu_user, is_playing,
+    add_profile_data, calculate_potential_acc, gamemode_from_string, get_osu_user, is_playing,
 };
-use crate::utils::osu::misc_format::{
-    format_beatmap_link, format_diff, format_footer, format_user_link,
-};
-use crate::utils::osu::pp::CalculateResults;
+use crate::utils::osu::misc_format::{format_beatmap_link, format_footer, format_user_link};
 use crate::utils::osu::regex::get_beatmap_info;
-use crate::utils::osu::score_format::{format_new_score, format_score_list};
+use crate::utils::osu::score_format::format_new_score;
 use crate::{Error, Pool};
 use chrono::Utc;
 use dashmap::DashMap;
@@ -29,11 +26,10 @@ use poise::serenity_prelude::{
 };
 use rosu_v2::Osu;
 use rosu_v2::model::GameMode;
-use rosu_v2::prelude::{EventBeatmap, EventType, RankStatus, Score};
+use rosu_v2::prelude::{EventBeatmap, EventType, RankStatus};
 use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
-use time::OffsetDateTime;
 use tokio::time::sleep;
 use tracing::{error, info};
 
@@ -41,7 +37,7 @@ static UPDATE_INTERVAL: OnceLock<u64> = OnceLock::new();
 
 static NOT_PLAYING_SKIP: OnceLock<i32> = OnceLock::new();
 
-static SCORE_NOTIFICATIONS: OnceLock<DashMap<i64, Vec<u64>>> = OnceLock::new();
+pub static SCORE_NOTIFICATIONS: OnceLock<DashMap<i64, Vec<u64>>> = OnceLock::new();
 
 pub struct OsuTracker {
     pub cache: Arc<Cache>,
@@ -106,21 +102,8 @@ impl OsuTracker {
                 .to_owned();
 
             if profile.ticks > not_playing_skip {
-                let Ok(osu_profile) = self
-                    .osu_client
-                    .user(u32::try_from(linked_profile.osu_id)?)
-                    .mode(
-                        gamemode_from_string(&linked_profile.mode)
-                            .ok_or("Failed to parse gamemode in update_user_data function")?,
-                    )
-                    .await
-                else {
-                    return Ok(());
-                };
-
-                let mut db_profile = NewOsuUser::try_from(osu_profile)?;
-                db_profile.ticks = 0;
-                osu_users::create(connection, &db_profile).await?;
+                profile.ticks = 0;
+                osu_users::update_ticks(connection, profile.id, profile.ticks).await?;
                 return Ok(());
             }
 
@@ -128,11 +111,6 @@ impl OsuTracker {
                 || (profile.ticks.eq(&not_playing_skip))
             {
                 osu_users::update_ticks(connection, profile.id, profile.ticks).await?;
-
-                if let Err(why) = self.notify_pp(&profile, connection, linked_profile).await {
-                    error!("Error occurred while running tracking loop: {}", why);
-                    return Ok(());
-                }
 
                 if let Err(why) = self
                     .notify_recent(&profile, connection, linked_profile)
@@ -145,350 +123,17 @@ impl OsuTracker {
                 osu_users::update_ticks(connection, profile.id, profile.ticks).await?;
             }
         } else {
-            let Ok(osu_profile) = self
-                .osu_client
-                .user(u32::try_from(linked_profile.osu_id)?)
-                .mode(
-                    gamemode_from_string(&linked_profile.mode)
-                        .ok_or("Failed to parse gamemode in update_user_data function")?,
-                )
-                .await
-            else {
-                return Ok(());
-            };
-
-            osu_users::create(connection, &NewOsuUser::try_from(osu_profile)?).await?;
-        }
-
-        Ok(())
-    }
-
-    async fn notify_pp(
-        &mut self,
-        old: &OsuUser,
-        connection: &mut AsyncPgConnection,
-        linked_profile: &LinkedOsuProfile,
-    ) -> Result<(), Error> {
-        let new_scores = self
-            .get_new_score(old.id, linked_profile, connection)
-            .await?;
-        if new_scores.is_empty() {
-            return Ok(());
-        } else if new_scores.len() == 1 {
-            let Ok(osu_profile) = self
-                .osu_client
-                .user(u32::try_from(linked_profile.osu_id)?)
-                .mode(
-                    gamemode_from_string(&linked_profile.mode)
-                        .ok_or("Failed to parse gamemode in update_user_data function")?,
-                )
-                .await
-            else {
-                return Ok(());
-            };
-
-            let db_profile = NewOsuUser::try_from(osu_profile)?;
-            let new = osu_users::create(connection, &db_profile).await?;
-
-            self.notify_single_score(&new_scores, linked_profile, &new, old, connection)
-                .await?;
-        } else {
-            let Ok(osu_profile) = self
-                .osu_client
-                .user(u32::try_from(linked_profile.osu_id)?)
-                .mode(
-                    gamemode_from_string(&linked_profile.mode)
-                        .ok_or("Failed to parse gamemode in update_user_data function")?,
-                )
-                .await
-            else {
-                return Ok(());
-            };
-
-            let db_profile = NewOsuUser::try_from(osu_profile)?;
-            let new = osu_users::create(connection, &db_profile).await?;
-
-            self.notify_multiple_scores(&new_scores, linked_profile, &new, old, connection)
-                .await?;
-        }
-
-        Ok(())
-    }
-
-    async fn notify_multiple_scores(
-        &mut self,
-        new_scores: &[(Score, usize)],
-        linked_profile: &LinkedOsuProfile,
-        new: &OsuUser,
-        old: &OsuUser,
-        connection: &mut AsyncPgConnection,
-    ) -> Result<(), Error> {
-        let mut to_notify: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> = Vec::new();
-
-        let mut to_calculate: Vec<(Score, usize)> = Vec::new();
-
-        let gamemode = gamemode_from_string(&linked_profile.mode)
-            .ok_or("Failed to get parse gamemode in notify_multiple_scores function")?;
-
-        let mut recent_scores = SCORE_NOTIFICATIONS
-            .get_or_init(DashMap::new)
-            .entry(linked_profile.osu_id)
-            .or_default();
-
-        for score in new_scores {
-            let score_id = score.0.id;
-
-            if recent_scores.value().contains(&score_id) {
-                continue;
-            }
-            recent_scores.push(score_id);
-
-            to_calculate.push((score.0.clone(), score.1));
-        }
-        drop(recent_scores);
-
-        if to_calculate.is_empty() {
-            return Ok(());
-        }
-
-        for score in to_calculate {
-            let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
-
-            let calculated_results = calculate(
-                Some(&score.0),
-                &beatmap.0,
-                &beatmap.2,
-                calculate_potential_acc(&score.0),
-            )?;
-
-            to_notify.push((
-                score.0.clone(),
-                score.1,
-                beatmap.0,
-                beatmap.1,
-                calculated_results,
-            ));
-        }
-
-        if to_notify.is_empty() {
-            return Ok(());
-        }
-
-        let author_text = format!("{} set a new best scores", &new.username);
-
-        let thumbnail = new.avatar_url.clone();
-
-        let formatted_score = format!(
-            "{}\n{}",
-            format_score_list(&to_notify, None, None,)?,
-            format_diff(new, old, gamemode)?
-        );
-
-        self.send_score_notifications(
-            connection,
-            linked_profile,
-            &thumbnail,
-            &formatted_score,
-            "",
-            &author_text,
-            None,
-            None,
-            new,
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    async fn notify_single_score(
-        &mut self,
-        new_scores: &[(Score, usize)],
-        linked_profile: &LinkedOsuProfile,
-        new: &OsuUser,
-        old: &OsuUser,
-        connection: &mut AsyncPgConnection,
-    ) -> Result<(), Error> {
-        let score = &new_scores[0];
-
-        let score_id = score.0.id;
-
-        let gamemode = gamemode_from_string(&linked_profile.mode)
-            .ok_or("Failed to parse gamemode in notify_single_score function")?;
-
-        let mut recent_scores = SCORE_NOTIFICATIONS
-            .get_or_init(DashMap::new)
-            .entry(linked_profile.osu_id)
-            .or_default();
-
-        if recent_scores.value().contains(&score_id) {
-            return Ok(());
-        }
-        recent_scores.push(score_id);
-        drop(recent_scores);
-
-        let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
-
-        let pp = calculate(
-            Some(&score.0),
-            &beatmap.0,
-            &beatmap.2,
-            calculate_potential_acc(&score.0),
-        )?;
-        let author_text = format!(
-            "{} set a new best score (#{}/{})",
-            &new.username, score.1, 100
-        );
-        let footer = format_footer(&score.0, &beatmap.0, &pp)?;
-
-        let title = format!(
-            "{} - {} [{}]",
-            beatmap.1.artist, beatmap.1.title, beatmap.0.version,
-        );
-
-        let title_url = format_beatmap_link(
-            Some(beatmap.0.id),
-            beatmap.1.id,
-            Some(&score.0.mode.to_string()),
-        );
-
-        let thumbnail = beatmap.1.list_cover.clone();
-        let formatted_score = format!(
-            "{}{}\n<t:{}:R>",
-            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, false, None, None)?,
-            format_diff(new, old, gamemode)?,
-            score.0.ended_at.unix_timestamp()
-        );
-
-        self.send_score_notifications(
-            connection,
-            linked_profile,
-            &thumbnail,
-            &formatted_score,
-            &footer,
-            &author_text,
-            Some(title),
-            Some(title_url),
-            new,
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    async fn send_score_notifications(
-        &mut self,
-        connection: &mut AsyncPgConnection,
-        linked_profile: &LinkedOsuProfile,
-        thumbnail: &str,
-        formatted_score: &str,
-        footer: &str,
-        author_text: &str,
-        title: Option<String>,
-        title_url: Option<String>,
-        new: &OsuUser,
-    ) -> Result<(), Error> {
-        for guild_id in self.cache.guilds() {
-            if let Ok(guild_channels) =
-                osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
-            {
-                if let Some(score_channels) = guild_channels.score_channel {
-                    for score_channel in score_channels
-                        .iter()
-                        .flatten()
-                        .copied()
-                        .collect::<Vec<i64>>()
-                    {
-                        if let Ok(member) = guild_id
-                            .member(
-                                (Some(&self.cache), self.http.http()),
-                                UserId::new(u64::try_from(linked_profile.id)?),
-                            )
-                            .await
-                        {
-                            let color = member.colour(&self.cache).unwrap_or(BLUE);
-
-                            let user_link = format_user_link(new.id);
-
-                            let embed = create_embed(
-                                color,
-                                thumbnail,
-                                formatted_score,
-                                footer,
-                                &new.avatar_url,
-                                author_text,
-                                &user_link,
-                                title.clone(),
-                                title_url.clone(),
-                            );
-
-                            let builder = CreateMessage::new().embed(embed);
-
-                            ChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.http, builder)
-                                .await?;
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn get_new_score(
-        &mut self,
-        osu_id: i64,
-        linked_profile: &LinkedOsuProfile,
-        connection: &mut AsyncPgConnection,
-    ) -> Result<Vec<(Score, usize)>, Error> {
-        let last_notifications =
-            if let Ok(updates) = osu_notifications::read(connection, osu_id).await {
-                updates
-            } else {
-                let item = NewOsuNotification {
-                    id: osu_id,
-                    last_pp: Utc::now(),
-                    last_event: Utc::now(),
-                };
-                osu_notifications::create(connection, &item).await?
-            };
-
-        let mut new_scores = Vec::new();
-
-        let best_scores = self
-            .osu_client
-            .user_scores(u32::try_from(osu_id)?)
-            .best()
-            .mode(
+            add_profile_data(
+                self.osu_client.clone(),
+                u32::try_from(linked_profile.osu_id)?,
                 gamemode_from_string(&linked_profile.mode)
-                    .ok_or("Failed to parse gamemode in get_new_score function")?,
+                    .ok_or("Failed to parse gamemode in update_user_data function")?,
+                connection,
             )
-            .limit(100)
-            .await
-            .unwrap_or_default();
-
-        for (pos, score) in best_scores.iter().enumerate() {
-            if score.ended_at.unix_timestamp() > last_notifications.last_pp.timestamp() {
-                if (OffsetDateTime::now_utc() - score.ended_at).whole_hours() > 3 {
-                    continue;
-                }
-                new_scores.push((score.clone(), pos + 1));
-            }
+            .await?;
         }
 
-        if !new_scores.is_empty() {
-            let item = NewOsuNotification {
-                id: osu_id,
-                last_pp: Utc::now(),
-                last_event: last_notifications.last_event,
-            };
-
-            if let Err(why) = osu_notifications::update(connection, osu_id, &item).await {
-                error!("Error occurred while running tracking loop: {}", why);
-            }
-        }
-
-        Ok(new_scores)
+        Ok(())
     }
 
     async fn get_notify_beatmapset(

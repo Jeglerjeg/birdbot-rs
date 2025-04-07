@@ -102,6 +102,7 @@ diesel::table! {
         ranked_score -> Int8,
         ticks -> Int4,
         time_cached -> Timestamptz,
+        min_pp -> Float8,
     }
 }
 

@@ -8,4 +8,5 @@ pub mod misc_format;
 pub mod pp;
 pub mod regex;
 pub mod score_format;
+pub mod scores_ws;
 pub mod tracking;

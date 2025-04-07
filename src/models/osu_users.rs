@@ -18,6 +18,7 @@ pub struct OsuUser {
     pub ranked_score: i64,
     pub ticks: i32,
     pub time_cached: chrono::DateTime<chrono::Utc>,
+    pub min_pp: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
@@ -36,6 +37,7 @@ pub struct NewOsuUser {
     pub ticks: i32,
     pub ranked_score: i64,
     pub time_cached: chrono::DateTime<chrono::Utc>,
+    pub min_pp: f64,
 }
 
 impl NewOsuUser {
