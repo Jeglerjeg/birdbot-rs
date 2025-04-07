@@ -251,7 +251,7 @@ pub async fn mode(
 
             add_profile_data(
                 ctx.data().osu_client.clone(),
-                u32::try_from(profile.id)?,
+                u32::try_from(profile.osu_id)?,
                 mode,
                 connection,
             )
