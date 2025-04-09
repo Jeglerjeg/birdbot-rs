@@ -19,7 +19,7 @@ use crate::{Error, Pool};
 use chrono::Utc;
 use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
-use diesel_async::pooled_connection::{AsyncDieselConnectionManager, PoolError};
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     Cache, CacheHttp, ChannelId, CreateEmbed, CreateMessage, Http, UserId,
@@ -30,7 +30,6 @@ use rosu_v2::prelude::{EventBeatmap, EventType, RankStatus};
 use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
-use mobc::Connection;
 use tokio::time::sleep;
 use tracing::{error, info};
 
@@ -61,9 +60,7 @@ impl OsuTracker {
         loop {
             interval.tick().await;
             let connection = &mut match self.pool.get().await {
-                Ok(connection) => {
-                    connection
-                }
+                Ok(connection) => connection,
                 Err(why) => {
                     error!("Failed to connect to database {}", why);
                     continue;
