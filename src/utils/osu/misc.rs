@@ -375,7 +375,8 @@ pub fn get_score_position(score: &Score, mut score_list: Vec<Score>) -> Result<u
     Ok(score_list
         .iter()
         .position(|x| x.id == score.id)
-        .ok_or("Failed to find score position")?)
+        .ok_or("Failed to find score position")?
+        + 1)
 }
 
 pub async fn add_profile_data(
