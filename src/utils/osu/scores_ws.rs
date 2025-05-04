@@ -280,6 +280,8 @@ impl ScoresWs {
         if check_top100(&score, &mut best_scores) {
             let score_position = get_score_position(&score, best_scores)?;
 
+            let score = self.osu_client.score(score.id).await.unwrap_or(score);
+
             let new = add_profile_data(
                 self.osu_client.clone(),
                 u32::try_from(linked_profile.osu_id)?,
