@@ -40,7 +40,7 @@ to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
 metrics-exporter-prometheus = "0.17"
-rustls = "0.23.25"
+rustls = "0.23"
 
 [dependencies.tokio]
 version = "1.44"
@@ -53,7 +53,7 @@ features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "2a10bf958ef83b40ad7d7c6db29af6687c1b8628"
+rev = "248647a906e318d463f11cf0624e01ef893d2233"
 
 [dependencies.symphonia]
 version = "0.5"

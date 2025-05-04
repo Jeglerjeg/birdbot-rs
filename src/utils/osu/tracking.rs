@@ -22,7 +22,7 @@ use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
-    Cache, CacheHttp, ChannelId, CreateEmbed, CreateMessage, Http, UserId,
+    Cache, CacheHttp, CreateEmbed, CreateMessage, GenericChannelId, Http, UserId,
 };
 use rosu_v2::Osu;
 use rosu_v2::model::GameMode;
@@ -379,7 +379,7 @@ impl OsuTracker {
                         {
                             let builder = CreateMessage::new().embed(embed.clone());
 
-                            ChannelId::from(u64::try_from(score_channel)?)
+                            GenericChannelId::from(u64::try_from(score_channel)?)
                                 .send_message(&self.http, builder)
                                 .await?;
                         }
@@ -507,7 +507,7 @@ impl OsuTracker {
 
                             let builder = CreateMessage::new().embed(embed);
 
-                            ChannelId::from(u64::try_from(score_channel)?)
+                            GenericChannelId::from(u64::try_from(score_channel)?)
                                 .send_message(&self.http, builder)
                                 .await?;
                         }

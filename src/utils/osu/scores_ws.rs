@@ -20,11 +20,11 @@ use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use futures_util::{SinkExt, StreamExt};
 use mobc::Pool;
+use poise::serenity_prelude::colours::roles::BLUE;
+use poise::serenity_prelude::{Cache, CacheHttp, CreateMessage, GenericChannelId, Http, UserId};
 use rosu_pp::model::mods::rosu_mods::GameMode;
 use rosu_v2::Osu;
 use rosu_v2::prelude::Score;
-use serenity::all::colours::roles::BLUE;
-use serenity::all::{Cache, CacheHttp, ChannelId, CreateMessage, Http, UserId};
 use std::env;
 use std::sync::{Arc, LazyLock};
 use tokio_tungstenite::tungstenite::Message;
@@ -234,7 +234,7 @@ impl ScoresWs {
                     }
                 };
 
-                if (score.pp.unwrap_or(0.0) as f64) < osu_user.min_pp {
+                if f64::from(score.pp.unwrap_or(0.0)) < osu_user.min_pp {
                     continue;
                 }
 
@@ -436,7 +436,7 @@ impl ScoresWs {
 
                             let builder = CreateMessage::new().embed(embed);
 
-                            ChannelId::from(u64::try_from(score_channel)?)
+                            GenericChannelId::from(u64::try_from(score_channel)?)
                                 .send_message(&self.http, builder)
                                 .await?;
                         }

@@ -4,7 +4,7 @@ use aformat::aformat;
 use dashmap::DashMap;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
-    ChannelId, CreateEmbed, CreateMessage, GuildId, Http, User, async_trait,
+    ChannelId, CreateEmbed, CreateMessage, GenericChannelId, GuildId, Http, User, async_trait,
 };
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
@@ -122,7 +122,7 @@ fn format_track(metadata: &AuxMetadata, play_time: Option<Duration>) -> String {
 }
 
 async fn send_track_embed(
-    channel_id: ChannelId,
+    channel_id: GenericChannelId,
     http: &Arc<Http>,
     metadata: &AuxMetadata,
     action: &str,
@@ -237,7 +237,7 @@ impl VoiceEventHandler for TrackErrorNotifier {
 
 struct TrackStartNotifier {
     guild_id: GuildId,
-    channel_id: ChannelId,
+    channel_id: GenericChannelId,
     http: Arc<Http>,
 }
 

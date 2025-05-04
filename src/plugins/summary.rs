@@ -12,7 +12,7 @@ use crate::utils::misc::content_safe;
 use aformat::aformat;
 use itertools::Itertools;
 use poise::futures_util::StreamExt;
-use poise::serenity_prelude::{Cache, ChannelId, GuildId, Message, UserId};
+use poise::serenity_prelude::{Cache, GenericChannelId, GuildId, Message, UserId};
 use std::sync::OnceLock;
 use tracing::log::error;
 
@@ -33,7 +33,7 @@ static SUMMARY_ENABLED_GUILDS: OnceLock<SummaryEnabledGuilds> = OnceLock::new();
 pub async fn download_messages(
     ctx: &Context<'_>,
     connection: &mut AsyncPgConnection,
-    channel_id: ChannelId,
+    channel_id: GenericChannelId,
 ) -> Result<(), Error> {
     let mut downloaded_messages: Vec<NewDbSummaryMessage> = Vec::new();
     let mut message_iterator = channel_id.messages_iter(ctx.http()).boxed();
@@ -181,7 +181,7 @@ pub async fn summary_enable(
     };
 
     let channel_id = if let Some(channel_id) = channel_id {
-        ChannelId::from(channel_id)
+        GenericChannelId::from(channel_id)
     } else {
         ctx.channel_id()
     };
@@ -249,7 +249,7 @@ pub async fn summary(
     phrase: Option<String>,
     include_bots: Option<bool>,
     users: Vec<UserId>,
-    mut channels: Vec<ChannelId>,
+    mut channels: Vec<GenericChannelId>,
     #[min = 1]
     #[max = 10]
     n_grams: Option<usize>,
