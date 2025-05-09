@@ -19,6 +19,7 @@ use mobc::Pool;
 use poise::serenity_prelude::{EventHandler, FullEvent, Token, async_trait};
 use rosu_v2::prelude::Osu;
 use std::env;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -167,7 +168,8 @@ async fn main() {
         panic!("Couldn't run migrations: {why:?}");
     }
 
-    let builder = PrometheusBuilder::new();
+    let builder = PrometheusBuilder::new()
+        .with_http_listener(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9326));
 
     rustls::crypto::ring::default_provider()
         .install_default()
