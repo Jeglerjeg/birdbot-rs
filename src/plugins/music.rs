@@ -244,39 +244,34 @@ struct TrackStartNotifier {
 #[async_trait]
 impl VoiceEventHandler for TrackStartNotifier {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
-        if let EventContext::Track(track_list) = ctx {
-            if let Some(track) = track_list.first() {
-                let playing_guild = match PLAYING_GUILDS
-                    .get_or_init(|| PlayingGuilds {
-                        guilds: DashMap::new(),
-                    })
-                    .guilds
-                    .get(&self.guild_id)
+        if let EventContext::Track(track_list) = ctx
+            && let Some(track) = track_list.first()
+        {
+            let playing_guild = match PLAYING_GUILDS
+                .get_or_init(|| PlayingGuilds {
+                    guilds: DashMap::new(),
+                })
+                .guilds
+                .get(&self.guild_id)
+            {
+                None => {
+                    error!("Failed to get playing guild in voice handler");
+                    return None;
+                }
+                Some(playing_guild) => playing_guild,
+            };
+            let queued_track = playing_guild
+                .queued_tracks
+                .queue
+                .get(&track.1.uuid().as_u128());
+            if let Some(queued_track) = queued_track {
+                let metadata = queued_track.metadata.clone();
+                drop(playing_guild);
+                if let Err(why) =
+                    send_track_embed(self.channel_id, &self.http, &metadata, "Now playing:", None)
+                        .await
                 {
-                    None => {
-                        error!("Failed to get playing guild in voice handler");
-                        return None;
-                    }
-                    Some(playing_guild) => playing_guild,
-                };
-                let queued_track = playing_guild
-                    .queued_tracks
-                    .queue
-                    .get(&track.1.uuid().as_u128());
-                if let Some(queued_track) = queued_track {
-                    let metadata = queued_track.metadata.clone();
-                    drop(playing_guild);
-                    if let Err(why) = send_track_embed(
-                        self.channel_id,
-                        &self.http,
-                        &metadata,
-                        "Now playing:",
-                        None,
-                    )
-                    .await
-                    {
-                        error!("Failed to send track starting message: {}", why);
-                    }
+                    error!("Failed to send track starting message: {}", why);
                 }
             }
         }

@@ -366,23 +366,15 @@ pub async fn avatar(
     let name: FixedString<u8>;
     let avatar: String;
 
-    if let Some(guild) = ctx.guild() {
-        if let Some(member) = guild
+    if let Some(guild) = ctx.guild()
+        && let Some(member) = guild
             .members
             .get(&user.as_ref().unwrap_or_else(|| ctx.author()).id)
+    {
         {
             color = member.colour(ctx.cache()).unwrap_or(BLUE);
             name = member.nick.as_ref().unwrap_or(&member.user.name).clone();
             avatar = member.face();
-        } else {
-            color = BLUE;
-            if let Some(user) = user {
-                name = user.name.clone();
-                avatar = user.face();
-            } else {
-                name = ctx.author().name.clone();
-                avatar = ctx.author().face();
-            }
         }
     } else {
         color = BLUE;

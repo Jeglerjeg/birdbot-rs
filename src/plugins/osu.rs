@@ -283,17 +283,14 @@ pub async fn mapinfo(
 
     if let Some(beatmap_url) = beatmap_url {
         beatmap_info = get_beatmap_info(beatmap_url.as_str())?;
-        let Some(_) = beatmap_info.beatmapset_id else {
+        if beatmap_info.beatmapset_id.is_none() {
             ctx.say("Please link to a beatmapset.").await?;
             return Ok(());
-        };
-    } else if let Some(reply) = reply {
-        if let Some(found_info) = find_beatmap_link(vec![reply]).await? {
-            beatmap_info = found_info;
-        } else {
-            ctx.say("No beatmap link found.").await?;
-            return Ok(());
         }
+    } else if let Some(reply) = reply
+        && let Some(found_info) = find_beatmap_link(vec![reply]).await?
+    {
+        beatmap_info = found_info;
     } else if let Some(found_info) = find_beatmap_link(
         ctx.channel_id()
             .messages(ctx.http(), GetMessages::new().limit(100))
