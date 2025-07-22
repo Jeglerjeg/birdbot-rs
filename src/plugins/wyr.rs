@@ -7,7 +7,7 @@ use poise::futures_util::StreamExt;
 use poise::serenity_prelude::ButtonStyle;
 use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::{
-    CollectComponentInteractions, CreateActionRow, CreateButton, CreateEmbed,
+    CollectComponentInteractions, CreateActionRow, CreateButton, CreateComponent, CreateEmbed,
     CreateInteractionResponse, CreateInteractionResponseMessage, Mentionable, User,
 };
 use poise::{CreateReply, ReplyHandle};
@@ -65,7 +65,9 @@ async fn create_wyr_message(
             .label("2"),
     ];
 
-    let components = [CreateActionRow::buttons(&buttons)];
+    let components = [CreateComponent::ActionRow(CreateActionRow::buttons(
+        &buttons,
+    ))];
 
     let builder = CreateReply::default().embed(embed).components(&components);
 

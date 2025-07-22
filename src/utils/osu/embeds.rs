@@ -9,7 +9,8 @@ use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     CollectComponentInteractions, Colour, ComponentInteraction, CreateActionRow, CreateButton,
-    CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateInteractionResponseMessage,
+    CreateComponent, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
+    CreateInteractionResponseMessage,
 };
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, UserExtended};
@@ -150,7 +151,9 @@ pub async fn send_scores_embed(
             CreateButton::new("reset").label("⭯"),
         ];
 
-        let components = [CreateActionRow::buttons(&buttons)];
+        let components = [CreateComponent::ActionRow(CreateActionRow::buttons(
+            &buttons,
+        ))];
 
         let builder = CreateReply::default().embed(embed).components(&components);
 
