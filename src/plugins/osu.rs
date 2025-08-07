@@ -1042,14 +1042,14 @@ pub async fn debug(ctx: Context<'_>) -> Result<(), Error> {
                 UserId::from(u64::try_from(linked_profile.id)?),
                 u64::try_from(linked_profile.home_guild)?,
             )?;
-            if let Some(user) = user {
-                if is_playing(
+            if let Some(user) = user
+                && is_playing(
                     &ctx.serenity_context().cache,
                     user.id,
                     linked_profile.home_guild,
-                )? {
-                    playing_users.push(format!("`{}`", user.name));
-                }
+                )?
+            {
+                playing_users.push(format!("`{}`", user.name));
             }
         }
     }

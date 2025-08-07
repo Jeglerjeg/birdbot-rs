@@ -361,28 +361,27 @@ impl OsuTracker {
         for guild_id in self.cache.guilds() {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
+                && let Some(score_channels) = &guild_channels.score_channel
             {
-                if let Some(score_channels) = guild_channels.score_channel {
-                    for score_channel in score_channels
-                        .iter()
-                        .flatten()
-                        .copied()
-                        .collect::<Vec<i64>>()
+                for score_channel in score_channels
+                    .iter()
+                    .flatten()
+                    .copied()
+                    .collect::<Vec<i64>>()
+                {
+                    if guild_id
+                        .member(
+                            (Some(&self.cache), self.http.http()),
+                            UserId::new(u64::try_from(linked_profile.id)?),
+                        )
+                        .await
+                        .is_ok()
                     {
-                        if guild_id
-                            .member(
-                                (Some(&self.cache), self.http.http()),
-                                UserId::new(u64::try_from(linked_profile.id)?),
-                            )
-                            .await
-                            .is_ok()
-                        {
-                            let builder = CreateMessage::new().embed(embed.clone());
+                        let builder = CreateMessage::new().embed(embed.clone());
 
-                            GenericChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.http, builder)
-                                .await?;
-                        }
+                        GenericChannelId::from(u64::try_from(score_channel)?)
+                            .send_message(&self.http, builder)
+                            .await?;
                     }
                 }
             }
@@ -476,41 +475,40 @@ impl OsuTracker {
         for guild_id in self.cache.guilds() {
             if let Ok(guild_channels) =
                 osu_guild_channels::read(connection, i64::try_from(guild_id.get())?).await
+                && let Some(score_channels) = &guild_channels.score_channel
             {
-                if let Some(score_channels) = guild_channels.score_channel {
-                    for score_channel in score_channels
-                        .iter()
-                        .flatten()
-                        .copied()
-                        .collect::<Vec<i64>>()
+                for score_channel in score_channels
+                    .iter()
+                    .flatten()
+                    .copied()
+                    .collect::<Vec<i64>>()
+                {
+                    if let Ok(member) = guild_id
+                        .member(
+                            (Some(&self.cache), self.http.http()),
+                            UserId::new(u64::try_from(linked_profile.id)?),
+                        )
+                        .await
                     {
-                        if let Ok(member) = guild_id
-                            .member(
-                                (Some(&self.cache), self.http.http()),
-                                UserId::new(u64::try_from(linked_profile.id)?),
-                            )
-                            .await
-                        {
-                            let color = member.colour(&self.cache).unwrap_or(BLUE);
+                        let color = member.colour(&self.cache).unwrap_or(BLUE);
 
-                            let embed = create_embed(
-                                color,
-                                thumbnail,
-                                &formatted_score,
-                                &footer,
-                                &new.avatar_url,
-                                &author_text,
-                                &user_link,
-                                Some(title.clone()),
-                                Some(title_url.clone()),
-                            );
+                        let embed = create_embed(
+                            color,
+                            thumbnail,
+                            &formatted_score,
+                            &footer,
+                            &new.avatar_url,
+                            &author_text,
+                            &user_link,
+                            Some(title.clone()),
+                            Some(title_url.clone()),
+                        );
 
-                            let builder = CreateMessage::new().embed(embed);
+                        let builder = CreateMessage::new().embed(embed);
 
-                            GenericChannelId::from(u64::try_from(score_channel)?)
-                                .send_message(&self.http, builder)
-                                .await?;
-                        }
+                        GenericChannelId::from(u64::try_from(score_channel)?)
+                            .send_message(&self.http, builder)
+                            .await?;
                     }
                 }
             }

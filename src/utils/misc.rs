@@ -11,10 +11,10 @@ pub fn remove_trailing_zeros(number: f64, precision: usize) -> Result<f64, Error
 
 pub fn get_reply(ctx: Context<'_>) -> Option<Message> {
     let mut reply: Option<Message> = None;
-    if let Context::Prefix(PrefixContext { msg, .. }) = ctx {
-        if let Some(msg_reply) = &msg.referenced_message {
-            reply = Some(*msg_reply.clone());
-        }
+    if let Context::Prefix(PrefixContext { msg, .. }) = ctx
+        && let Some(msg_reply) = &msg.referenced_message
+    {
+        reply = Some(*msg_reply.clone());
     }
     reply
 }
@@ -62,11 +62,11 @@ pub fn content_safe(message: &Message, cache: &Cache) -> String {
         for id in &message.mention_roles {
             let mention = id.mention().to_string();
 
-            if let Some(guild) = cache.guild(guild_id) {
-                if let Some(role) = guild.roles.get(id) {
-                    result = result.replace(&mention, &format!("@{}", role.name));
-                    continue;
-                }
+            if let Some(guild) = cache.guild(guild_id)
+                && let Some(role) = guild.roles.get(id)
+            {
+                result = result.replace(&mention, &format!("@{}", role.name));
+                continue;
             }
 
             result = result.replace(&mention, "@deleted-role");

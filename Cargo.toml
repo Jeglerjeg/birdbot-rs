@@ -43,7 +43,7 @@ metrics-exporter-prometheus = "0.17"
 rustls = "0.23"
 
 [dependencies.tokio]
-version = "1.46"
+version = "1.47"
 features = ["full"]
 
 [dependencies.reqwest]

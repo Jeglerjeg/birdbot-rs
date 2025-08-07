@@ -112,11 +112,11 @@ pub async fn wipe_profile_data(db: &mut AsyncPgConnection, user_id: i64) -> Resu
 
 pub fn is_playing(cache: &Cache, user_id: UserId, home_guild: i64) -> Result<bool, Error> {
     let mut presence: Option<Presence> = None;
-    if let Some(guild_ref) = cache.guild(GuildId::new(u64::try_from(home_guild)?)) {
-        if guild_ref.members.contains_key(&user_id) {
-            let presences = &guild_ref.presences;
-            presence = presences.get(&user_id).cloned();
-        }
+    if let Some(guild_ref) = cache.guild(GuildId::new(u64::try_from(home_guild)?))
+        && guild_ref.members.contains_key(&user_id)
+    {
+        let presences = &guild_ref.presences;
+        presence = presences.get(&user_id).cloned();
     }
 
     if presence.is_none() {
@@ -306,10 +306,10 @@ pub fn get_osu_user(
     home_guild: u64,
 ) -> Result<Option<User>, Error> {
     let mut user: Option<User> = None;
-    if let Some(guild_ref) = cache.guild(GuildId::new(home_guild)) {
-        if let Some(guild_user) = guild_ref.members.get(&user_id) {
-            user = Some(guild_user.user.clone());
-        }
+    if let Some(guild_ref) = cache.guild(GuildId::new(home_guild))
+        && let Some(guild_user) = guild_ref.members.get(&user_id)
+    {
+        user = Some(guild_user.user.clone());
     }
 
     if user.is_none() {

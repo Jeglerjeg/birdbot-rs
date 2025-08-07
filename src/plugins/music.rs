@@ -247,18 +247,15 @@ impl VoiceEventHandler for TrackStartNotifier {
         if let EventContext::Track(track_list) = ctx
             && let Some(track) = track_list.first()
         {
-            let playing_guild = match PLAYING_GUILDS
+            let Some(playing_guild) = PLAYING_GUILDS
                 .get_or_init(|| PlayingGuilds {
                     guilds: DashMap::new(),
                 })
                 .guilds
                 .get(&self.guild_id)
-            {
-                None => {
-                    error!("Failed to get playing guild in voice handler");
-                    return None;
-                }
-                Some(playing_guild) => playing_guild,
+            else {
+                error!("Failed to get playing guild in voice handler");
+                return None;
             };
             let queued_track = playing_guild
                 .queued_tracks
@@ -299,18 +296,15 @@ impl VoiceEventHandler for TrackEndNotifier {
                     }
                 } else {
                     drop(handler_lock);
-                    let mut playing_guild = match PLAYING_GUILDS
+                    let Some(mut playing_guild) = PLAYING_GUILDS
                         .get_or_init(|| PlayingGuilds {
                             guilds: DashMap::new(),
                         })
                         .guilds
                         .get_mut(&self.guild_id)
-                    {
-                        None => {
-                            error!("Failed to get playing guild in voice handler");
-                            return None;
-                        }
-                        Some(playing_guild) => playing_guild,
+                    else {
+                        error!("Failed to get playing guild in voice handler");
+                        return None;
                     };
 
                     for track in *track_list {
@@ -450,32 +444,26 @@ async fn queue(
 
     let mut handler_lock = handler.lock().await;
 
-    let guild_id = match ctx.guild_id() {
-        None => {
-            drop(handler_lock);
-            error!("Failed to get guild ID in queue function");
-            ctx.say("Something went wrong, please try again later.")
-                .await?;
-            return Ok(());
-        }
-        Some(guild_id) => guild_id,
+    let Some(guild_id) = ctx.guild_id() else {
+        drop(handler_lock);
+        error!("Failed to get guild ID in queue function");
+        ctx.say("Something went wrong, please try again later.")
+            .await?;
+        return Ok(());
     };
 
-    let mut playing_guild = match PLAYING_GUILDS
+    let Some(mut playing_guild) = PLAYING_GUILDS
         .get_or_init(|| PlayingGuilds {
             guilds: DashMap::new(),
         })
         .guilds
         .get_mut(&guild_id)
-    {
-        None => {
-            drop(handler_lock);
-            error!("Failed to get playing guild in queue function");
-            ctx.say("Something went wrong, please try again later.")
-                .await?;
-            return Ok(());
-        }
-        Some(playing_guild) => playing_guild,
+    else {
+        drop(handler_lock);
+        error!("Failed to get playing guild in queue function");
+        ctx.say("Something went wrong, please try again later.")
+            .await?;
+        return Ok(());
     };
 
     let mut requested: u16 = 0;
@@ -635,31 +623,26 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
 
         let queue = handler.queue();
 
-        let track = match queue.current() {
-            None => {
-                drop(handler);
-                error!("Failed to get current track in skip function");
-                ctx.say("Something went wrong, please try again later.")
-                    .await?;
-                return Ok(());
-            }
-            Some(track) => track,
+        let Some(track) = queue.current() else {
+            drop(handler);
+            error!("Failed to get current track in skip function");
+            ctx.say("Something went wrong, please try again later.")
+                .await?;
+            return Ok(());
         };
-        let mut playing_guild = match PLAYING_GUILDS
+
+        let Some(mut playing_guild) = PLAYING_GUILDS
             .get_or_init(|| PlayingGuilds {
                 guilds: DashMap::new(),
             })
             .guilds
             .get_mut(&guild_id)
-        {
-            None => {
-                drop(handler);
-                error!("Failed to get playing guilds in skip function");
-                ctx.say("Something went wrong, please try again later.")
-                    .await?;
-                return Ok(());
-            }
-            Some(playing_guild) => playing_guild,
+        else {
+            drop(handler);
+            error!("Failed to get playing guilds in skip function");
+            ctx.say("Something went wrong, please try again later.")
+                .await?;
+            return Ok(());
         };
 
         let Some(queued_track) = playing_guild
@@ -764,31 +747,25 @@ pub async fn undo(ctx: Context<'_>) -> Result<(), Error> {
             drop(handler);
             ctx.say("No items queued").await?;
         } else {
-            let removed_item = match queue.dequeue(queue.len() - 1) {
-                None => {
-                    drop(handler);
-                    error!("Failed to deque track in undo function");
-                    ctx.say("Something went wrong, please try again later.")
-                        .await?;
-                    return Ok(());
-                }
-                Some(removed_item) => removed_item,
+            let Some(removed_item) = queue.dequeue(queue.len() - 1) else {
+                drop(handler);
+                error!("Failed to deque track in undo function");
+                ctx.say("Something went wrong, please try again later.")
+                    .await?;
+                return Ok(());
             };
-            let playing_guild = match PLAYING_GUILDS
+            let Some(playing_guild) = PLAYING_GUILDS
                 .get_or_init(|| PlayingGuilds {
                     guilds: DashMap::new(),
                 })
                 .guilds
                 .get(&guild_id)
-            {
-                None => {
-                    drop(handler);
-                    error!("Failed to get playing guild in undo function");
-                    ctx.say("Something went wrong, please try again later.")
-                        .await?;
-                    return Ok(());
-                }
-                Some(playing_guild) => playing_guild,
+            else {
+                drop(handler);
+                error!("Failed to get playing guild in undo function");
+                ctx.say("Something went wrong, please try again later.")
+                    .await?;
+                return Ok(());
             };
 
             let Some(queued_track) = playing_guild
@@ -859,21 +836,18 @@ pub async fn volume(
         }
 
         let adjusted_volume = f32::from(volume) / 100.0;
-        let mut playing_guild = match PLAYING_GUILDS
+        let Some(mut playing_guild) = PLAYING_GUILDS
             .get_or_init(|| PlayingGuilds {
                 guilds: DashMap::new(),
             })
             .guilds
             .get_mut(&guild_id)
-        {
-            None => {
-                drop(handler_lock);
-                error!("Failed to get playing guild in volume function");
-                ctx.say("Something went wrong while skipping the track.")
-                    .await?;
-                return Ok(());
-            }
-            Some(playing_guild) => playing_guild,
+        else {
+            drop(handler_lock);
+            error!("Failed to get playing guild in volume function");
+            ctx.say("Something went wrong while skipping the track.")
+                .await?;
+            return Ok(());
         };
         playing_guild.volume = adjusted_volume;
 
