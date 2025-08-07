@@ -25,7 +25,7 @@ pub fn get_beatmap_info(url: &str) -> Result<BeatmapInfo, Error> {
     let beatmapset_v2_pattern = BEATMAPSET_URL_PATTERN_V2.get_or_init(|| Regex::new(r"https?://osu\.ppy\.sh/beatmapsets/(?P<beatmapset_id>\d+)/?(?:#(?P<mode>\w+)/(?P<beatmap_id>\d+))?").unwrap());
 
     let beatmap_v2_pattern = BEATMAP_URL_PATTERN_V2.get_or_init(|| {
-        Regex::new(r"https?://osu\.ppy\.sh/beatmaps/(?P<beatmap_id>\d+)(?:\?ruleset=(?P<mode>\w+))?")
+        Regex::new(r"https?://osu\.ppy\.sh/beatmaps/(?P<beatmap_id>\d+)(?:\?(mode|ruleset)=(?P<mode>\w+))?")
             .unwrap()
     });
     if beatmap_v2_pattern.is_match(url) {
