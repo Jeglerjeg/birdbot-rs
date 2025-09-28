@@ -3,6 +3,7 @@ mod plugins;
 pub mod schema;
 mod utils;
 
+#[cfg(feature = "linux")]
 #[global_allocator]
 static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 

@@ -27,7 +27,6 @@ mobc = "0.9"
 markov = "1.1"
 tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"] }
-tikv-jemallocator = "0.6"
 itertools = "0.14"
 resvg = "0.45"
 svg = "0.18"
@@ -37,10 +36,11 @@ image = "0.25"
 serde_json = "1.0"
 aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
-tokio-tungstenite = "0.27"
+tokio-tungstenite = "0.28"
 futures-util = "0.3"
 metrics-exporter-prometheus = "0.17"
 rustls = "0.23"
+tikv-jemallocator = { version = "0.6", optional = true }
 
 [dependencies.tokio]
 version = "1.47"
@@ -70,6 +70,10 @@ branch = "next"
 default-features = false
 features = ["builder", "framework", "cache", "gateway", "http", "model", "utils", "rustls_backend", "voice",
     "transport_compression_zlib", "transport_compression_zstd"]
+
+[features]
+default = ["linux"]
+linux = ["dep:tikv-jemallocator"]
 
 [profile.dev]
 lto = "off"
