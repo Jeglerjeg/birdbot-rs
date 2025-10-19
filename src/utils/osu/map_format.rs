@@ -9,6 +9,7 @@ use crate::utils::osu::misc_format::{format_beatmap_link, format_mode_abbreviati
 use poise::serenity_prelude::{Color, CreateEmbed, CreateEmbedAuthor};
 use std::collections::HashMap;
 use std::env;
+use std::fmt::Write as _;
 use std::sync::OnceLock;
 
 static MAX_DIFF_LENGTH: OnceLock<usize> = OnceLock::new();
@@ -73,7 +74,8 @@ pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String
             "{}★",
             remove_trailing_zeros(difficulty_values.total_stars, 2)?
         );
-        formatted_beatmaps.push_str(&format!(
+        let _ = write!(
+            formatted_beatmaps,
             "\n{:<4}{:<diff_length$}  {:<7}{:<7}{}pp",
             format_mode_abbreviation(
                 gamemode_from_string(&beatmap.mode)
@@ -83,7 +85,7 @@ pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String
             formatted_stars,
             formatted_length,
             remove_trailing_zeros(difficulty_values.pp, 0)?,
-        ));
+        );
     }
 
     formatted_beatmaps.push_str("```");

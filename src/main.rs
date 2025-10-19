@@ -6,8 +6,8 @@ mod utils;
 use crate::utils::osu::scores_ws::ScoresWs;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
-use diesel_async::{AsyncMigrationHarness, AsyncPgConnection};
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::{AsyncMigrationHarness, AsyncPgConnection};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mobc::Pool;
@@ -149,7 +149,12 @@ async fn main() {
 
     let db_pool = utils::db::establish_connection::establish_connection();
 
-    let mut harness = AsyncMigrationHarness::new(db_pool.get().await.expect("Could not get database connection"));
+    let mut harness = AsyncMigrationHarness::new(
+        db_pool
+            .get()
+            .await
+            .expect("Could not get database connection"),
+    );
 
     let res = harness.run_pending_migrations(MIGRATIONS);
 
