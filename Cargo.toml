@@ -21,8 +21,8 @@ dashmap = "7.0.0-rc2"
 rosu-pp = "3.1"
 regex = "1.11"
 url = "2.5"
-diesel = { version = "2.2", features = ["chrono"] }
-diesel-async = { version = "0.6", features = ["postgres", "mobc", "async-connection-wrapper"] }
+diesel = { version = "2.3", features = ["chrono"] }
+diesel-async = { version = "0.7", features = ["postgres", "mobc", "migrations"] }
 mobc = "0.9"
 markov = "1.1"
 tokio-stream = "0.1"
@@ -40,10 +40,9 @@ tokio-tungstenite = "0.28"
 futures-util = "0.3"
 metrics-exporter-prometheus = "0.17"
 rustls = "0.23"
-tikv-jemallocator = { version = "0.6", optional = true }
 
 [dependencies.tokio]
-version = "1.47"
+version = "1.48"
 features = ["full"]
 
 [dependencies.reqwest]
@@ -71,9 +70,6 @@ default-features = false
 features = ["builder", "framework", "cache", "gateway", "http", "model", "utils", "rustls_backend", "voice",
     "transport_compression_zlib", "transport_compression_zstd"]
 
-[features]
-default = ["linux"]
-linux = ["dep:tikv-jemallocator"]
 
 [profile.dev]
 lto = "off"

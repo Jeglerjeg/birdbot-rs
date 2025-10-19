@@ -3,16 +3,10 @@ mod plugins;
 pub mod schema;
 mod utils;
 
-#[cfg(feature = "linux")]
-#[global_allocator]
-static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
-
 use crate::utils::osu::scores_ws::ScoresWs;
 use crate::utils::osu::tracking::OsuTracker;
 use chrono::{DateTime, Utc};
-use diesel::Connection;
-use diesel_async::AsyncPgConnection;
-use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
+use diesel_async::{AsyncMigrationHarness, AsyncPgConnection};
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -155,19 +149,14 @@ async fn main() {
 
     let db_pool = utils::db::establish_connection::establish_connection();
 
-    let res = tokio::task::block_in_place(move || {
-        let mut migration_connection = AsyncConnectionWrapper::<AsyncPgConnection>::establish(
-            &env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
-        )?;
+    let mut harness = AsyncMigrationHarness::new(db_pool.get().await.expect("Could not get database connection"));
 
-        migration_connection.run_pending_migrations(MIGRATIONS)?;
-
-        Ok::<(), Error>(())
-    });
+    let res = harness.run_pending_migrations(MIGRATIONS);
 
     if let Err(why) = res {
         panic!("Couldn't run migrations: {why:?}");
     }
+    drop(harness);
 
     let builder = PrometheusBuilder::new()
         .with_http_listener(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9326));
