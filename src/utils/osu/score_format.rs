@@ -173,7 +173,7 @@ pub fn format_new_score(
     list_position: Option<&usize>,
 ) -> Result<String, Error> {
     Ok(format!(
-        "{}```ansi\n{}```",
+        "{}\n```ansi\n{}```",
         format_score_info(
             score,
             beatmap,

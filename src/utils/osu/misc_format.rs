@@ -250,7 +250,7 @@ pub fn fmt_with_settings(mods: &GameMods) -> Result<String, Error> {
                         );
                     }
                 }
-                _ => formatted.push(acronym.to_string()),
+                _ => formatted.push(acronym.clone()),
             }
         }
     }
