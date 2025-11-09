@@ -65,5 +65,9 @@ pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<Calcul
         max_pp: None,
         max_combo: full_calc.max_combo(),
         clock_rate: diff_attributes.clock_rate,
+        ar: Some(diff_attributes.ar),
+        cs: Some(diff_attributes.cs),
+        hp: Some(diff_attributes.hp),
+        od: Some(diff_attributes.od),
     })
 }

@@ -90,6 +90,10 @@ pub fn calculate_std_pp(
         max_pp: Some(potential_result?),
         max_combo: full_calc.max_combo(),
         clock_rate: diff_attributes.clock_rate,
+        od: Some(diff_attributes.od),
+        ar: Some(diff_attributes.ar),
+        hp: Some(diff_attributes.hp),
+        cs: Some(diff_attributes.cs),
     })
 }
 

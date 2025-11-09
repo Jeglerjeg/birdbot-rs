@@ -61,5 +61,9 @@ pub fn calculate_taiko_pp(file: &[u8], score_state: TaikoScore) -> Result<Calcul
         max_pp: None,
         max_combo: full_calc.max_combo(),
         clock_rate: diff_attributes.clock_rate,
+        od: Some(diff_attributes.od),
+        hp: Some(diff_attributes.hp),
+        ar: None,
+        cs: None,
     })
 }
