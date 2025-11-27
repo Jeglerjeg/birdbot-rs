@@ -27,7 +27,7 @@ pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Err
         max_diff_length.clone_into(&mut diff_length);
     } else if diff_length < 10 {
         diff_length = 10;
-    };
+    }
 
     let mut formatted_beatmaps = format!(
         "```elm\n{:<diff_length$}  Drain  BPM  PP     SR",
@@ -205,7 +205,7 @@ pub fn format_map_status(
         format_single_beatmap(
             beatmapset_and_beatmap
                 .1
-                .get(0)
+                .first()
                 .ok_or("Failed to get first beatmap in format_map_status")?,
         )?
     };

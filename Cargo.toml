@@ -12,14 +12,14 @@ rand = "0.9"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 chrono = "0.4"
-diesel_migrations = "2.2"
+diesel_migrations = "2.3"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "448fe602cfa5deff6206a5847a35b8c01a517ed3", features = ["metrics"] }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "a5c8b58d4db3c1d090d68c2ea903511bda538bad", features = ["metrics"] }
 num-format = "0.4"
 time = "0.3"
 dashmap = "7.0.0-rc2"
 rosu-pp = "3.1"
-regex = "1.11"
+regex = "1.12"
 url = "2.5"
 diesel = { version = "2.3", features = ["chrono"] }
 diesel-async = { version = "0.7", features = ["postgres", "mobc", "migrations"] }
