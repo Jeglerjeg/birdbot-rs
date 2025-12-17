@@ -7,7 +7,7 @@ use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::misc::gamemode_from_string;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_mode_abbreviation};
 use poise::serenity_prelude::{Color, CreateEmbed, CreateEmbedAuthor};
-use std::collections::HashMap;
+use foldhash::{HashMap, HashMapExt};
 use std::env;
 use std::fmt::Write as _;
 use std::sync::OnceLock;

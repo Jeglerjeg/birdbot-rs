@@ -38,8 +38,9 @@ aformat = "0.1"
 to-arraystring = { version = "0.2", features = ["nonzero_impls"] }
 tokio-tungstenite = "0.28"
 futures-util = "0.3"
-metrics-exporter-prometheus = "0.17"
+metrics-exporter-prometheus = "0.18"
 rustls = "0.23"
+foldhash = "0.2"
 
 [dependencies.tokio]
 version = "1.48"

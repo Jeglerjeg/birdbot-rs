@@ -9,7 +9,7 @@ use poise::serenity_prelude::{
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{Event, EventContext, EventHandler as VoiceEventHandler, Songbird, TrackEvent};
-use std::collections::HashMap;
+use foldhash::{HashMap, HashMapExt};
 use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
