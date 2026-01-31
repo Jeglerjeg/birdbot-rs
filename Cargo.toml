@@ -28,7 +28,7 @@ markov = "1.1"
 tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"] }
 itertools = "0.14"
-resvg = "0.45"
+resvg = "0.46"
 svg = "0.18"
 base64 = "0.22"
 color_space = "0.5"
@@ -43,7 +43,7 @@ rustls = "0.23"
 foldhash = "0.2"
 
 [dependencies.tokio]
-version = "1.48"
+version = "1.49"
 features = ["full"]
 
 [dependencies.reqwest]
