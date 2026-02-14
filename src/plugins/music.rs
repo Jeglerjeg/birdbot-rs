@@ -2,6 +2,7 @@ use crate::utils::misc::get_guild_channel;
 use crate::{Context, Data, Error};
 use aformat::aformat;
 use dashmap::DashMap;
+use foldhash::{HashMap, HashMapExt};
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     ChannelId, CreateEmbed, CreateMessage, GenericChannelId, GuildId, Http, User, async_trait,
@@ -9,7 +10,6 @@ use poise::serenity_prelude::{
 use songbird::input::{AuxMetadata, Compose, YoutubeDl};
 use songbird::tracks::{PlayMode, Track};
 use songbird::{Event, EventContext, EventHandler as VoiceEventHandler, Songbird, TrackEvent};
-use foldhash::{HashMap, HashMapExt};
 use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;

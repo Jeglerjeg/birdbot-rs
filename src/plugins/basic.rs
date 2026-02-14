@@ -6,7 +6,7 @@ use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::small_fixed_array::FixedString;
 use poise::serenity_prelude::{Colour, CreateEmbed, User};
 use poise::{Command, ContextMenuCommandAction, CreateReply, PartialContext};
-use rand::Rng;
+use rand::RngExt;
 use std::fmt::Write;
 use std::time::Instant;
 use std::writeln;

@@ -251,7 +251,7 @@ pub async fn wyr(
 
         let choices = [choice_1, choice_2];
 
-        let choice: Vec<_> = choices.choose_multiple(&mut rand::rng(), 1).collect();
+        let choice: Vec<_> = choices.sample(&mut rand::rng(), 1).collect();
 
         ctx.say(format!("I would {}!", choice[0])).await?;
     } else {
