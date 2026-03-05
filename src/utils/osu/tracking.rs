@@ -96,6 +96,18 @@ impl OsuTracker {
         };
 
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id).await {
+            if (Utc::now() - profile.time_cached).num_hours()  > 24 {
+                info!("Updating stale profile data");
+                add_profile_data(
+                    self.osu_client.clone(),
+                    u32::try_from(linked_profile.osu_id)?,
+                    gamemode_from_string(&linked_profile.mode)
+                        .ok_or("Failed to parse gamemode in update_user_data function")?,
+                    connection,
+                )
+                    .await?;
+            }
+
             profile.ticks += 1;
 
             let not_playing_skip = NOT_PLAYING_SKIP
