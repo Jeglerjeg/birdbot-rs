@@ -14,7 +14,7 @@ tracing-appender = "0.2"
 chrono = "0.4"
 diesel_migrations = "2.3"
 serde = "1.0"
-rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "a5c8b58d4db3c1d090d68c2ea903511bda538bad", features = ["metrics"] }
+rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "b76273633e8dd9ef21019b7331f0503f43a96349", features = ["metrics"] }
 num-format = "0.4"
 time = "0.3"
 dashmap = "7.0.0-rc2"
