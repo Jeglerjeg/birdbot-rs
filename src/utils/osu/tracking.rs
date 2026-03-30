@@ -27,6 +27,7 @@ use poise::serenity_prelude::{
 use rosu_v2::Osu;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, RankStatus};
+use std::cmp::Ordering;
 use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -366,16 +367,20 @@ impl OsuTracker {
     ) -> Result<(), Error> {
         let mut embed = CreateEmbed::new();
 
-        let description = if beatmapset.1.len() > 1 {
-            format!("{}\n{}", status, format_beatmapset(beatmapset.1)?)
-        } else if beatmapset.1.len() == 1 {
-            format!(
-                "{}\n{}",
-                status,
-                format_single_beatmap(beatmapset.1.first().ok_or("Failed to get beatmapset")?)?
-            )
-        } else {
-            return Ok(());
+        let description = match beatmapset.1.len().cmp(&1) {
+            Ordering::Less => {
+                return Ok(());
+            }
+            Ordering::Equal => {
+                format!(
+                    "{}\n{}",
+                    status,
+                    format_single_beatmap(beatmapset.1.first().ok_or("Failed to get beatmapset")?)?
+                )
+            }
+            Ordering::Greater => {
+                format!("{}\n{}", status, format_beatmapset(beatmapset.1)?)
+            }
         };
 
         embed = embed.image(beatmapset.0.cover).description(description);
