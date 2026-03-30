@@ -8,7 +8,7 @@ use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notification
 use crate::utils::osu::caching::{get_beatmap, get_updated_beatmapset};
 use crate::utils::osu::calculate::calculate;
 use crate::utils::osu::embeds::create_embed;
-use crate::utils::osu::map_format::format_beatmapset;
+use crate::utils::osu::map_format::{format_beatmapset, format_single_beatmap};
 use crate::utils::osu::misc::{
     add_profile_data, calculate_potential_acc, gamemode_from_string, get_osu_user, is_playing,
 };
@@ -366,7 +366,17 @@ impl OsuTracker {
     ) -> Result<(), Error> {
         let mut embed = CreateEmbed::new();
 
-        let description = format!("{}\n{}", status, format_beatmapset(beatmapset.1)?);
+        let description = if beatmapset.1.len() > 1 {
+            format!("{}\n{}", status, format_beatmapset(beatmapset.1)?)
+        } else if beatmapset.1.len() == 1 {
+            format!(
+                "{}\n{}",
+                status,
+                format_single_beatmap(beatmapset.1.first().ok_or("Failed to get beatmapset")?)?
+            )
+        } else {
+            return Ok(());
+        };
 
         embed = embed.image(beatmapset.0.cover).description(description);
 
