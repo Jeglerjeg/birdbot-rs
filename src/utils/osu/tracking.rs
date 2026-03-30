@@ -96,7 +96,7 @@ impl OsuTracker {
         };
 
         if let Ok(mut profile) = osu_users::read(connection, linked_profile.osu_id).await {
-            if (Utc::now() - profile.time_cached).num_hours()  > 24 {
+            if (Utc::now() - profile.time_cached).num_hours() > 24 {
                 add_profile_data(
                     self.osu_client.clone(),
                     u32::try_from(linked_profile.osu_id)?,
@@ -104,8 +104,8 @@ impl OsuTracker {
                         .ok_or("Failed to parse gamemode in update_user_data function")?,
                     connection,
                 )
-                    .await?;
-                return Ok(())
+                .await?;
+                return Ok(());
             }
 
             profile.ticks += 1;

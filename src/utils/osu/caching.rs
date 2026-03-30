@@ -23,11 +23,7 @@ pub async fn cache_beatmapset(
             beatmaps_to_insert.push(beatmap);
             beatmap_ids.push(i64::from(beatmap.map_id));
         }
-        let existing_osu_files = osu_file::get_files(connection, &beatmap_ids).await?;
         for id in beatmap_ids {
-            if existing_osu_files.iter().any(|file| file.id == id) {
-                continue;
-            }
             let response = reqwest::get(format!("https://osu.ppy.sh/osu/{id}"))
                 .await?
                 .bytes()
