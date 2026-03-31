@@ -16,6 +16,7 @@ use rosu_v2::prelude::Osu;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use tracing::{error, info};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
@@ -27,6 +28,8 @@ pub struct Data {
     http_client: reqwest::Client,
     songbird: Arc<songbird::Songbird>,
 }
+
+pub static STARTED: AtomicBool = AtomicBool::new(false);
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -42,44 +45,47 @@ impl EventHandler for Handler {
         match event {
             FullEvent::Ready { data_about_bot, .. } => {
                 info!("{} is connected!", data_about_bot.user.name);
-                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                if !STARTED.load(std::sync::atomic::Ordering::Relaxed) {
+                    STARTED.store(true, std::sync::atomic::Ordering::Relaxed);
+                    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
-                let mut osu_tracker = OsuTracker {
-                    cache: ctx.cache.clone(),
-                    http: ctx.http.clone(),
-                    osu_client: ctx.data::<Data>().osu_client.clone(),
-                    pool: ctx.data::<Data>().db_pool.clone(),
-                };
+                    let mut osu_tracker = OsuTracker {
+                        cache: ctx.cache.clone(),
+                        http: ctx.http.clone(),
+                        osu_client: ctx.data::<Data>().osu_client.clone(),
+                        pool: ctx.data::<Data>().db_pool.clone(),
+                    };
 
-                tokio::spawn(async move {
-                    match osu_tracker.tracking_loop().await {
-                        Ok(()) => {}
-                        Err(why) => error!("{why}"),
-                    }
-                });
+                    tokio::spawn(async move {
+                        match osu_tracker.tracking_loop().await {
+                            Ok(()) => {}
+                            Err(why) => error!("{why}"),
+                        }
+                    });
 
-                let mut scores_ws = ScoresWs {
-                    cache: ctx.cache.clone(),
-                    http: ctx.http.clone(),
-                    osu_client: ctx.data::<Data>().osu_client.clone(),
-                    pool: ctx.data::<Data>().db_pool.clone(),
-                };
+                    let mut scores_ws = ScoresWs {
+                        cache: ctx.cache.clone(),
+                        http: ctx.http.clone(),
+                        osu_client: ctx.data::<Data>().osu_client.clone(),
+                        pool: ctx.data::<Data>().db_pool.clone(),
+                    };
 
-                tokio::spawn(async move {
-                    match scores_ws.connect_websocket().await {
-                        Ok(()) => {}
-                        Err(why) => error!("{why}"),
-                    }
-                });
+                    tokio::spawn(async move {
+                        match scores_ws.connect_websocket().await {
+                            Ok(()) => {}
+                            Err(why) => error!("{why}"),
+                        }
+                    });
 
-                let cloned_ctx = ctx.clone();
-                tokio::spawn(async move {
-                    tokio::signal::ctrl_c()
-                        .await
-                        .expect("Could not register ctrl+c handler");
+                    let cloned_ctx = ctx.clone();
+                    tokio::spawn(async move {
+                        tokio::signal::ctrl_c()
+                            .await
+                            .expect("Could not register ctrl+c handler");
 
-                    cloned_ctx.shutdown_all();
-                });
+                        cloned_ctx.shutdown_all();
+                    });
+                }
             }
             FullEvent::CacheReady { guilds, .. } => {
                 info!("Cache ready: {} guilds cached.", guilds.len());
