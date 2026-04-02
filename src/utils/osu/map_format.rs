@@ -14,16 +14,20 @@ use std::sync::OnceLock;
 
 static MAX_DIFF_LENGTH: OnceLock<usize> = OnceLock::new();
 
-pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Error> {
-    let mut diff_length = beatmap.0.version.len();
-    let max_diff_length = MAX_DIFF_LENGTH.get_or_init(|| {
+fn get_max_diff_length() -> usize {
+    MAX_DIFF_LENGTH.get_or_init(|| {
         env::var("MAX_DIFF_LENGTH")
             .unwrap_or_else(|_| String::from("18"))
             .parse::<usize>()
             .expect("Failed to parse max diff length.")
-    });
+    }).to_owned()
+}
 
-    if &diff_length > max_diff_length {
+pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Error> {
+    let mut diff_length = beatmap.0.version.len();
+    let max_diff_length = get_max_diff_length();
+
+    if diff_length > max_diff_length {
         max_diff_length.clone_into(&mut diff_length);
     } else if diff_length < 10 {
         diff_length = 10;
@@ -37,7 +41,7 @@ pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Err
     let length = (beatmap.0.drain / 60, beatmap.0.drain % 60);
     let formatted_length = format!("{}:{:02}", length.0, length.1);
 
-    let diff_name = if &beatmap.0.version.len() < max_diff_length {
+    let diff_name = if beatmap.0.version.len() < max_diff_length {
         &beatmap.0.version
     } else {
         let chars = beatmap.0.version.chars();
@@ -108,12 +112,7 @@ pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Err
 
 pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String, Error> {
     let mut diff_length = 0;
-    let max_diff_length = MAX_DIFF_LENGTH.get_or_init(|| {
-        env::var("MAX_DIFF_LENGTH")
-            .unwrap_or_else(|_| String::from("18"))
-            .parse::<usize>()
-            .expect("Failed to parse max diff length.")
-    });
+    let max_diff_length = get_max_diff_length();
     let mut calculated_beatmaps = HashMap::new();
     for (beatmap, osu_file) in &beatmaps {
         if beatmap.version.len() > diff_length {
@@ -122,7 +121,7 @@ pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String
         let difficulty_values = calculate(None, beatmap, osu_file, None)?;
         calculated_beatmaps.insert(beatmap.id, difficulty_values);
     }
-    if &diff_length > max_diff_length {
+    if diff_length > max_diff_length {
         max_diff_length.clone_into(&mut diff_length);
     } else if diff_length < 10 {
         diff_length = 10;
@@ -152,7 +151,7 @@ pub fn format_beatmapset(mut beatmaps: Vec<(Beatmap, OsuFile)>) -> Result<String
             .get(&beatmap.id)
             .ok_or("Couldn't get beatmap difficulty values in format_beatmapset")?;
 
-        let diff_name = if &beatmap.version.len() < max_diff_length {
+        let diff_name = if beatmap.version.len() < max_diff_length {
             beatmap.version
         } else {
             let chars = beatmap.version.chars();
