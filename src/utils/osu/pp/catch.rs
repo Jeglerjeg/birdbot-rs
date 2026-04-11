@@ -10,12 +10,14 @@ pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<Calcul
 
     let (mut result, diff_attributes, full_difficulty) = if score_state.passed {
         let difficulty = CatchPerformance::from(&map).mods(score_state.mods.clone());
-        let diff_attributes = map.attributes().mods(score_state.mods);
 
-        (difficulty, diff_attributes.build(), None)
+        (
+            difficulty,
+            map.attributes().mods(score_state.mods).build(),
+            None,
+        )
     } else {
         let mut difficulty = CatchPerformance::from(&map).mods(score_state.mods.clone());
-        let diff_attributes = map.attributes().mods(score_state.mods);
 
         let full_difficulty = difficulty.clone().calculate()?;
 
@@ -23,7 +25,11 @@ pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<Calcul
             difficulty = difficulty.passed_objects(passed_objects);
         }
 
-        (difficulty, diff_attributes.build(), Some(full_difficulty))
+        (
+            difficulty,
+            map.attributes().clone().mods(score_state.mods).build(),
+            Some(full_difficulty),
+        )
     };
 
     if let Some(combo) = score_state.combo {
@@ -64,10 +70,10 @@ pub fn calculate_catch_pp(file: &[u8], score_state: CatchScore) -> Result<Calcul
         pp: result.pp,
         max_pp: None,
         max_combo: full_calc.max_combo(),
-        clock_rate: diff_attributes.clock_rate,
-        ar: Some(diff_attributes.ar),
-        cs: Some(diff_attributes.cs),
-        hp: Some(diff_attributes.hp),
-        od: Some(diff_attributes.od),
+        clock_rate: diff_attributes.clock_rate(),
+        ar: Some(diff_attributes.ar()),
+        cs: Some(diff_attributes.cs()),
+        hp: Some(diff_attributes.hp()),
+        od: Some(diff_attributes.od()),
     })
 }

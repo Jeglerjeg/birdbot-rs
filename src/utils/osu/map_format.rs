@@ -72,8 +72,8 @@ pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Err
                 beatmap.0.bpm,
                 formatted_pp,
                 formatted_stars,
-                remove_trailing_zeros(difficulty_values.od.unwrap_or(0.0), 2)?,
-                remove_trailing_zeros(difficulty_values.hp.unwrap_or(0.0), 2)?,
+                remove_trailing_zeros(difficulty_values.od.unwrap_or(0.0).into(), 2)?,
+                remove_trailing_zeros(difficulty_values.hp.unwrap_or(0.0).into(), 2)?,
                 formatted_combo,
                 format_mode_abbreviation(
                     gamemode_from_string(&beatmap.0.mode)
@@ -92,10 +92,10 @@ pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Err
                 beatmap.0.bpm,
                 formatted_pp,
                 formatted_stars,
-                remove_trailing_zeros(difficulty_values.od.unwrap_or(0.0), 2)?,
-                remove_trailing_zeros(difficulty_values.cs.unwrap_or(0.0), 2)?,
-                remove_trailing_zeros(difficulty_values.ar.unwrap_or(0.0), 2)?,
-                remove_trailing_zeros(difficulty_values.hp.unwrap_or(0.0), 2)?,
+                remove_trailing_zeros(difficulty_values.od.unwrap_or(0.0).into(), 2)?,
+                remove_trailing_zeros(difficulty_values.cs.unwrap_or(0.0).into(), 2)?,
+                remove_trailing_zeros(difficulty_values.ar.unwrap_or(0.0).into(), 2)?,
+                remove_trailing_zeros(difficulty_values.hp.unwrap_or(0.0).into(), 2)?,
                 formatted_combo,
                 format_mode_abbreviation(
                     gamemode_from_string(&beatmap.0.mode)

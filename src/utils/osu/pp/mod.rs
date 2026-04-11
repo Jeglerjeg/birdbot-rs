@@ -12,10 +12,10 @@ pub struct CalculateResults {
     pub max_pp: Option<f64>,
     pub max_combo: u32,
     pub clock_rate: f64,
-    pub od: Option<f64>,
-    pub hp: Option<f64>,
-    pub ar: Option<f64>,
-    pub cs: Option<f64>,
+    pub od: Option<f32>,
+    pub hp: Option<f32>,
+    pub ar: Option<f32>,
+    pub cs: Option<f32>,
 }
 
 pub struct StandardScore {

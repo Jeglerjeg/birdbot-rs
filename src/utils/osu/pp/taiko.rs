@@ -10,12 +10,14 @@ pub fn calculate_taiko_pp(file: &[u8], score_state: TaikoScore) -> Result<Calcul
 
     let (mut result, diff_attributes, full_difficulty) = if score_state.passed {
         let difficulty = TaikoPerformance::from(&map).mods(score_state.mods.clone());
-        let diff_attributes = map.attributes().mods(score_state.mods);
 
-        (difficulty, diff_attributes.build(), None)
+        (
+            difficulty,
+            map.attributes().mods(score_state.mods).build(),
+            None,
+        )
     } else {
         let mut difficulty = TaikoPerformance::from(&map).mods(score_state.mods.clone());
-        let diff_attributes = map.attributes().mods(score_state.mods);
 
         let full_difficulty = difficulty.clone().calculate()?;
 
@@ -23,7 +25,11 @@ pub fn calculate_taiko_pp(file: &[u8], score_state: TaikoScore) -> Result<Calcul
             difficulty = difficulty.passed_objects(passed_objects);
         }
 
-        (difficulty, diff_attributes.build(), Some(full_difficulty))
+        (
+            difficulty,
+            map.attributes().mods(score_state.mods).build(),
+            Some(full_difficulty),
+        )
     };
 
     if let Some(combo) = score_state.combo {
@@ -60,9 +66,9 @@ pub fn calculate_taiko_pp(file: &[u8], score_state: TaikoScore) -> Result<Calcul
         pp: result.pp,
         max_pp: None,
         max_combo: full_calc.max_combo(),
-        clock_rate: diff_attributes.clock_rate,
-        od: Some(diff_attributes.od),
-        hp: Some(diff_attributes.hp),
+        clock_rate: diff_attributes.clock_rate(),
+        od: Some(diff_attributes.od()),
+        hp: Some(diff_attributes.hp()),
         ar: None,
         cs: None,
     })

@@ -15,14 +15,16 @@ pub fn calculate_std_pp(
         let difficulty = OsuPerformance::from(&map)
             .mods(score_state.mods.clone())
             .lazer(score_state.lazer);
-        let diff_attributes = map.attributes().mods(score_state.mods.clone());
 
-        (difficulty, diff_attributes.build(), None)
+        (
+            difficulty,
+            map.attributes().mods(score_state.mods.clone()).build(),
+            None,
+        )
     } else {
         let mut difficulty = OsuPerformance::from(&map)
             .mods(score_state.mods.clone())
             .lazer(score_state.lazer);
-        let diff_attributes = map.attributes().mods(score_state.mods.clone());
 
         let full_difficulty = difficulty.clone().calculate()?;
 
@@ -30,7 +32,11 @@ pub fn calculate_std_pp(
             difficulty = difficulty.passed_objects(passed_objects);
         }
 
-        (difficulty, diff_attributes.build(), Some(full_difficulty))
+        (
+            difficulty,
+            map.attributes().mods(score_state.mods.clone()).build(),
+            Some(full_difficulty),
+        )
     };
 
     if let Some(combo) = score_state.combo {
@@ -89,11 +95,11 @@ pub fn calculate_std_pp(
         pp: result.pp,
         max_pp: Some(potential_result?),
         max_combo: full_calc.max_combo(),
-        clock_rate: diff_attributes.clock_rate,
-        od: Some(diff_attributes.od),
-        ar: Some(diff_attributes.ar),
-        hp: Some(diff_attributes.hp),
-        cs: Some(diff_attributes.cs),
+        clock_rate: diff_attributes.clock_rate(),
+        od: Some(diff_attributes.od()),
+        ar: Some(diff_attributes.ar()),
+        hp: Some(diff_attributes.hp()),
+        cs: Some(diff_attributes.cs()),
     })
 }
 

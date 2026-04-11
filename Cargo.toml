@@ -18,7 +18,7 @@ rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "520b2a5592bace5db4
 num-format = "0.4"
 time = "0.3"
 dashmap = "7.0.0-rc2"
-rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "f5821786819bb9849ca0e0bdff669c1a1ea1fbd0"}
+rosu-pp = "4.0"
 regex = "1.12"
 url = "2.5"
 diesel = { version = "2.3", features = ["chrono"] }
@@ -43,7 +43,7 @@ rustls = "0.23"
 foldhash = "0.2"
 
 [dependencies.tokio]
-version = "1.50"
+version = "1.51"
 features = ["full"]
 
 [dependencies.reqwest]
@@ -61,7 +61,7 @@ features = ["all-codecs"]
 
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
-rev = "874160875559d47743a1579f8c9dce2efa83dc25"
+rev = "3fe7289956c978f39d3fa49483f3148fc720f394"
 features = ["builtin-queue"]
 
 [dependencies.serenity]
