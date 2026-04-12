@@ -27,8 +27,10 @@ use rosu_v2::Osu;
 use rosu_v2::prelude::Score;
 use std::env;
 use std::sync::{Arc, LazyLock};
+use std::time::Duration;
+use tokio::time::sleep;
 use tokio_tungstenite::tungstenite::Message;
-use tracing::error;
+use tracing::{error, info};
 
 pub static TRACKED_USERS: LazyLock<DashMap<i64, Vec<i64>>> = LazyLock::new(DashMap::new);
 
@@ -104,9 +106,23 @@ impl ScoresWs {
         init_tracked_users(&mut connection).await?;
         drop(connection);
 
+        loop {
+            info!("Attempting to connect to scores websocket...");
+            if let Err(e) = self.run_connection().await {
+                error!(
+                    "WebSocket connection error: {}. Retrying in 5 seconds...",
+                    e
+                );
+                sleep(Duration::from_secs(15)).await;
+            }
+        }
+    }
+
+    pub async fn run_connection(&mut self) -> Result<(), Error> {
         let url = &*WS_URL;
 
         let (ws_stream, _) = tokio_tungstenite::connect_async(url).await?;
+        info!("Successfully connected to scores-ws WebSocket");
 
         let (mut write, mut read) = ws_stream.split();
 
@@ -114,7 +130,7 @@ impl ScoresWs {
 
         self.process_scores(&mut read).await;
 
-        Ok(())
+        Err(Error::from("WebSocket stream closed"))
     }
 
     async fn get_osu_user(

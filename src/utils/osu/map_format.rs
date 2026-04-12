@@ -15,12 +15,14 @@ use std::sync::OnceLock;
 static MAX_DIFF_LENGTH: OnceLock<usize> = OnceLock::new();
 
 fn get_max_diff_length() -> usize {
-    MAX_DIFF_LENGTH.get_or_init(|| {
-        env::var("MAX_DIFF_LENGTH")
-            .unwrap_or_else(|_| String::from("18"))
-            .parse::<usize>()
-            .expect("Failed to parse max diff length.")
-    }).to_owned()
+    MAX_DIFF_LENGTH
+        .get_or_init(|| {
+            env::var("MAX_DIFF_LENGTH")
+                .unwrap_or_else(|_| String::from("18"))
+                .parse::<usize>()
+                .expect("Failed to parse max diff length.")
+        })
+        .to_owned()
 }
 
 pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Error> {
