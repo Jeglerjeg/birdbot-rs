@@ -71,6 +71,8 @@ default-features = false
 features = ["builder", "framework", "cache", "gateway", "http", "model", "utils", "rustls_backend", "voice",
     "transport_compression_zlib", "transport_compression_zstd"]
 
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.6"
 
 [profile.dev]
 lto = "off"

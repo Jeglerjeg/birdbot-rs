@@ -19,6 +19,13 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tracing::{error, info};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 pub struct Data {
