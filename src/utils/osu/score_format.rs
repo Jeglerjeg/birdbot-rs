@@ -7,7 +7,7 @@ use crate::utils::osu::misc_format::{fmt_with_settings, format_beatmap_link, for
 use crate::utils::osu::pp::CalculateResults;
 use num_format::{Locale, ToFormattedString};
 use rosu_v2::model::GameMode;
-use rosu_v2::prelude::Score;
+use rosu_v2::prelude::{Grade, Score};
 use std::cmp;
 
 pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<String, Error> {
@@ -121,11 +121,7 @@ pub fn format_score_info(
         },
     };
 
-    let grade = if &score.grade.to_string() != "F" && !score.passed {
-        format!("{} (Failed)", score.grade)
-    } else {
-        score.grade.to_string()
-    };
+    let grade = get_grade_string(score.grade, score.passed);
 
     let list_position = if let Some(list_position) = list_position {
         format!("{list_position}. ")
@@ -187,10 +183,74 @@ pub fn format_new_score(
     ))
 }
 
+pub fn format_minimal_score(
+    score: &Score,
+    beatmap: &Beatmap,
+    beatmapset: &Beatmapset,
+    pp: &CalculateResults,
+    with_title: bool,
+    scoreboard_rank: Option<&usize>,
+    list_position: Option<&usize>,
+) -> Result<String, Error> {
+    let list_position = if let Some(list_position) = list_position {
+        format!("{list_position}. ")
+    } else {
+        String::new()
+    };
+
+    let scoreboard_rank = match score.rank_global {
+        Some(rank) => format!("#{rank} "),
+        _ => match scoreboard_rank {
+            Some(rank) => format!("#{rank} "),
+            _ => String::new(),
+        },
+    };
+
+    let score_pp = match score.pp {
+        Some(api_pp) => f64::from(api_pp),
+        _ => pp.pp,
+    };
+
+    let grade = get_grade_string(score.grade, score.passed);
+
+    let accuracy_string = format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?);
+
+    let title = if with_title {
+        format!(
+            "[{list_position}*{artist} - {title} [{version}]*]({url})\n",
+            url = format_beatmap_link(
+                Some(beatmap.id),
+                beatmapset.id,
+                Some(&score.mode.to_string())
+            ),
+            artist = beatmapset.artist,
+            title = beatmapset.title.replace('*', "\\*").replace('_', "\\_"), // Fixed .artist to .title here
+            version = beatmap.version,
+        )
+    } else {
+        String::new()
+    };
+
+    Ok(format!(
+        "{title}\
+     **{score_pp}pp {stars}\u{2605}, {maxcombo}/{max_combo} {rank} {acc} {scoreboard_rank}+{mods}**\n",
+        title = title,
+        mods = score.mods,
+        acc = accuracy_string,
+        maxcombo = score.max_combo,
+        max_combo = pp.max_combo,
+        rank = grade,
+        stars = remove_trailing_zeros(pp.total_stars, 2)?,
+        scoreboard_rank = scoreboard_rank,
+        score_pp = remove_trailing_zeros(score_pp, 2)?
+    ))
+}
+
 pub fn format_score_list(
     scores: &[(Score, usize, Beatmap, Beatmapset, CalculateResults)],
     limit: Option<usize>,
     offset: Option<usize>,
+    minimal_formatting: bool,
 ) -> Result<String, Error> {
     let offset = offset.unwrap_or(0);
     let limit = limit.unwrap_or(5);
@@ -211,8 +271,11 @@ pub fn format_score_list(
             format!("\n{formatted_footer}")
         };
 
-        let formatted_score =
-            format_new_score(score, beatmap, beatmapset, pp, true, None, Some(position))?;
+        let formatted_score = if minimal_formatting {
+            format_minimal_score(score, beatmap, beatmapset, pp, true, None, Some(position))?
+        } else {
+            format_new_score(score, beatmap, beatmapset, pp, true, None, Some(position))?
+        };
 
         formatted_list.push(format!(
             "{}<t:{}:R>{}\n",
@@ -223,4 +286,12 @@ pub fn format_score_list(
     }
 
     Ok(formatted_list.join("\n"))
+}
+
+fn get_grade_string(grade: Grade, passed: bool) -> String {
+    if grade.to_string() != "F" && !passed {
+        format!("{grade} (Failed)")
+    } else {
+        grade.to_string()
+    }
 }

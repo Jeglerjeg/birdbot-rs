@@ -1,9 +1,10 @@
 use crate::models::beatmaps::Beatmap;
 use crate::models::beatmapsets::Beatmapset;
+use crate::utils::db::linked_osu_profiles;
 use crate::utils::osu::misc::count_score_pages;
 use crate::utils::osu::misc_format::{format_beatmap_link, format_footer, format_user_link};
 use crate::utils::osu::pp::CalculateResults;
-use crate::utils::osu::score_format::format_score_list;
+use crate::utils::osu::score_format::{format_minimal_score, format_score_list};
 use crate::{Context, Error};
 use poise::serenity_prelude::CreateInteractionResponse::UpdateMessage;
 use poise::serenity_prelude::model::colour::colours::roles::BLUE;
@@ -59,18 +60,31 @@ pub async fn send_score_embed(
     score: (&Score, &Beatmap, &Beatmapset, &CalculateResults),
     user: UserExtended,
     scoreboard_rank: Option<&usize>,
+    minimal: bool,
 ) -> Result<(), Error> {
     let footer = format_footer(score.0, score.1, score.3)?;
 
-    let formatted_score = crate::utils::osu::score_format::format_new_score(
-        score.0,
-        score.1,
-        score.2,
-        score.3,
-        false,
-        scoreboard_rank,
-        None,
-    )?;
+    let formatted_score = if minimal {
+        format_minimal_score(
+            score.0,
+            score.1,
+            score.2,
+            score.3,
+            false,
+            scoreboard_rank,
+            None,
+        )?
+    } else {
+        crate::utils::osu::score_format::format_new_score(
+            score.0,
+            score.1,
+            score.2,
+            score.3,
+            false,
+            scoreboard_rank,
+            None,
+        )?
+    };
 
     let color = match ctx.author_member().await {
         None => BLUE,
@@ -126,7 +140,17 @@ pub async fn send_scores_embed(
         Some(member) => member.colour(ctx.cache()).unwrap_or(BLUE),
     };
 
-    let formatted_scores = format_score_list(&best_scores, None, None)?;
+    let connection = &mut ctx.data().db_pool.get().await?;
+
+    let minimal_formatting = if let Ok(profile) =
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await
+    {
+        profile.minimal_formatting
+    } else {
+        false
+    };
+
+    let formatted_scores = format_score_list(&best_scores, None, None, minimal_formatting)?;
 
     let user_link = format_user_link(i64::from(user.user_id));
 
@@ -159,9 +183,16 @@ pub async fn send_scores_embed(
 
         let reply = ctx.send(builder).await?;
 
-        TopScorePaginator::new(ctx, reply, best_scores, color, user.clone())
-            .handle_interactions()
-            .await?;
+        TopScorePaginator::new(
+            ctx,
+            reply,
+            best_scores,
+            color,
+            user.clone(),
+            minimal_formatting,
+        )
+        .handle_interactions()
+        .await?;
     } else {
         let builder = CreateReply::default().embed(embed);
 
@@ -180,6 +211,7 @@ struct TopScorePaginator<'a> {
     page: usize,
     offset: usize,
     max_pages: usize,
+    minimal_formatting: bool,
 }
 
 impl TopScorePaginator<'_> {
@@ -189,6 +221,7 @@ impl TopScorePaginator<'_> {
         best_scores: Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)>,
         color: Colour,
         user: UserExtended,
+        mimimal_formatting: bool,
     ) -> TopScorePaginator<'a> {
         let max_pages = count_score_pages(best_scores.len(), 5);
         TopScorePaginator {
@@ -200,6 +233,7 @@ impl TopScorePaginator<'_> {
             page: 1,
             offset: 0,
             max_pages,
+            minimal_formatting: mimimal_formatting,
         }
     }
 
@@ -248,7 +282,12 @@ impl TopScorePaginator<'_> {
     }
 
     async fn update_page(&self, interaction: &ComponentInteraction) -> Result<(), Error> {
-        let formatted_scores = format_score_list(&self.best_scores, None, Some(self.offset))?;
+        let formatted_scores = format_score_list(
+            &self.best_scores,
+            None,
+            Some(self.offset),
+            self.minimal_formatting,
+        )?;
 
         let footer = format!("Page {} of {}", self.page, self.max_pages);
 
@@ -276,7 +315,12 @@ impl TopScorePaginator<'_> {
     }
 
     async fn stop_paginator(&self) -> Result<(), Error> {
-        let formatted_scores = format_score_list(&self.best_scores, None, Some(self.offset))?;
+        let formatted_scores = format_score_list(
+            &self.best_scores,
+            None,
+            Some(self.offset),
+            self.minimal_formatting,
+        )?;
 
         let footer = format!("Page {} of {}", self.page, self.max_pages);
 

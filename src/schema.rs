@@ -59,6 +59,7 @@ diesel::table! {
         home_guild -> Int8,
         #[max_length = 7]
         mode -> Varchar,
+        minimal_formatting -> Bool,
     }
 }
 

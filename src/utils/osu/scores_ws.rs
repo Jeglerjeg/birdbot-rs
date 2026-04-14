@@ -13,7 +13,7 @@ use crate::utils::osu::misc::{
 use crate::utils::osu::misc_format::{
     format_beatmap_link, format_diff, format_footer, format_user_link,
 };
-use crate::utils::osu::score_format::format_new_score;
+use crate::utils::osu::score_format::{format_minimal_score, format_new_score};
 use chrono::{TimeZone, Utc};
 use dashmap::DashMap;
 use diesel_async::AsyncPgConnection;
@@ -367,9 +367,15 @@ impl ScoresWs {
         );
 
         let thumbnail = beatmap.1.list_cover.clone();
+        let score_info = if linked_profile.minimal_formatting {
+            format_minimal_score(&score.0, &beatmap.0, &beatmap.1, &pp, false, None, None)?
+        } else {
+            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, false, None, None)?
+        };
+
         let formatted_score = format!(
             "{}{}\n<t:{}:R>",
-            format_new_score(&score.0, &beatmap.0, &beatmap.1, &pp, false, None, None)?,
+            score_info,
             format_diff(new, old, gamemode)?,
             score.0.ended_at.unix_timestamp()
         );

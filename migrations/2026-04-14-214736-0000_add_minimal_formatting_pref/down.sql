@@ -1,0 +1,1 @@
+ALTER TABLE linked_osu_profiles DROP COLUMN minimal_formatting;

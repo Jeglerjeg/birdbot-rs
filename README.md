@@ -3,9 +3,6 @@
 ### Map formatting:
 - Diff changes during update
 
-### Score formatting:
-- Minimal formatting
-
 ### Tracking:
 - Scoresaber?
 

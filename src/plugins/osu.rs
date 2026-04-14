@@ -48,7 +48,8 @@ use rosu_v2::model::GameMode;
         "score_notifications",
         "map_notifications",
         "delete_guild_config",
-        "debug"
+        "debug",
+        "minimal_formatting"
     )
 )]
 pub async fn osu(
@@ -130,6 +131,7 @@ pub async fn link(
                 .get(),
         )?,
         mode: user.mode.to_string(),
+        minimal_formatting: false,
     };
 
     let notification_item = NewOsuNotification {
@@ -219,7 +221,40 @@ impl From<GameModeChoices> for GameMode {
     }
 }
 
-/// Changed your osu! mode.
+#[poise::command(prefix_command, slash_command, category = "osu!")]
+pub async fn minimal_formatting(
+    ctx: Context<'_>,
+    #[description = "Whether to enable minimal score formatting."] minimal: bool,
+) -> Result<(), Error> {
+    let connection = &mut ctx.data().db_pool.get().await?;
+    let profile =
+        linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await;
+
+    match profile {
+        Ok(profile) => {
+            let query_item = NewLinkedOsuProfile {
+                id: profile.id,
+                osu_id: profile.osu_id,
+                home_guild: profile.home_guild,
+                mode: profile.mode,
+                minimal_formatting: minimal,
+            };
+
+            linked_osu_profiles::update(connection, profile.id, &query_item).await?;
+
+            ctx.say(format!("Changed minimal formatting to {minimal}."))
+                .await?;
+        }
+        Err(_) => {
+            ctx.say(format_missing_user_string(ctx, ctx.author()).await?)
+                .await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Change your osu! mode.
 #[poise::command(
     prefix_command,
     slash_command,
@@ -244,6 +279,7 @@ pub async fn mode(
                 osu_id: profile.osu_id,
                 home_guild: profile.home_guild,
                 mode: mode.to_string(),
+                minimal_formatting: profile.minimal_formatting,
             };
 
             linked_osu_profiles::update(connection, profile.id, &query_item).await?;
@@ -409,6 +445,14 @@ pub async fn score(
             )
             .await?;
 
+            let minimal_formatting = if let Ok(profile) =
+                linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await
+            {
+                profile.minimal_formatting
+            } else {
+                false
+            };
+
             let calculated_results = calculate(
                 Some(&score.score),
                 &beatmap.0,
@@ -421,6 +465,7 @@ pub async fn score(
                 (&score.score, &beatmap.0, &beatmap.1, &calculated_results),
                 osu_user,
                 Some(&score.pos),
+                minimal_formatting,
             )
             .await?;
         }
@@ -578,6 +623,15 @@ pub async fn recent(
                 let beatmap =
                     get_beatmap(connection, ctx.data().osu_client.clone(), score.map_id).await?;
 
+                let minimal_formatting = if let Ok(profile) =
+                    linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?)
+                        .await
+                {
+                    profile.minimal_formatting
+                } else {
+                    false
+                };
+
                 let calculated_results = calculate(
                     Some(score),
                     &beatmap.0,
@@ -590,6 +644,7 @@ pub async fn recent(
                     (score, &beatmap.0, &beatmap.1, &calculated_results),
                     osu_user,
                     None,
+                    minimal_formatting,
                 )
                 .await?;
             }
@@ -644,11 +699,21 @@ pub async fn recent_best(
                 recent_scores = sort_scores(recent_scores, &SortChoices::PP);
                 let score = &recent_scores[0];
 
+                let minimal_formatting = if let Ok(profile) =
+                    linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?)
+                        .await
+                {
+                    profile.minimal_formatting
+                } else {
+                    false
+                };
+
                 send_score_embed(
                     ctx,
                     (&score.0, &score.2, &score.3, &score.4),
                     osu_user,
                     None,
+                    minimal_formatting,
                 )
                 .await?;
             }

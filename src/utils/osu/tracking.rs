@@ -14,7 +14,7 @@ use crate::utils::osu::misc::{
 };
 use crate::utils::osu::misc_format::{format_beatmap_link, format_footer, format_user_link};
 use crate::utils::osu::regex::get_beatmap_info;
-use crate::utils::osu::score_format::format_new_score;
+use crate::utils::osu::score_format::{format_minimal_score, format_new_score};
 use crate::{Error, Pool};
 use chrono::Utc;
 use dashmap::DashMap;
@@ -475,8 +475,17 @@ impl OsuTracker {
 
         let thumbnail = &beatmap.1.list_cover;
 
-        let formatted_score = format!(
-            "{}<t:{}:R>",
+        let score_info = if linked_profile.minimal_formatting {
+            format_minimal_score(
+                &score.score,
+                &beatmap.0,
+                &beatmap.1,
+                &pp,
+                false,
+                Some(&score.pos),
+                None,
+            )?
+        } else {
             format_new_score(
                 &score.score,
                 &beatmap.0,
@@ -484,8 +493,13 @@ impl OsuTracker {
                 &pp,
                 false,
                 Some(&score.pos),
-                None
-            )?,
+                None,
+            )?
+        };
+
+        let formatted_score = format!(
+            "{}<t:{}:R>",
+            score_info,
             score.score.ended_at.unix_timestamp()
         );
 

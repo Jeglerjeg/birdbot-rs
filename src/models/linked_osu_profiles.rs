@@ -9,6 +9,7 @@ pub struct LinkedOsuProfile {
     pub osu_id: i64,
     pub home_guild: i64,
     pub mode: String,
+    pub minimal_formatting: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable, AsChangeset)]
@@ -18,4 +19,5 @@ pub struct NewLinkedOsuProfile {
     pub osu_id: i64,
     pub home_guild: i64,
     pub mode: String,
+    pub minimal_formatting: bool,
 }
