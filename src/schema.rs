@@ -67,6 +67,7 @@ diesel::table! {
     osu_files (id) {
         id -> Int8,
         file -> Bytea,
+        time_cached -> Timestamptz,
     }
 }
 

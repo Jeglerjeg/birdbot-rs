@@ -6,9 +6,11 @@ use crate::utils::db::beatmapsets;
 use crate::utils::db::{beatmaps, osu_file};
 use chrono::{DateTime, Utc};
 use diesel_async::AsyncPgConnection;
+use itertools::Itertools;
 use rosu_v2::Osu;
 use rosu_v2::prelude::BeatmapsetExtended;
 use std::sync::Arc;
+use tracing::info;
 
 pub async fn cache_beatmapset(
     connection: &mut AsyncPgConnection,
@@ -23,6 +25,11 @@ pub async fn cache_beatmapset(
             beatmaps_to_insert.push(beatmap);
             beatmap_ids.push(i64::from(beatmap.map_id));
         }
+        info!(
+            "Updating {} beatmaps for beatmapset: {}",
+            beatmap_ids.iter().join(" "),
+            beatmapset.mapset_id
+        );
         for id in beatmap_ids {
             let response = reqwest::get(format!("https://osu.ppy.sh/osu/{id}"))
                 .await?
@@ -36,6 +43,7 @@ pub async fn cache_beatmapset(
     }
 
     if let Some(to_delete) = to_delete {
+        info!("Maps to delete: {}", to_delete.iter().join(" "));
         for id in to_delete {
             beatmaps::delete(connection, id).await?;
             osu_file::delete(connection, id).await?;
@@ -103,6 +111,7 @@ pub async fn get_updated_beatmapset(
 ) -> Result<(Beatmapset, Vec<(Beatmap, OsuFile)>), Error> {
     let query_beatmapset = beatmapsets::read(connection, i64::from(id)).await?;
     if let Some(query_beatmapset) = query_beatmapset {
+        info!("Getting updated beatmapset with an existing beatmap");
         let beatmapset = osu_client.beatmapset(id).await?;
         let to_delete = Some(check_if_deleted(query_beatmapset, &beatmapset));
         cache_beatmapset(connection, beatmapset, to_delete).await?;
@@ -110,6 +119,7 @@ pub async fn get_updated_beatmapset(
             .await?
             .ok_or("Failed to fetch beatmap in get_beatmapset")?);
     }
+    info!("Getting updated beatmapset without an existing beatmap");
     let beatmapset = osu_client.beatmapset(id).await?;
     cache_beatmapset(connection, beatmapset, None).await?;
     Ok(beatmapsets::read(connection, i64::from(id))

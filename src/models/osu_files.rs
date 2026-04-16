@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 pub struct OsuFile {
     pub id: i64,
     pub file: Vec<u8>,
+    pub time_cached: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(
