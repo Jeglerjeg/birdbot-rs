@@ -168,14 +168,14 @@ pub fn sort_scores(
 ) -> Vec<(Score, usize, Beatmap, Beatmapset, CalculateResults)> {
     match sort_by {
         SortChoices::Recent => {
-            scores.sort_by(|a, b| b.0.ended_at.cmp(&a.0.ended_at));
+            scores.sort_by_key(|b| std::cmp::Reverse(b.0.ended_at));
         }
-        SortChoices::Oldest => scores.sort_by(|a, b| a.0.ended_at.cmp(&b.0.ended_at)),
+        SortChoices::Oldest => scores.sort_by_key(|a| a.0.ended_at),
         SortChoices::Accuracy => {
             scores.sort_by(|a, b| b.0.accuracy.total_cmp(&a.0.accuracy));
         }
-        SortChoices::Combo => scores.sort_by(|a, b| b.0.max_combo.cmp(&a.0.max_combo)),
-        SortChoices::Score => scores.sort_by(|a, b| b.0.score.cmp(&a.0.score)),
+        SortChoices::Combo => scores.sort_by_key(|b| std::cmp::Reverse(b.0.max_combo)),
+        SortChoices::Score => scores.sort_by_key(|b| std::cmp::Reverse(b.0.score)),
         SortChoices::PP => {
             scores.sort_by(|a, b| {
                 b.0.pp
@@ -184,10 +184,10 @@ pub fn sort_scores(
             });
         }
         SortChoices::Length => {
-            scores.sort_by(|a, b| b.2.drain.cmp(&a.2.drain));
+            scores.sort_by_key(|b| std::cmp::Reverse(b.2.drain));
         }
         SortChoices::Misses => {
-            scores.sort_by(|a, b| b.0.statistics.miss.cmp(&a.0.statistics.miss));
+            scores.sort_by_key(|b| std::cmp::Reverse(b.0.statistics.miss));
         }
         SortChoices::Stars => {
             scores.sort_by(|a, b| b.4.total_stars.total_cmp(&a.4.total_stars));

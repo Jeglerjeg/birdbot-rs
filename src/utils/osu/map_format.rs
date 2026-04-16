@@ -58,7 +58,7 @@ pub fn format_single_beatmap(beatmap: &(Beatmap, OsuFile)) -> Result<String, Err
         remove_trailing_zeros(difficulty_values.total_stars, 2)?
     );
 
-    let formatted_combo = format!("{}x", beatmap.0.max_combo,);
+    let formatted_combo = format!("{}x", beatmap.0.max_combo);
 
     let formatted_pp = format!("{}pp", remove_trailing_zeros(difficulty_values.pp, 0)?);
 
