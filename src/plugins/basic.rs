@@ -273,7 +273,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, hide_in_help = true, category = "Basic")]
 pub async fn help(
     ctx: Context<'_>,
-    #[rest]
+    #[string]
     #[description = "Specific command to show help about"]
     command: Option<String>,
 ) -> Result<(), Error> {
@@ -319,7 +319,9 @@ pub async fn prefix(
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn roll(
     ctx: Context<'_>,
-    #[description = "Range of numbers to roll"] range: Option<u128>,
+    #[string]
+    #[description = "Range of numbers to roll"]
+    range: Option<u128>,
 ) -> Result<(), Error> {
     let random_number = rand::rng().random_range(0..range.unwrap_or(100));
 
@@ -358,9 +360,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn avatar(
     ctx: Context<'_>,
-    #[rest]
-    #[description = "User to get avatar for"]
-    user: Option<User>,
+    #[description = "User to get avatar for"] user: Option<User>,
 ) -> Result<(), Error> {
     let color: Colour;
     let name: FixedString<u8>;

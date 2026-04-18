@@ -269,9 +269,9 @@ async fn main() {
     let manager = songbird::Songbird::serenity();
 
     let mut client = serenity::Client::builder(token, intents)
-        .framework(framework)
-        .voice_manager::<songbird::Songbird>(manager.clone())
-        .event_handler(Handler)
+        .framework(Box::new(framework))
+        .voice_manager(manager.clone())
+        .event_handler(Arc::new(Handler))
         .data(Arc::new(Data {
             time_started: Utc::now(),
             osu_client,

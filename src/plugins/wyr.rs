@@ -223,7 +223,7 @@ async fn check_for_duplicates(
 #[poise::command(prefix_command, slash_command, category = "Would You Rather")]
 pub async fn wyr(
     ctx: Context<'_>,
-    #[rest]
+    #[string]
     #[description = "Question to ask. Must be in in format: <choice_1> or <choice_2>"]
     question: Option<String>,
 ) -> Result<(), Error> {

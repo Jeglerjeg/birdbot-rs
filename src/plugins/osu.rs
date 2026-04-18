@@ -58,7 +58,7 @@ pub async fn osu(
     #[description = "Discord user to see profile for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -309,7 +309,9 @@ pub async fn mode(
 #[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
 pub async fn mapinfo(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for a score."] beatmap_url: Option<url::Url>,
+    #[string]
+    #[description = "Beatmap ID to check for a score."]
+    beatmap_url: Option<url::Url>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let connection = &mut ctx.data().db_pool.get().await?;
@@ -369,11 +371,13 @@ pub async fn mapinfo(
 #[poise::command(prefix_command, slash_command, category = "osu!", aliases("c"))]
 pub async fn score(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for a score."] beatmap_url: Option<url::Url>,
+    #[string]
+    #[description = "Beatmap ID to check for a score."]
+    beatmap_url: Option<url::Url>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "osu! user to see score for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -482,12 +486,14 @@ pub async fn score(
 #[poise::command(prefix_command, slash_command, category = "osu!")]
 pub async fn scores(
     ctx: Context<'_>,
-    #[description = "Beatmap ID to check for scores."] beatmap_url: Option<url::Url>,
+    #[string]
+    #[description = "Beatmap ID to check for scores."]
+    beatmap_url: Option<url::Url>,
     #[description = "Sort your scores by something other than pp."] sort_type: Option<SortChoices>,
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see scores for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -589,7 +595,7 @@ pub async fn recent(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see score for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -666,7 +672,7 @@ pub async fn recent_best(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -736,7 +742,7 @@ pub async fn recent_list(
     #[description = "Discord user to see plays for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see plays for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -812,7 +818,7 @@ pub async fn pins(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see pins for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -868,7 +874,7 @@ pub async fn firsts(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see firsts for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -924,7 +930,7 @@ pub async fn top(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[rest]
+    #[string]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
