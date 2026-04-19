@@ -4,6 +4,7 @@ use crate::schema::osu_files;
 use diesel::dsl::count;
 use diesel::prelude::QueryDsl;
 use diesel::{ExpressionMethods, insert_into};
+use diesel::upsert::excluded;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 pub async fn create(
@@ -24,8 +25,8 @@ pub async fn create(
         .on_conflict(osu_files::id)
         .do_update()
         .set((
-            osu_files::id.eq(osu_files::id),
-            osu_files::file.eq(osu_files::file),
+            osu_files::id.eq(excluded(osu_files::id)),
+            osu_files::file.eq(excluded(osu_files::file)),
         ))
         .execute(db)
         .await?;
