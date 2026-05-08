@@ -241,7 +241,7 @@ async fn main() {
         .with_writer(non_blocking)
         .init();
 
-    let token = Token::from_env("DISCORD_TOKEN").unwrap();
+    let token = Token::from_env("DISCORD_TOKEN").expect("No DISCORD_TOKEN in environment");
 
     let intents = serenity::prelude::GatewayIntents::GUILD_MEMBERS
         | serenity::prelude::GatewayIntents::GUILD_VOICE_STATES

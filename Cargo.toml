@@ -22,7 +22,7 @@ rosu-pp = "4.0"
 regex = "1.12"
 url = "2.5"
 diesel = { version = "2.3", features = ["chrono"] }
-diesel-async = { version = "0.8", features = ["postgres", "mobc", "migrations"] }
+diesel-async = { version = "0.9", features = ["postgres", "mobc", "migrations"] }
 mobc = "0.9"
 markov = "1.1"
 tokio-stream = "0.1"

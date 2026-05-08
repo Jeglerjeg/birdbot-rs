@@ -27,6 +27,7 @@
 - Pastas
 
 ## Configuration
+Requires a postgres database with the moddatetime extension
 
 | ENV variable      | Accepted value                                                 |
 |-------------------|----------------------------------------------------------------|
