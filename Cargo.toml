@@ -27,7 +27,7 @@ mobc = "0.9"
 markov = "1.1"
 tokio-stream = "0.1"
 par-stream = { version = "0.10", features = ["runtime-tokio"] }
-itertools = "0.14"
+itertools = "0.15"
 resvg = "0.47"
 svg = "0.18"
 base64 = "0.22"
@@ -72,7 +72,7 @@ features = ["builder", "framework", "cache", "gateway", "http", "model", "utils"
     "transport_compression_zlib", "transport_compression_zstd"]
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
-tikv-jemallocator = "0.6"
+tikv-jemallocator = "0.7"
 
 [profile.dev]
 lto = "off"
