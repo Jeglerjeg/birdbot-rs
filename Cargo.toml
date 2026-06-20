@@ -52,8 +52,8 @@ default-features=false
 features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
-git = "https://github.com/meditationmind/poise"
-rev = "b0915b695028f7525aa599148428aca8625416d4"
+git = "https://github.com/serenity-rs/poise"
+rev = "fe71e6ef9181384608911c00fff88c1b9dfd04a7"
 
 [dependencies.symphonia]
 version = "0.5"

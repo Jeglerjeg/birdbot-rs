@@ -244,7 +244,9 @@ impl OsuTracker {
                     );
 
                     match approval {
-                        RankStatus::Ranked | RankStatus::Approved => status.push_str("has been ranked!"),
+                        RankStatus::Ranked | RankStatus::Approved => {
+                            status.push_str("has been ranked!")
+                        }
                         RankStatus::Qualified => status.push_str("has been qualified!"),
                         RankStatus::Loved => status.push_str("has been loved!"),
                         _ => {}
@@ -382,7 +384,9 @@ impl OsuTracker {
             }
         };
 
-        embed = embed.image(beatmapset.0.cover).description(description);
+        embed = embed
+            .image(beatmapset.0.cover, Some("The beatmapset cover".into()))
+            .description(description);
 
         for guild_id in self.cache.guilds() {
             if let Ok(guild_channels) =

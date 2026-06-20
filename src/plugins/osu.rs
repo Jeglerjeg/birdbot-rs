@@ -58,7 +58,7 @@ pub async fn osu(
     #[description = "Discord user to see profile for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -84,7 +84,10 @@ pub async fn osu(
     let card = render_card(&osu_user, color).await?.encode_png()?;
 
     let embed = CreateEmbed::new()
-        .image("attachment://card.png")
+        .image(
+            "attachment://card.png",
+            Some("The user's generated osu card".into()),
+        )
         .author(author);
 
     let file = CreateAttachment::bytes(card, "card.png");
@@ -377,7 +380,7 @@ pub async fn score(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "osu! user to see score for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -493,7 +496,7 @@ pub async fn scores(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see scores for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -595,7 +598,7 @@ pub async fn recent(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see score for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -672,7 +675,7 @@ pub async fn recent_best(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -742,7 +745,7 @@ pub async fn recent_list(
     #[description = "Discord user to see plays for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see plays for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -818,7 +821,7 @@ pub async fn pins(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see pins for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -874,7 +877,7 @@ pub async fn firsts(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see firsts for."]
     user: Option<String>,
 ) -> Result<(), Error> {
@@ -930,7 +933,7 @@ pub async fn top(
     #[description = "Discord user to check score for."] discord_user: Option<
         poise::serenity_prelude::User,
     >,
-    #[string]
+    #[rest]
     #[description = "User to see profile for."]
     user: Option<String>,
 ) -> Result<(), Error> {

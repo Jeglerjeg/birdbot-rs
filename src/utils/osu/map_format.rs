@@ -212,7 +212,7 @@ pub fn format_map_status(
     };
 
     Ok(embed
-        .image(beatmapset.cover)
+        .image(beatmapset.cover, Some("The beatmap's background".into()))
         .color(color)
         .description(description)
         .author(created_author))

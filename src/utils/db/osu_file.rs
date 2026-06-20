@@ -3,8 +3,8 @@ use crate::models::osu_files::NewOsuFile;
 use crate::schema::osu_files;
 use diesel::dsl::count;
 use diesel::prelude::QueryDsl;
-use diesel::{ExpressionMethods, insert_into};
 use diesel::upsert::excluded;
+use diesel::{ExpressionMethods, insert_into};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 pub async fn create(

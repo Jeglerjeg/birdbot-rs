@@ -136,7 +136,7 @@ async fn send_track_embed(
     let embed = CreateEmbed::new()
         .description(format!("{}\n{}", action, format_track(metadata, play_time)))
         .color(BLUE)
-        .thumbnail(thumbnail_url);
+        .thumbnail(thumbnail_url, Some("The video's thumbnail".into()));
 
     let builder = CreateMessage::default().embed(embed);
 

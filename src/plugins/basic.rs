@@ -273,7 +273,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, hide_in_help = true, category = "Basic")]
 pub async fn help(
     ctx: Context<'_>,
-    #[string]
+    #[rest]
     #[description = "Specific command to show help about"]
     command: Option<String>,
 ) -> Result<(), Error> {
@@ -360,7 +360,9 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command, category = "Basic")]
 pub async fn avatar(
     ctx: Context<'_>,
-    #[description = "User to get avatar for"] user: Option<User>,
+    #[rest]
+    #[description = "User to get avatar for"]
+    user: Option<User>,
 ) -> Result<(), Error> {
     let color: Colour;
     let name: FixedString<u8>;
@@ -387,7 +389,10 @@ pub async fn avatar(
         }
     }
 
-    let embed = CreateEmbed::new().title(name).image(avatar).color(color);
+    let embed = CreateEmbed::new()
+        .title(&name)
+        .image(avatar, Some(format!("{name}'s avatar").into()))
+        .color(color);
 
     let builder = CreateReply::default().embed(embed);
 

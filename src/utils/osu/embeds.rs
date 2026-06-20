@@ -38,7 +38,7 @@ pub fn create_embed<'a>(
 
     if let (Some(title), Some(title_url)) = (title, title_url) {
         embed
-            .thumbnail(thumbnail)
+            .thumbnail(thumbnail, Some("The osu map's background".into()))
             .color(color)
             .description(description)
             .footer(created_footer)
@@ -47,7 +47,7 @@ pub fn create_embed<'a>(
             .url(title_url)
     } else {
         embed
-            .thumbnail(thumbnail)
+            .thumbnail(thumbnail, Some("The osu map's background".into()))
             .color(color)
             .description(description)
             .footer(created_footer)
