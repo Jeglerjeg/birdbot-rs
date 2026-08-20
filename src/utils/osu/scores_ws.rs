@@ -351,7 +351,7 @@ impl ScoresWs {
         )?;
         let author_text = format!(
             "{} set a new best score (#{}/{})",
-            &new.username, score.1, 100
+            new.username, score.1, 100
         );
         let footer = format_footer(&score.0, &beatmap.0, &pp)?;
 

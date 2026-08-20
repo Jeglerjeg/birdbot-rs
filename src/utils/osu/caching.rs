@@ -145,15 +145,13 @@ pub fn check_if_deleted(
 pub fn check_valid_result(status: &str, time_cached: DateTime<Utc>) -> bool {
     let current_time = Utc::now();
     match status {
-        "Loved" => {
-            if (current_time - time_cached).num_days() > 182 {
-                return false;
-            }
+        "Loved" if (current_time - time_cached).num_days() > 182 => {
+            return false;
         }
-        "Pending" | "Graveyard" | "WIP" | "Qualified" => {
-            if (current_time - time_cached).num_days() > 7 {
-                return false;
-            }
+        "Pending" | "Graveyard" | "WIP" | "Qualified"
+            if (current_time - time_cached).num_days() > 7 =>
+        {
+            return false;
         }
         _ => {}
     }

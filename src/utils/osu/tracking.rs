@@ -245,7 +245,7 @@ impl OsuTracker {
 
                     match approval {
                         RankStatus::Ranked | RankStatus::Approved => {
-                            status.push_str("has been ranked!")
+                            status.push_str("has been ranked!");
                         }
                         RankStatus::Qualified => status.push_str("has been qualified!"),
                         RankStatus::Loved => status.push_str("has been loved!"),
