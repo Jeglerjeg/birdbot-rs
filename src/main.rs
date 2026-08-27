@@ -12,6 +12,7 @@ use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mobc::Pool;
 use poise::serenity_prelude::{EventHandler, FullEvent, Token, async_trait};
+use rosu_v2::OsuBuilder;
 use rosu_v2::prelude::Osu;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -259,7 +260,18 @@ async fn main() {
     let client_secret =
         env::var("OSU_CLIENT_SECRET").expect("Expected an osu client secret in the environment");
 
-    let osu_client: Arc<Osu> = match Osu::new(client_id, client_secret).await {
+    let osu_api_ratelimit = env::var("OSU_API_RATELIMIT")
+        .unwrap_or(String::from("3"))
+        .parse::<u32>()
+        .expect("Failed to parse client_id.");
+
+    let osu_client: Arc<Osu> = match OsuBuilder::new()
+        .client_secret(client_secret)
+        .client_id(client_id)
+        .ratelimit(osu_api_ratelimit)
+        .build()
+        .await
+    {
         Ok(client) => Arc::new(client),
         Err(why) => panic!("Failed to create client or make initial osu!api interaction: {why}"),
     };
