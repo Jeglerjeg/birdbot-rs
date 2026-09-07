@@ -53,7 +53,7 @@ features = ["rustls-tls", "zstd", "brotli", "gzip", "deflate", "http2"]
 
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "b189f7c1cfd47eb4e7863683a49c389a9702ce23"
+rev = "b2aa35f91d2aaa88fe127e4274bde0eefd7af761"
 
 [dependencies.symphonia]
 version = "0.5"
