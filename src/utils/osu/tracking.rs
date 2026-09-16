@@ -24,6 +24,7 @@ use poise::serenity_prelude::model::colour::colours::roles::BLUE;
 use poise::serenity_prelude::{
     Cache, CacheHttp, CreateEmbed, CreateMessage, GenericChannelId, Http, UserId,
 };
+use rand::RngExt;
 use rosu_v2::Osu;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, RankStatus};
@@ -32,6 +33,8 @@ use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::time::sleep;
+use tokio_stream::StreamExt;
+use tokio_util::time::DelayQueue;
 use tracing::{error, info};
 
 static UPDATE_INTERVAL: OnceLock<u64> = OnceLock::new();
@@ -48,38 +51,58 @@ pub struct OsuTracker {
 }
 impl OsuTracker {
     pub async fn tracking_loop(&mut self) -> Result<(), Error> {
-        let mut interval = tokio::time::interval(Duration::from_secs(
-            UPDATE_INTERVAL
-                .get_or_init(|| {
-                    env::var("UPDATE_INTERVAL")
-                        .unwrap_or_else(|_| String::from("30"))
-                        .parse::<u64>()
-                        .expect("Failed to parse tracking update interval.")
-                })
-                .to_owned(),
-        ));
-        loop {
-            interval.tick().await;
-            let connection = &mut match self.pool.get().await {
-                Ok(connection) => connection,
-                Err(why) => {
-                    error!("Failed to connect to database {}", why);
-                    continue;
-                }
-            };
-            let profiles = match linked_osu_profiles::get_all(connection).await {
-                Ok(profiles) => profiles,
-                Err(why) => {
-                    error!("Failed to get linked osu profiles {}", why);
-                    continue;
-                }
-            };
-            for profile in profiles {
-                if let Err(why) = self.update_user_data(&profile, connection).await {
-                    error!("Error occurred while running tracking loop: {}", why);
-                }
+        let interval = UPDATE_INTERVAL
+            .get_or_init(|| {
+                env::var("UPDATE_INTERVAL")
+                    .unwrap_or_else(|_| String::from("30"))
+                    .parse::<u64>()
+                    .expect("Failed to parse tracking update interval.")
+            })
+            .to_owned();
+
+        let mut queue = DelayQueue::new();
+
+        let connection = &mut match self.pool.get().await {
+            Ok(connection) => connection,
+            Err(why) => {
+                error!("Failed to connect to database {}", why);
+                return Err(why.into());
             }
+        };
+        let profiles = match linked_osu_profiles::get_all(connection).await {
+            Ok(profiles) => profiles,
+            Err(why) => {
+                error!("Failed to get linked osu profiles {}", why);
+                return Err(why);
+            }
+        };
+
+        for profile in profiles {
+            let delay = rand::rng().random_range(interval..interval + interval);
+            queue.insert(profile, Duration::from_secs(delay));
         }
+
+        while let Some(user) = queue.next().await {
+            let user = user.get_ref();
+            if let Err(why) = linked_osu_profiles::read(connection, user.id).await {
+                error!(
+                    "osu! profile {} not found in database during tracking loop: {}",
+                    user.id, why
+                );
+                continue;
+            }
+
+            if let Err(why) = self.update_user_data(user, connection).await {
+                error!("Error occurred while running tracking loop: {}", why);
+            }
+
+            queue.insert(
+                user.clone(),
+                Duration::from_secs(rand::rng().random_range(interval..interval + interval)),
+            );
+        }
+
+        Ok(())
     }
 
     async fn update_user_data(
