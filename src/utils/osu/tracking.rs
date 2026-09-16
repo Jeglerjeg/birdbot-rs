@@ -83,21 +83,24 @@ impl OsuTracker {
         }
 
         while let Some(user) = queue.next().await {
-            let user = user.get_ref();
-            if let Err(why) = linked_osu_profiles::read(connection, user.id).await {
-                error!(
-                    "osu! profile {} not found in database during tracking loop: {}",
-                    user.id, why
-                );
-                continue;
-            }
+            let old_user = user.get_ref();
+            let profile = match linked_osu_profiles::read(connection, old_user.id).await {
+                Ok(profile) => profile,
+                Err(why) => {
+                    error!(
+                        "osu! profile {} not found in database during tracking loop: {}",
+                        old_user.id, why
+                    );
+                    return Err(why.into());
+                }
+            };
 
-            if let Err(why) = self.update_user_data(user, connection).await {
+            if let Err(why) = self.update_user_data(&profile, connection).await {
                 error!("Error occurred while running tracking loop: {}", why);
             }
 
             queue.insert(
-                user.clone(),
+                profile,
                 Duration::from_secs(rand::rng().random_range(interval..interval + interval)),
             );
         }
