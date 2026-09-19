@@ -10,6 +10,17 @@ use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Grade, Score};
 use std::cmp;
 
+fn format_score_title(list_position: String, italic: &str, artist: &str, title: &str, version: &str, beatmap_link: String) -> String {
+    format!(
+        "[{}{italic}{} - {} [{}]{italic}]({})\n",
+        list_position,
+        artist,
+        title,
+        version,
+        beatmap_link,
+    )
+}
+
 pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<String, Error> {
     let color = match score.build_id {
         None => {
@@ -101,7 +112,7 @@ pub fn format_score_info(
     scoreboard_rank: Option<&usize>,
     list_position: Option<&usize>,
 ) -> Result<String, Error> {
-    let italic = if beatmapset.artist.contains('*') {
+    let italic = if format!("{}{}", beatmapset.artist, beatmapset.title).contains('*') {
         ""
     } else {
         "*"
@@ -130,18 +141,11 @@ pub fn format_score_info(
     };
 
     let title = if with_title {
-        format!(
-            "[{}{italic}{} - {} [{}]{italic}]({})\n",
-            list_position,
-            beatmapset.artist,
-            beatmapset.title,
-            beatmap.version,
-            format_beatmap_link(
-                Some(beatmap.id),
-                beatmapset.id,
-                Some(&score.mode.to_string())
-            ),
-        )
+        format_score_title(list_position, italic, &beatmapset.artist, &beatmapset.title, &beatmap.version, format_beatmap_link(
+            Some(beatmap.id),
+            beatmapset.id,
+            Some(&score.mode.to_string())
+        ))
     } else {
         String::new()
     };
@@ -192,6 +196,12 @@ pub fn format_minimal_score(
     scoreboard_rank: Option<&usize>,
     list_position: Option<&usize>,
 ) -> Result<String, Error> {
+    let italic = if format!("{}{}", beatmapset.artist, beatmapset.title).contains('*') {
+        ""
+    } else {
+        "*"
+    };
+
     let list_position = if let Some(list_position) = list_position {
         format!("{list_position}. ")
     } else {
@@ -216,17 +226,11 @@ pub fn format_minimal_score(
     let accuracy_string = format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?);
 
     let title = if with_title {
-        format!(
-            "[{list_position}*{artist} - {title} [{version}]*]({url})\n",
-            url = format_beatmap_link(
-                Some(beatmap.id),
-                beatmapset.id,
-                Some(&score.mode.to_string())
-            ),
-            artist = beatmapset.artist,
-            title = beatmapset.title.replace('*', "\\*").replace('_', "\\_"), // Fixed .artist to .title here
-            version = beatmap.version,
-        )
+        format_score_title(list_position, italic, &beatmapset.artist, &beatmapset.title, &beatmap.version, format_beatmap_link(
+            Some(beatmap.id),
+            beatmapset.id,
+            Some(&score.mode.to_string())
+        ))
     } else {
         String::new()
     };

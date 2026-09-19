@@ -141,7 +141,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
                 error
             );
             if let Err(why) = ctx
-                .say("The command returned an error. Try again later.")
+                .say(format!("The command returned an error: {error}"))
                 .await
             {
                 error!("Error while handling error: {}", why);
