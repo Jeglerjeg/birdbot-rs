@@ -18,7 +18,7 @@ rosu-v2 = { git = "https://github.com/MaxOhn/rosu-v2", rev = "6f929cb86bd5718494
 num-format = "0.4"
 time = "0.3"
 dashmap = "7.0.0-rc2"
-rosu-pp = "4.0"
+rosu-pp = { git = "https://github.com/MaxOhn/rosu-pp", rev = "072ed255fa043aba495212c441030dc7a5e61469"}
 regex = "1.13"
 url = "2.5"
 diesel = { version = "2.3", features = ["chrono"] }
