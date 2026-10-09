@@ -10,15 +10,15 @@ use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{Grade, Score};
 use std::cmp;
 
-fn format_score_title(list_position: String, italic: &str, artist: &str, title: &str, version: &str, beatmap_link: String) -> String {
-    format!(
-        "[{}{italic}{} - {} [{}]{italic}]({})\n",
-        list_position,
-        artist,
-        title,
-        version,
-        beatmap_link,
-    )
+fn format_score_title(
+    list_position: &str,
+    italic: &str,
+    artist: &str,
+    title: &str,
+    version: &str,
+    beatmap_link: &str,
+) -> String {
+    format!("[{list_position}{italic}{artist} - {title} [{version}]{italic}]({beatmap_link})\n",)
 }
 
 pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<String, Error> {
@@ -141,11 +141,18 @@ pub fn format_score_info(
     };
 
     let title = if with_title {
-        format_score_title(list_position, italic, &beatmapset.artist, &beatmapset.title, &beatmap.version, format_beatmap_link(
-            Some(beatmap.id),
-            beatmapset.id,
-            Some(&score.mode.to_string())
-        ))
+        format_score_title(
+            &list_position,
+            italic,
+            &beatmapset.artist,
+            &beatmapset.title,
+            &beatmap.version,
+            &format_beatmap_link(
+                Some(beatmap.id),
+                beatmapset.id,
+                Some(&score.mode.to_string()),
+            ),
+        )
     } else {
         String::new()
     };
@@ -226,11 +233,18 @@ pub fn format_minimal_score(
     let accuracy_string = format!("{}%", remove_trailing_zeros(score.accuracy.into(), 2)?);
 
     let title = if with_title {
-        format_score_title(list_position, italic, &beatmapset.artist, &beatmapset.title, &beatmap.version, format_beatmap_link(
-            Some(beatmap.id),
-            beatmapset.id,
-            Some(&score.mode.to_string())
-        ))
+        format_score_title(
+            &list_position,
+            italic,
+            &beatmapset.artist,
+            &beatmapset.title,
+            &beatmap.version,
+            &format_beatmap_link(
+                Some(beatmap.id),
+                beatmapset.id,
+                Some(&score.mode.to_string()),
+            ),
+        )
     } else {
         String::new()
     };
