@@ -28,7 +28,6 @@ pub async fn construct_chain(
     phrase: Option<String>,
     author_ids: Vec<i64>,
     channel_ids: Vec<i64>,
-    n_grams: usize,
     exact_search: bool,
 ) -> Result<Chain<String>, Error> {
     let mut query = summary_messages::table
@@ -65,7 +64,7 @@ pub async fn construct_chain(
             },
         );
 
-    let mut chain = Chain::of_order(n_grams);
+    let mut chain = Chain::of_order(2);
 
     while let Some(value) = messages.next().await {
         chain.feed(value);

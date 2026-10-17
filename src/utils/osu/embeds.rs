@@ -18,6 +18,8 @@ use rosu_v2::prelude::{Score, UserExtended};
 use std::time::Duration;
 use tracing::log::info;
 
+#[derive(Clone)]
+
 pub struct OsuEmbedData<'a> {
     pub color: Colour,
     pub thumbnail: &'a str,

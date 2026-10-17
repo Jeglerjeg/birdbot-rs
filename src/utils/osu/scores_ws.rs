@@ -391,16 +391,22 @@ impl ScoresWs {
             error!("Error occurred while running scores-ws: {}", why);
         }
 
+        let user_link = format_user_link(new.id);
+
         self.send_score_notifications(
             connection,
             linked_profile,
-            &thumbnail,
-            &formatted_score,
-            &footer,
-            &author_text,
-            Some(title),
-            Some(title_url),
-            new,
+            OsuEmbedData {
+                color: BLUE,
+                thumbnail: &thumbnail,
+                description: &formatted_score,
+                footer: &footer,
+                author_icon: &new.avatar_url,
+                author_name: &author_text,
+                author_url: &user_link,
+                title: Some(title.clone()),
+                title_url: Some(title_url.clone()),
+            },
         )
         .await?;
 
@@ -411,13 +417,7 @@ impl ScoresWs {
         &mut self,
         connection: &mut AsyncPgConnection,
         linked_profile: &LinkedOsuProfile,
-        thumbnail: &str,
-        formatted_score: &str,
-        footer: &str,
-        author_text: &str,
-        title: Option<String>,
-        title_url: Option<String>,
-        new: &OsuUser,
+        mut osu_embed: OsuEmbedData<'_>,
     ) -> Result<(), Error> {
         for guild_id in self.cache.guilds() {
             if let Ok(guild_channels) =
@@ -437,21 +437,9 @@ impl ScoresWs {
                         )
                         .await
                     {
-                        let color = member.colour(&self.cache).unwrap_or(BLUE);
+                        osu_embed.color = member.colour(&self.cache).unwrap_or(BLUE);
 
-                        let user_link = format_user_link(new.id);
-
-                        let embed = create_embed(OsuEmbedData {
-                            color,
-                            thumbnail,
-                            description: formatted_score,
-                            footer,
-                            author_icon: &new.avatar_url,
-                            author_name: author_text,
-                            author_url: &user_link,
-                            title: title.clone(),
-                            title_url: title_url.clone(),
-                        });
+                        let embed = create_embed(osu_embed.clone());
 
                         let builder = CreateMessage::new().embed(embed);
 

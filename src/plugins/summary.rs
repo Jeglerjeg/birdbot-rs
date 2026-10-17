@@ -252,9 +252,6 @@ pub async fn summary(
     mut channels: Vec<GenericChannelId>,
     #[min = 1]
     #[max = 10]
-    n_grams: Option<usize>,
-    #[min = 1]
-    #[max = 10]
     number_of_summaries: Option<usize>,
     #[description = "Defaults to true"] exact_search: Option<bool>,
 ) -> Result<(), Error> {
@@ -269,7 +266,6 @@ pub async fn summary(
         phrase,
         users.into_iter().map(i64::from).collect(),
         channels.into_iter().map(i64::from).collect(),
-        n_grams.unwrap_or(2),
         exact_search.unwrap_or(true),
     )
     .await?;
