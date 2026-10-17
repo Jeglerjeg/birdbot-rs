@@ -16,40 +16,44 @@ use poise::serenity_prelude::{
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, UserExtended};
 use std::time::Duration;
+use tracing::log::info;
 
-pub fn create_embed<'a>(
-    color: Colour,
-    thumbnail: &'a str,
-    description: &'a str,
-    footer: &'a str,
-    author_icon: &'a str,
-    author_name: &'a str,
-    author_url: &'a str,
-    title: Option<String>,
-    title_url: Option<String>,
-) -> CreateEmbed<'a> {
+pub struct OsuEmbedData<'a> {
+    pub color: Colour,
+    pub thumbnail: &'a str,
+    pub description: &'a str,
+    pub footer: &'a str,
+    pub author_icon: &'a str,
+    pub author_name: &'a str,
+    pub author_url: &'a str,
+    pub title: Option<String>,
+    pub title_url: Option<String>,
+}
+
+pub fn create_embed(osu_embed: OsuEmbedData) -> CreateEmbed {
+    info!("{}", osu_embed.description);
     let embed = CreateEmbed::new();
 
-    let created_footer = CreateEmbedFooter::new(footer);
+    let created_footer = CreateEmbedFooter::new(osu_embed.footer);
 
-    let created_author = CreateEmbedAuthor::new(author_name)
-        .icon_url(author_icon)
-        .url(author_url);
+    let created_author = CreateEmbedAuthor::new(osu_embed.author_name)
+        .icon_url(osu_embed.author_icon)
+        .url(osu_embed.author_url);
 
-    if let (Some(title), Some(title_url)) = (title, title_url) {
+    if let (Some(title), Some(title_url)) = (osu_embed.title, osu_embed.title_url) {
         embed
-            .thumbnail(thumbnail, Some("The osu map's background".into()))
-            .color(color)
-            .description(description)
+            .thumbnail(osu_embed.thumbnail, Some("The osu map's background".into()))
+            .color(osu_embed.color)
+            .description(osu_embed.description)
             .footer(created_footer)
             .author(created_author)
             .title(title)
             .url(title_url)
     } else {
         embed
-            .thumbnail(thumbnail, Some("The osu map's background".into()))
-            .color(color)
-            .description(description)
+            .thumbnail(osu_embed.thumbnail, Some("The osu map's background".into()))
+            .color(osu_embed.color)
+            .description(osu_embed.description)
             .footer(created_footer)
             .author(created_author)
     }
@@ -110,17 +114,17 @@ pub async fn send_score_embed(
         Some(&score.0.mode.to_string()),
     );
 
-    let embed = create_embed(
+    let embed = create_embed(OsuEmbedData {
         color,
-        &score.2.list_cover,
-        &description,
-        &footer,
-        &user.avatar_url,
-        &user.username,
-        &user_link,
-        Some(title),
-        Some(title_url),
-    );
+        thumbnail: &score.2.list_cover,
+        description: &description,
+        footer: &footer,
+        author_icon: &user.avatar_url,
+        author_name: &user.username,
+        author_url: &user_link,
+        title: Some(title),
+        title_url: Some(title_url),
+    });
 
     let builder = CreateReply::default().embed(embed);
 
@@ -156,17 +160,17 @@ pub async fn send_scores_embed(
 
     let footer = format!("Page {} of {}", 1, count_score_pages(best_scores.len(), 5));
 
-    let embed = create_embed(
+    let embed = create_embed(OsuEmbedData {
         color,
         thumbnail,
-        &formatted_scores,
-        &footer,
-        &user.avatar_url,
-        &user.username,
-        &user_link,
-        None,
-        None,
-    );
+        description: &formatted_scores,
+        footer: &footer,
+        author_icon: &user.avatar_url,
+        author_name: &user.username,
+        author_url: &user_link,
+        title: None,
+        title_url: None,
+    });
 
     if best_scores.len() > 5 {
         let buttons = [
@@ -293,17 +297,17 @@ impl TopScorePaginator<'_> {
 
         let user_link = format_user_link(i64::from(self.user.user_id));
 
-        let embed = create_embed(
-            self.color,
-            &self.user.avatar_url,
-            &formatted_scores,
-            &footer,
-            &self.user.avatar_url,
-            &self.user.username,
-            &user_link,
-            None,
-            None,
-        );
+        let embed = create_embed(OsuEmbedData {
+            color: self.color,
+            thumbnail: &self.user.avatar_url,
+            description: &formatted_scores,
+            footer: &footer,
+            author_icon: &self.user.avatar_url,
+            author_name: &self.user.username,
+            author_url: &user_link,
+            title: None,
+            title_url: None,
+        });
 
         let interaction_response = CreateInteractionResponseMessage::new().embed(embed);
 
@@ -326,17 +330,17 @@ impl TopScorePaginator<'_> {
 
         let user_link = format_user_link(i64::from(self.user.user_id));
 
-        let embed = create_embed(
-            self.color,
-            &self.user.avatar_url,
-            &formatted_scores,
-            &footer,
-            &self.user.avatar_url,
-            &self.user.username,
-            &user_link,
-            None,
-            None,
-        );
+        let embed = create_embed(OsuEmbedData {
+            color: self.color,
+            thumbnail: &self.user.avatar_url,
+            description: &formatted_scores,
+            footer: &footer,
+            author_icon: &self.user.avatar_url,
+            author_name: &self.user.username,
+            author_url: &user_link,
+            title: None,
+            title_url: None,
+        });
 
         let builder = CreateReply::default().embed(embed).components(vec![]);
 

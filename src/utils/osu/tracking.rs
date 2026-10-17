@@ -7,7 +7,7 @@ use crate::models::osu_users::OsuUser;
 use crate::utils::db::{linked_osu_profiles, osu_guild_channels, osu_notifications, osu_users};
 use crate::utils::osu::caching::{get_beatmap, get_updated_beatmapset};
 use crate::utils::osu::calculate::calculate;
-use crate::utils::osu::embeds::create_embed;
+use crate::utils::osu::embeds::{OsuEmbedData, create_embed};
 use crate::utils::osu::map_format::{format_beatmapset, format_single_beatmap};
 use crate::utils::osu::misc::{
     add_profile_data, calculate_potential_acc, gamemode_from_string, get_osu_user, is_playing,
@@ -562,17 +562,17 @@ impl OsuTracker {
                     {
                         let color = member.colour(&self.cache).unwrap_or(BLUE);
 
-                        let embed = create_embed(
+                        let embed = create_embed(OsuEmbedData {
                             color,
                             thumbnail,
-                            &formatted_score,
-                            &footer,
-                            &new.avatar_url,
-                            &author_text,
-                            &user_link,
-                            Some(title.clone()),
-                            Some(title_url.clone()),
-                        );
+                            description: &formatted_score,
+                            footer: &footer,
+                            author_icon: &new.avatar_url,
+                            author_name: &author_text,
+                            author_url: &user_link,
+                            title: Some(title.clone()),
+                            title_url: Some(title_url.clone()),
+                        });
 
                         let builder = CreateMessage::new().embed(embed);
 

@@ -18,7 +18,7 @@ fn format_score_title(
     version: &str,
     beatmap_link: &str,
 ) -> String {
-    format!("[{list_position}{italic}{artist} - {title} [{version}]{italic}]({beatmap_link})\n",)
+    format!("[{list_position}{italic}{artist} - {title} [{version}]{italic}]({beatmap_link})\n")
 }
 
 pub fn format_score_statistic(score: &Score, pp: &CalculateResults) -> Result<String, Error> {

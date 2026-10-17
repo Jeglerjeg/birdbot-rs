@@ -6,7 +6,7 @@ use crate::utils::db::{linked_osu_profiles, osu_notifications};
 use crate::utils::db::{osu_guild_channels, osu_users};
 use crate::utils::osu::caching::get_beatmap;
 use crate::utils::osu::calculate::calculate;
-use crate::utils::osu::embeds::create_embed;
+use crate::utils::osu::embeds::{OsuEmbedData, create_embed};
 use crate::utils::osu::misc::{
     add_profile_data, calculate_potential_acc, gamemode_from_string, get_score_position,
 };
@@ -441,17 +441,17 @@ impl ScoresWs {
 
                         let user_link = format_user_link(new.id);
 
-                        let embed = create_embed(
+                        let embed = create_embed(OsuEmbedData {
                             color,
                             thumbnail,
-                            formatted_score,
+                            description: formatted_score,
                             footer,
-                            &new.avatar_url,
-                            author_text,
-                            &user_link,
-                            title.clone(),
-                            title_url.clone(),
-                        );
+                            author_icon: &new.avatar_url,
+                            author_name: author_text,
+                            author_url: &user_link,
+                            title: title.clone(),
+                            title_url: title_url.clone(),
+                        });
 
                         let builder = CreateMessage::new().embed(embed);
 
