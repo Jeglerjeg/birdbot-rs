@@ -16,7 +16,6 @@ use poise::serenity_prelude::{
 use poise::{CreateReply, ReplyHandle};
 use rosu_v2::prelude::{Score, UserExtended};
 use std::time::Duration;
-use tracing::log::info;
 
 #[derive(Clone)]
 
@@ -33,7 +32,6 @@ pub struct OsuEmbedData<'a> {
 }
 
 pub fn create_embed(osu_embed: OsuEmbedData) -> CreateEmbed {
-    info!("{}", osu_embed.description);
     let embed = CreateEmbed::new();
 
     let created_footer = CreateEmbedFooter::new(osu_embed.footer);
