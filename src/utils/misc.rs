@@ -26,7 +26,7 @@ pub async fn get_guild_channel(
     guild_id: GuildId,
 ) -> Result<Option<GuildChannel>, Error> {
     if let Some(cached_guild) = cache.guild(guild_id) {
-        return Ok(cached_guild.channels.get(&channel_id).cloned());
+        return Ok(cached_guild.viewable_channels.get(&channel_id).cloned());
     }
 
     let guild_channels = guild_id.channels(http).await?;

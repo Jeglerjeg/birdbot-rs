@@ -88,10 +88,7 @@ pub fn calculate_potential_acc(score: &Score) -> Option<f64> {
 }
 
 pub fn is_perfect(statistics: &ScoreStatistics) -> bool {
-    if statistics.miss > 0 || statistics.large_tick_miss > 0 || statistics.combo_break > 0 {
-        return false;
-    }
-    true
+    !(statistics.miss > 0 || statistics.large_tick_miss > 0 || statistics.combo_break > 0)
 }
 
 pub fn count_score_pages(score_count: usize, scores_per_page: usize) -> usize {
