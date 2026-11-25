@@ -384,7 +384,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
 
     let ssh_mask = Mask::new().set("id", "ssh_mask").add(ssh_rectangle);
 
-    let ssh_fs_image = tokio::fs::read("src/utils/osu/card/assets/grades/XH.png").await?;
+    let ssh_fs_image = include_bytes!("assets/grades/XH.png");
 
     let ssh_image_base64 = general_purpose::STANDARD.encode(ssh_fs_image);
 
@@ -421,7 +421,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
 
     let ss_mask = Mask::new().set("id", "ss_mask").add(ss_rectangle);
 
-    let ss_fs_image = tokio::fs::read("src/utils/osu/card/assets/grades/X.png").await?;
+    let ss_fs_image = include_bytes!("assets/grades/X.png");
 
     let ss_image_base64 = general_purpose::STANDARD.encode(ss_fs_image);
 
@@ -458,7 +458,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
 
     let sh_mask = Mask::new().set("id", "sh_mask").add(sh_rectangle);
 
-    let sh_fs_image = tokio::fs::read("src/utils/osu/card/assets/grades/SH.png").await?;
+    let sh_fs_image = include_bytes!("assets/grades/SH.png");
 
     let sh_image_base64 = general_purpose::STANDARD.encode(sh_fs_image);
 
@@ -495,7 +495,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
 
     let s_mask = Mask::new().set("id", "s_mask").add(s_rectangle);
 
-    let s_fs_image = tokio::fs::read("src/utils/osu/card/assets/grades/S.png").await?;
+    let s_fs_image = include_bytes!("assets/grades/S.png");
 
     let s_image_base64 = general_purpose::STANDARD.encode(s_fs_image);
 
@@ -532,7 +532,7 @@ pub async fn draw_grades(document: Document, grades: &GradeCounts) -> Result<Doc
 
     let a_mask = Mask::new().set("id", "a_mask").add(a_rectangle);
 
-    let a_fs_image = tokio::fs::read("src/utils/osu/card/assets/grades/A.png").await?;
+    let a_fs_image = include_bytes!("assets/grades/A.png");
 
     let a_image_base64 = general_purpose::STANDARD.encode(a_fs_image);
 

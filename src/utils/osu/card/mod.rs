@@ -9,30 +9,37 @@ use resvg::usvg::fontdb::Database;
 use resvg::usvg::{Transform, Tree};
 use resvg::{render, usvg};
 use rosu_v2::prelude::UserExtended;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use svg::Document;
 
-pub async fn render_card(osu_user: &UserExtended, color: Colour) -> Result<Pixmap, Error> {
-    let svg = load_svg(osu_user, color).await?;
-    let mut pixmap = Pixmap::new(1500, 940).unwrap();
-    render(&svg, Transform::default(), &mut pixmap.as_mut());
-    Ok(pixmap)
-}
-
-pub fn load_fonts() -> Database {
+static FONT_DATABASE: LazyLock<Arc<Database>> = LazyLock::new(|| {
     let mut database = Database::new();
-    database.load_fonts_dir("src/utils/osu/card/assets/fonts");
-    database
-}
+    database.load_font_data(include_bytes!("assets/fonts/torus/Torus-Regular.otf").to_vec());
+    database.load_font_data(include_bytes!("assets/fonts/torus/Torus-SemiBold.otf").to_vec());
+    database.load_font_data(include_bytes!("assets/fonts/torus/Torus-Bold.otf").to_vec());
+    Arc::new(database)
+});
 
-pub async fn load_svg(osu_user: &UserExtended, color: Colour) -> Result<Tree, Error> {
-    Ok(Tree::from_str(
-        &generate_svg(osu_user, color).await?,
-        &usvg::Options {
-            fontdb: Arc::from(load_fonts()),
-            ..Default::default()
-        },
-    )?)
+pub async fn render_card(
+    client: &reqwest::Client,
+    osu_user: &UserExtended,
+    color: Colour,
+) -> Result<Vec<u8>, Error> {
+    let svg = generate_svg(client, osu_user, color).await?;
+
+    tokio::task::spawn_blocking(move || -> Result<Vec<u8>, Error> {
+        let tree = Tree::from_str(
+            &svg,
+            &usvg::Options {
+                fontdb: FONT_DATABASE.clone(),
+                ..Default::default()
+            },
+        )?;
+        let mut pixmap = Pixmap::new(1500, 940).ok_or("Failed to allocate the card pixmap")?;
+        render(&tree, Transform::default(), &mut pixmap.as_mut());
+        Ok(pixmap.encode_png()?)
+    })
+    .await?
 }
 
 fn adjust_saturation_and_brightness(color: Colour, saturation: f64, brightness: f64) -> Colour {
@@ -51,7 +58,11 @@ fn adjust_saturation_and_brightness(color: Colour, saturation: f64, brightness: 
     )
 }
 
-pub async fn generate_svg(osu_user: &UserExtended, color: Colour) -> Result<String, Error> {
+pub async fn generate_svg(
+    client: &reqwest::Client,
+    osu_user: &UserExtended,
+    color: Colour,
+) -> Result<String, Error> {
     let color = adjust_saturation_and_brightness(color, 0.45, 0.3);
 
     let mut document = Document::new()
@@ -60,7 +71,7 @@ pub async fn generate_svg(osu_user: &UserExtended, color: Colour) -> Result<Stri
         .set("fill", "none")
         .set("width", 1500)
         .set("height", 940);
-    document = header::draw_header(document, osu_user, color).await?;
+    document = header::draw_header(document, osu_user, color, client).await?;
     document = body::draw_body(document, osu_user).await?;
     Ok(document.to_string())
 }

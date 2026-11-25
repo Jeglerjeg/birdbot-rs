@@ -20,7 +20,6 @@ static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
         .expect("Failed to build the HTTP client")
 });
 
-
 pub async fn cache_beatmapset(
     connection: &mut AsyncPgConnection,
     beatmapset: BeatmapsetExtended,

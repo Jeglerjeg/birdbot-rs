@@ -20,8 +20,9 @@ pub async fn draw_header(
     mut document: Document,
     osu_user: &UserExtended,
     color: Colour,
+    client: &reqwest::Client,
 ) -> Result<Document, Error> {
-    document = draw_avatar_and_cover(document, osu_user, color).await?;
+    document = draw_avatar_and_cover(document, osu_user, color, client).await?;
     document = draw_following_pill(document, osu_user);
     document = draw_osu_circle(document);
     document = draw_username(document, osu_user.username.as_str());
@@ -51,6 +52,7 @@ pub async fn draw_avatar_and_cover(
     document: Document,
     osu_user: &UserExtended,
     color: Colour,
+    client: &reqwest::Client,
 ) -> Result<Document, Error> {
     let header_rect = Rectangle::new()
         .set("x", 0)
@@ -110,9 +112,7 @@ pub async fn draw_avatar_and_cover(
         .set("ry", 10)
         .set("fill", "#2E3835");
 
-    let reqwest_client = reqwest::Client::new();
-
-    let header_image_bytes = reqwest_client
+    let header_image_bytes = client
         .get(&osu_user.cover.url)
         .send()
         .await?
@@ -144,7 +144,7 @@ pub async fn draw_avatar_and_cover(
         .set("rx", 10)
         .set("ry", 10);
 
-    let avatar_image_request = reqwest_client.get(&osu_user.avatar_url).send().await?;
+    let avatar_image_request = client.get(&osu_user.avatar_url).send().await?;
 
     let avatar_image_bytes = avatar_image_request.bytes().await?;
 

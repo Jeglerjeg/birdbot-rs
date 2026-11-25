@@ -81,7 +81,7 @@ pub async fn osu(
 
     let author = CreateEmbedAuthor::new(discord_user.name.clone()).icon_url(discord_user.face());
 
-    let card = render_card(&osu_user, color).await?.encode_png()?;
+    let card = render_card(&ctx.data().http_client, &osu_user, color).await?;
 
     let embed = CreateEmbed::new()
         .image(
