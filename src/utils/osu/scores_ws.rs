@@ -68,11 +68,15 @@ pub fn add_tracked_user(member_id: i64, osu_id: i64) {
 pub fn remove_tracked_user(member_id: i64, osu_id: i64) {
     let tracked_users = &*TRACKED_USERS;
 
-    if let Some(mut tracked_user) = tracked_users.get_mut(&osu_id) {
+    let should_remove = if let Some(mut tracked_user) = tracked_users.get_mut(&osu_id) {
         tracked_user.retain(|&x| x != member_id);
-        if tracked_user.is_empty() {
-            tracked_users.remove(&osu_id);
-        }
+        tracked_user.is_empty()
+    } else {
+        false
+    };
+
+    if should_remove {
+        tracked_users.remove(&osu_id);
     }
 }
 
@@ -181,12 +185,12 @@ impl ScoresWs {
                 }
             };
 
-            let tracked_user = TRACKED_USERS.get(&i64::from(score.user_id));
-
-            if tracked_user.is_none() {
-                drop(tracked_user);
+            let Some(osu_user_ids) = TRACKED_USERS
+                .get(&i64::from(score.user_id))
+                .map(|entry| entry.value().clone())
+            else {
                 continue;
-            }
+            };
 
             let mut pooled_connection = match self.pool.get().await {
                 Ok(connection) => connection,
@@ -220,8 +224,8 @@ impl ScoresWs {
                 continue;
             }
 
-            for osu_user_id in tracked_user.unwrap().iter() {
-                let linked_profile = match linked_osu_profiles::read(connection, *osu_user_id).await
+            for osu_user_id in osu_user_ids {
+                let linked_profile = match linked_osu_profiles::read(connection, osu_user_id).await
                 {
                     Ok(profile) => profile,
                     Err(why) => {
@@ -333,16 +337,20 @@ impl ScoresWs {
         let gamemode = gamemode_from_string(&linked_profile.mode)
             .ok_or("Failed to parse gamemode in notify_single_score function")?;
 
-        let mut recent_scores = crate::utils::osu::tracking::SCORE_NOTIFICATIONS
-            .get_or_init(DashMap::new)
-            .entry(linked_profile.osu_id)
-            .or_default();
+        let already_notified = {
+            let notifications_map = crate::utils::osu::tracking::SCORE_NOTIFICATIONS.get_or_init(DashMap::new);
+            let mut recent_scores = notifications_map.entry(linked_profile.osu_id).or_default();
+            if recent_scores.value().contains(&score_id) {
+                true
+            } else {
+                recent_scores.push(score_id);
+                false
+            }
+        };
 
-        if recent_scores.value().contains(&score_id) {
+        if already_notified {
             return Ok(());
         }
-        recent_scores.push(score_id);
-        drop(recent_scores);
 
         let beatmap = get_beatmap(connection, self.osu_client.clone(), score.0.map_id).await?;
 
