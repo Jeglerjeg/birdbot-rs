@@ -76,14 +76,18 @@ pub fn remove_tracked_user(member_id: i64, osu_id: i64) {
     }
 }
 
-fn check_top100(score: &Score, score_list: &mut Vec<Score>) -> bool {
+fn check_top100(score: &Score, score_list: &mut [Score]) -> bool {
     score_list.sort_by(|a, b| b.pp.unwrap_or(0.0).total_cmp(&a.pp.unwrap_or(0.0)));
 
-    if score.pp.unwrap_or(0.0) < score_list[score_list.len() - 1].pp.unwrap_or(0.0) {
+    let Some(lowest) = score_list.last() else {
+        return false;
+    };
+
+    if score.pp.unwrap_or(0.0) < lowest.pp.unwrap_or(0.0) {
         return false;
     }
 
-    for api_score in score_list {
+    for api_score in score_list.iter() {
         if (api_score.map_id == score.map_id)
             && (score.pp.unwrap_or(0.0) < api_score.pp.unwrap_or(0.0))
         {
