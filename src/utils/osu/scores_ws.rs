@@ -162,14 +162,6 @@ impl ScoresWs {
         &mut self,
         stream: &mut S,
     ) {
-        let con_result = &mut self.pool.get().await;
-        let connection = match con_result {
-            Ok(connection) => connection,
-            Err(why) => {
-                error!("{}", why);
-                return;
-            }
-        };
         while let Some(res) = stream.next().await {
             let Message::Binary(data) = (match res {
                 Ok(data) => data,
@@ -196,7 +188,14 @@ impl ScoresWs {
                 continue;
             }
 
-            let users = tracked_user.unwrap().clone();
+            let mut pooled_connection = match self.pool.get().await {
+                Ok(connection) => connection,
+                Err(why) => {
+                    error!("{}", why);
+                    continue;
+                }
+            };
+            let connection = &mut pooled_connection;
 
             let last_notifications = if let Ok(updates) =
                 osu_notifications::read(connection, i64::from(score.user_id)).await
@@ -221,8 +220,8 @@ impl ScoresWs {
                 continue;
             }
 
-            for osu_user_id in users {
-                let linked_profile = match linked_osu_profiles::read(connection, osu_user_id).await
+            for osu_user_id in tracked_user.unwrap().iter() {
+                let linked_profile = match linked_osu_profiles::read(connection, *osu_user_id).await
                 {
                     Ok(profile) => profile,
                     Err(why) => {
