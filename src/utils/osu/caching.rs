@@ -9,8 +9,17 @@ use diesel_async::AsyncPgConnection;
 use itertools::Itertools;
 use rosu_v2::Osu;
 use rosu_v2::prelude::BeatmapsetExtended;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+use std::time::Duration;
 use tracing::info;
+
+static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("Failed to build the HTTP client")
+});
+
 
 pub async fn cache_beatmapset(
     connection: &mut AsyncPgConnection,
@@ -31,8 +40,11 @@ pub async fn cache_beatmapset(
             beatmapset.mapset_id
         );
         for id in beatmap_ids {
-            let response = reqwest::get(format!("https://osu.ppy.sh/osu/{id}"))
+            let response = HTTP_CLIENT
+                .get(format!("https://osu.ppy.sh/osu/{id}"))
+                .send()
                 .await?
+                .error_for_status()?
                 .bytes()
                 .await?;
             let osu_file = response.to_vec();
