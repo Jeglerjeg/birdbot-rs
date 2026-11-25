@@ -159,6 +159,13 @@ pub async fn summary_disable(ctx: Context<'_>) -> Result<(), Error> {
             )
             .await?;
             summary_messages::delete(&mut connection, i64::from(ctx.channel_id())).await?;
+            if let Some(mut cached) = SUMMARY_ENABLED_GUILDS
+                .get_or_init(SummaryEnabledGuilds::new)
+                .guilds
+                .get_mut(&i64::from(guild_id))
+            {
+                cached.retain(|id| *id != i64::from(ctx.channel_id()));
+            }
         }
     }
     ctx.say("Disabled summaries in this channel").await?;

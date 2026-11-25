@@ -3,17 +3,13 @@ use crate::models::summary_messages::NewDbSummaryMessage;
 use crate::schema::summary_messages;
 use diesel::dsl::{count, sql};
 use diesel::prelude::{ExpressionMethods, QueryDsl};
-use diesel::sql_types::Bool;
+use diesel::sql_types::{Bool, Text};
 use diesel::{PgTextExpressionMethods, insert_into};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use markov::Chain;
-use par_stream::{ParParams, ParStreamExt};
 use tokio_stream::StreamExt;
 
-pub async fn create(
-    db: &mut AsyncPgConnection,
-    item: &Vec<NewDbSummaryMessage>,
-) -> Result<(), Error> {
+pub async fn create(db: &mut AsyncPgConnection, item: &[NewDbSummaryMessage]) -> Result<(), Error> {
     insert_into(summary_messages::table)
         .values(item)
         .execute(db)
@@ -35,7 +31,8 @@ pub async fn construct_chain(
         .into_boxed();
     if let Some(phrase) = phrase {
         if exact_search {
-            query = query.filter(sql::<Bool>(&format!("content ~* '\\y{phrase}\\y'")));
+            let pattern = format!(r"\y{}\y", regex::escape(&phrase));
+            query = query.filter(sql::<Bool>("content ~* ").bind::<Text, _>(pattern));
         } else {
             query = query.filter(summary_messages::content.ilike(format!("%{phrase}%")));
         }
@@ -49,25 +46,17 @@ pub async fn construct_chain(
     let mut messages = query
         .select(summary_messages::content)
         .load_stream::<String>(db)
-        .await?
-        .par_then_unordered(
-            ParParams {
-                num_workers: std::thread::available_parallelism()?.get(),
-                buf_size: Some(512),
-            },
-            |value| async move {
-                value
-                    .expect("Couldn't get message value from summary db")
-                    .split_whitespace()
-                    .map(ToOwned::to_owned)
-                    .collect::<Vec<_>>()
-            },
-        );
+        .await?;
 
     let mut chain = Chain::of_order(2);
 
     while let Some(value) = messages.next().await {
-        chain.feed(value);
+        chain.feed(
+            value?
+                .split_whitespace()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>(),
+        );
     }
     Ok(chain)
 }
