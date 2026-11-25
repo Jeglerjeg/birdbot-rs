@@ -98,7 +98,7 @@ pub async fn add_message(message: &Message, data: &Data, cache: &Cache) -> Resul
                 let connection = &mut data.db_pool.get().await?;
                 summary_messages::create(
                     connection,
-                    &vec![NewDbSummaryMessage {
+                    &[NewDbSummaryMessage {
                         content: content_safe(message, cache),
                         discord_id: i64::from(message.id),
                         is_bot: message.author.bot(),

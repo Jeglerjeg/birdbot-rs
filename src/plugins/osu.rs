@@ -18,6 +18,7 @@ use crate::utils::osu::misc::{
 use crate::utils::osu::misc_format::format_missing_user_string;
 use crate::utils::osu::regex::{BeatmapInfo, get_beatmap_info};
 use crate::utils::osu::scores_ws;
+use crate::utils::osu::tracking::TrackerCommand;
 use crate::{Context, Error};
 use chrono::Utc;
 use poise::CreateReply;
@@ -26,6 +27,7 @@ use poise::serenity_prelude::{
     CreateAttachment, CreateEmbed, CreateEmbedAuthor, GetMessages, GuildChannel, UserId,
 };
 use rosu_v2::model::GameMode;
+use tokio::sync::mpsc::UnboundedSender;
 
 /// Display information about your osu! user.
 #[poise::command(
@@ -99,6 +101,12 @@ pub async fn osu(
     Ok(())
 }
 
+fn notify_tracker(tracker_tx: &UnboundedSender<TrackerCommand>, command: TrackerCommand) {
+    if let Err(why) = tracker_tx.send(command) {
+        tracing::error!("Failed to notify the tracking loop of {command:?}: {why}");
+    }
+}
+
 /// Link an osu! profile.
 #[poise::command(
     prefix_command,
@@ -122,6 +130,7 @@ pub async fn link(
     {
         linked_osu_profiles::delete(connection, profile.id).await?;
         scores_ws::remove_tracked_user(profile.id, profile.osu_id);
+        notify_tracker(&ctx.data().tracker_tx, TrackerCommand::Remove(profile.id));
         wipe_profile_data(connection, profile.osu_id).await?;
     }
 
@@ -150,6 +159,10 @@ pub async fn link(
         i64::try_from(ctx.author().id.get())?,
         i64::from(user.user_id),
     );
+    notify_tracker(
+        &ctx.data().tracker_tx,
+        TrackerCommand::Add(i64::try_from(ctx.author().id.get())?),
+    );
 
     ctx.say(format!(
         "Set your osu! profile to `{}`.",
@@ -173,12 +186,12 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     let connection = &mut ctx.data().db_pool.get().await?;
     let profile =
         linked_osu_profiles::read(connection, i64::try_from(ctx.author().id.get())?).await;
-
     match profile {
         Ok(profile) => {
             linked_osu_profiles::delete(connection, profile.id).await?;
             wipe_profile_data(connection, profile.osu_id).await?;
             scores_ws::remove_tracked_user(profile.id, profile.osu_id);
+            notify_tracker(&ctx.data().tracker_tx, TrackerCommand::Remove(profile.id));
             ctx.say("Unlinked your profile.").await?;
         }
         Err(_) => {

@@ -38,6 +38,6 @@ Requires a postgres database with the moddatetime extension
 | OSU_CLIENT_SECRET | osu! apiv2 client secret                                       |
 | OSU_API_RATELIMIT | osu! apiv2 maximum requests per second, defaults to 3          |
 | SCORES_WS_URL     | URL to scores-ws instance, defaults to ws://127.0.0.1:7727     |
-| UPDATE INTERVAL   | How often the osu tracking loop is run. Defaults to 30 seconds |
+| UPDATE_INTERVAL   | How often the osu tracking loop is run. Defaults to 30 seconds |
 | NOT_PLAYING_SKIP  | Skip updating non-playing users for N runs. Defaults to 10     |
 | MAX_SONGS_QUEUED  | Max amount of songs queued per person. Defaults to 6           |

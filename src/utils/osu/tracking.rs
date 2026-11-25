@@ -29,12 +29,14 @@ use rosu_v2::Osu;
 use rosu_v2::model::GameMode;
 use rosu_v2::prelude::{EventBeatmap, EventType, RankStatus};
 use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
+use tokio::sync::mpsc;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;
-use tokio_util::time::DelayQueue;
+use tokio_util::time::{DelayQueue, delay_queue};
 use tracing::{error, info};
 
 static UPDATE_INTERVAL: OnceLock<u64> = OnceLock::new();
@@ -43,6 +45,27 @@ static NOT_PLAYING_SKIP: OnceLock<i32> = OnceLock::new();
 
 pub static SCORE_NOTIFICATIONS: OnceLock<DashMap<i64, Vec<u64>>> = OnceLock::new();
 
+#[derive(Debug, Clone, Copy)]
+pub enum TrackerCommand {
+    Add(i64),
+    Remove(i64),
+}
+
+fn schedule(
+    queue: &mut DelayQueue<i64>,
+    keys: &mut HashMap<i64, delay_queue::Key>,
+    discord_id: i64,
+    interval: u64,
+) {
+    if keys.contains_key(&discord_id) {
+        return;
+    }
+    let delay = rand::rng().random_range(interval..interval * 2);
+    let key = queue.insert(discord_id, Duration::from_secs(delay));
+    keys.insert(discord_id, key);
+}
+
+#[derive(Clone)]
 pub struct OsuTracker {
     pub cache: Arc<Cache>,
     pub http: Arc<Http>,
@@ -50,7 +73,10 @@ pub struct OsuTracker {
     pub pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>>,
 }
 impl OsuTracker {
-    pub async fn tracking_loop(&mut self) -> Result<(), Error> {
+    pub async fn tracking_loop(
+        &mut self,
+        mut commands: mpsc::UnboundedReceiver<TrackerCommand>,
+    ) -> Result<(), Error> {
         let interval = UPDATE_INTERVAL
             .get_or_init(|| {
                 env::var("UPDATE_INTERVAL")
@@ -60,52 +86,86 @@ impl OsuTracker {
             })
             .to_owned();
 
-        let mut queue = DelayQueue::new();
+        let profiles = {
+            let connection = &mut self.pool.get().await?;
+            linked_osu_profiles::get_all(connection).await?
+        };
 
-        let connection = &mut match self.pool.get().await {
-            Ok(connection) => connection,
-            Err(why) => {
-                error!("Failed to connect to database {}", why);
-                return Err(why.into());
-            }
-        };
-        let profiles = match linked_osu_profiles::get_all(connection).await {
-            Ok(profiles) => profiles,
-            Err(why) => {
-                error!("Failed to get linked osu profiles {}", why);
-                return Err(why);
-            }
-        };
+        let mut queue: DelayQueue<i64> = DelayQueue::new();
+        let mut keys: HashMap<i64, delay_queue::Key> = HashMap::new();
+        let mut active: HashSet<i64> = HashSet::new();
+        let mut in_flight: HashSet<i64> = HashSet::new();
+        let (done_tx, mut done_rx) = mpsc::unbounded_channel::<(i64, bool)>();
 
         for profile in profiles {
-            let delay = rand::rng().random_range(interval..interval + interval);
-            queue.insert(profile, Duration::from_secs(delay));
+            active.insert(profile.id);
+            schedule(&mut queue, &mut keys, profile.id, interval);
         }
 
-        while let Some(user) = queue.next().await {
-            let old_user = user.get_ref();
-            let profile = match linked_osu_profiles::read(connection, old_user.id).await {
-                Ok(profile) => profile,
-                Err(why) => {
-                    error!(
-                        "osu! profile {} not found in database during tracking loop: {}",
-                        old_user.id, why
-                    );
-                    return Err(why.into());
+        loop {
+            tokio::select! {
+                Some(expired) = queue.next() => {
+                    let discord_id = expired.into_inner();
+                    keys.remove(&discord_id);
+
+                    if !active.contains(&discord_id) || !in_flight.insert(discord_id) {
+                        continue;
+                    }
+
+                    let mut tracker = self.clone();
+                    let done_tx = done_tx.clone();
+                    tokio::spawn(async move {
+                        let still_linked = tracker.process_user(discord_id).await.unwrap_or_else(|why| {
+                               error!("Error occurred while running tracking loop: {}", why);
+                                true
+                            });
+                        let _ = done_tx.send((discord_id, still_linked));
+                    });
                 }
-            };
-
-            if let Err(why) = self.update_user_data(&profile, connection).await {
-                error!("Error occurred while running tracking loop: {}", why);
+                Some((discord_id, still_linked)) = done_rx.recv() => {
+                    in_flight.remove(&discord_id);
+                    if !still_linked {
+                        active.remove(&discord_id);
+                    }
+                    if active.contains(&discord_id) {
+                        schedule(&mut queue, &mut keys, discord_id, interval);
+                    }
+                }
+                command = commands.recv() => match command {
+                    Some(TrackerCommand::Add(discord_id)) => {
+                        if active.insert(discord_id) && !in_flight.contains(&discord_id) {
+                            schedule(&mut queue, &mut keys, discord_id, interval);
+                        }
+                    }
+                    Some(TrackerCommand::Remove(discord_id)) => {
+                        active.remove(&discord_id);
+                        if let Some(key) = keys.remove(&discord_id) {
+                            queue.try_remove(&key);
+                        }
+                    }
+                    None => return Ok(()),
+                },
             }
-
-            queue.insert(
-                profile,
-                Duration::from_secs(rand::rng().random_range(interval..interval + interval)),
-            );
         }
+    }
+    async fn process_user(&mut self, discord_id: i64) -> Result<bool, Error> {
+        let connection = &mut self.pool.get().await?;
 
-        Ok(())
+        let profile = match linked_osu_profiles::read(connection, discord_id).await {
+            Ok(profile) => profile,
+            Err(diesel::result::Error::NotFound) => {
+                info!(
+                    "osu! profile {} is no longer linked, removing it from tracking",
+                    discord_id
+                );
+                return Ok(false);
+            }
+            Err(why) => return Err(why.into()),
+        };
+
+        self.update_user_data(&profile, connection).await?;
+
+        Ok(true)
     }
 
     async fn update_user_data(

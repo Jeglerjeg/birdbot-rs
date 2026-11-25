@@ -4,7 +4,7 @@ pub mod schema;
 mod utils;
 
 use crate::utils::osu::scores_ws::ScoresWs;
-use crate::utils::osu::tracking::OsuTracker;
+use crate::utils::osu::tracking::{OsuTracker, TrackerCommand};
 use chrono::{DateTime, Utc};
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::{AsyncMigrationHarness, AsyncPgConnection};
@@ -16,8 +16,8 @@ use rosu_v2::OsuBuilder;
 use rosu_v2::prelude::Osu;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
 use tracing::{error, info};
 
 #[cfg(not(target_env = "msvc"))]
@@ -35,9 +35,8 @@ pub struct Data {
     db_pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>>,
     http_client: reqwest::Client,
     songbird: Arc<songbird::Songbird>,
+    tracker_tx: mpsc::UnboundedSender<TrackerCommand>,
 }
-
-pub static STARTED: AtomicBool = AtomicBool::new(false);
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -45,7 +44,9 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 
 type PartialContext<'a> = poise::PartialContext<'a, Data, Error>;
 
-struct Handler;
+struct Handler {
+    tracker_rx: Mutex<Option<mpsc::UnboundedReceiver<TrackerCommand>>>,
+}
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -53,8 +54,14 @@ impl EventHandler for Handler {
         match event {
             FullEvent::Ready { data_about_bot, .. } => {
                 info!("{} is connected!", data_about_bot.user.name);
-                if !STARTED.load(std::sync::atomic::Ordering::Relaxed) {
-                    STARTED.store(true, std::sync::atomic::Ordering::Relaxed);
+
+                let tracker_rx = self
+                    .tracker_rx
+                    .lock()
+                    .ok()
+                    .and_then(|mut receiver| receiver.take());
+
+                if let Some(tracker_rx) = tracker_rx {
                     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
                     let mut osu_tracker = OsuTracker {
@@ -65,7 +72,7 @@ impl EventHandler for Handler {
                     };
 
                     tokio::spawn(async move {
-                        match osu_tracker.tracking_loop().await {
+                        match osu_tracker.tracking_loop(tracker_rx).await {
                             Ok(()) => {}
                             Err(why) => error!("{why}"),
                         }
@@ -280,16 +287,21 @@ async fn main() {
 
     let manager = songbird::Songbird::serenity();
 
+    let (tracker_tx, tracker_rx) = mpsc::unbounded_channel();
+
     let mut client = serenity::Client::builder(token, intents)
         .framework(Box::new(framework))
         .voice_manager(manager.clone())
-        .event_handler(Arc::new(Handler))
+        .event_handler(Arc::new(Handler {
+            tracker_rx: Mutex::new(Some(tracker_rx)),
+        }))
         .data(Arc::new(Data {
             time_started: Utc::now(),
             osu_client,
             db_pool,
             http_client: reqwest::Client::new(),
             songbird: manager,
+            tracker_tx,
         }))
         .await
         .unwrap();

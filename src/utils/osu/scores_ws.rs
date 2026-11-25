@@ -338,7 +338,8 @@ impl ScoresWs {
             .ok_or("Failed to parse gamemode in notify_single_score function")?;
 
         let already_notified = {
-            let notifications_map = crate::utils::osu::tracking::SCORE_NOTIFICATIONS.get_or_init(DashMap::new);
+            let notifications_map =
+                crate::utils::osu::tracking::SCORE_NOTIFICATIONS.get_or_init(DashMap::new);
             let mut recent_scores = notifications_map.entry(linked_profile.osu_id).or_default();
             if recent_scores.value().contains(&score_id) {
                 true
